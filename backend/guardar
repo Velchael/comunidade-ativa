@@ -1,0 +1,64 @@
+
+const { Client } = require('pg');
+const {
+  DB_HOST,
+  DB_USER,
+  DB_PASSWORD,
+  DB_DATABASE,
+  DB_PORT
+} = require('./config');
+
+const client = new Client({
+  host: DB_HOST,
+  user: DB_USER,
+  password: DB_PASSWORD,
+  database: DB_DATABASE,
+  port: DB_PORT,
+});
+
+const migrationQuery = `
+-- Crear tabla grupos_familiares
+CREATE TABLE IF NOT EXISTS grupos_familiares (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  lider_grupo VARCHAR(100) NOT NULL,
+  direccion_del_grupo TEXT,
+  descripcion_del_grupo TEXT,
+  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Crear tabla users con clave foránea
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100),
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  rol VARCHAR(50) DEFAULT 'user',
+  fecha_nacimiento DATE,
+  telefono VARCHAR(20),
+  direccion TEXT,
+  nivel_liderazgo VARCHAR(50),
+  grupo_familiar_id INTEGER REFERENCES grupos_familiares(id) ON DELETE SET NULL,
+  estado VARCHAR(50),
+  foto_perfil TEXT,
+  confirmation_token TEXT,
+  confirmed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+async function migrate() {
+  try {
+    await client.connect();
+    await client.query(migrationQuery);
+    console.log("✅ Tablas 'grupos_familiares' y 'users' creadas/migradas correctamente.");
+  } catch (err) {
+    console.error("❌ Error al migrar tablas:", err);
+  } finally {
+    await client.end();
+  }
+}
+
+migrate();

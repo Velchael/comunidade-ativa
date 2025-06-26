@@ -1,0 +1,234 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+header {
+  background-color: #ca932b;
+  padding: 1rem;
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 6rem;
+}
+/*  usuario logado en la parte superior */
+.user-info-bar {
+    position: fixed; /* Fija la barra en la ventana del navegador */
+    top: 0; /* Coloca la barra en la parte superior */
+    right: 0; /* Coloca la barra en la esquina derecha */
+    padding: 3px 0; /* Espaciado opcional */
+    background-color: #ca932b;
+    z-index: 1000; /* Ajusta la profundidad para asegurarse de que esté encima de otros elementos */
+  
+}
+.user-info {
+  margin-left: auto; /* Empuja el contenido a la derecha */
+  display: flex;
+  align-items: center;
+  color: darkblue;
+  font-weight: bold;
+}
+.site-container {
+  min-height: 100vh;
+}
+.menu {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+main {
+  flex: 1;
+}
+.btn {
+  background-color: #fdbb05;
+  color: #431a03;
+  font-weight: bold;
+}
+.img-large {
+  max-width: 55%;
+}
+.App-logo {
+  height: 12vmin;
+  padding: 0 1rem;
+  float: left;
+  animation: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+.controls {
+  padding: 5px;
+  border-radius: 4px;
+  height: 20px;
+  border: 0.01rem solid black;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.button {
+  margin-top: 1rem;
+  background-color: #ca932b;
+  color: black;
+  font-weight: bolder;
+  font-size: 1.3rem;
+  border-radius: 0.4rem;
+  border: 0.1rem solid black;
+}
+.Containerdos {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.Containerdos ul li {
+  list-style: none;
+  color: white;
+}
+.Containerdos ul li a {
+  text-decoration: none;
+  list-style: none;
+  color: #333;
+}
+.h1emprega {
+  color: #333;
+  font-size: 24px;
+  font-weight: bold;
+}
+.ulemprega {
+  list-style: disc;
+  color: #666;
+  margin-bottom: 10px;
+  padding-left: 20px;
+}
+.imgemprega {
+  width: 50%;
+  max-width: 400px;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px rgba(202, 147, 43);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.imgservico {
+  width: 50%;
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px rgba(202, 147, 43);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+h5 {
+  text-align: center;
+}
+p {
+  text-align: center;
+}
+.imgempregadois {
+  width: 48%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px #ca932b;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.imgservicodois {
+  width: 100%;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px #ca932b;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.imgemprega:hover {
+  transform: scale(1.2);
+}
+.imgservico:hover {
+  transform: scale(1.2);
+}
+
+.small-container {
+  max-width: 600px;
+}
+
+footer {
+  background-color: #ca932b;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 7 derramamiento     */
+.botonavegador {
+  margin-top: 30px;
+  font-size: 30px; /* Ajusta el tamaño de fuente según tus preferencias */
+  font-weight: bold; /* Aplica un estilo de fuente en negrita si deseas */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4); /* Agrega una sombra al texto */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0px;
+  margin-top: 0px;
+}
+
+.align-right {
+  text-align: right;
+}
+
+.carrusel-itemdos {
+  min-width: 330px;
+ /* max-width: 18px;*/
+  height: 220px;
+ cursor: pointer;
+}
+.foto2desender{
+  margin-top: 20px; 
+}
+.custom-primary {
+  background-color: rgba(202, 147, 43);
+  border-color: rgba(202, 147, 43); /* Opcional: para cambiar el color del borde */
+ /* color: #fff; /* Opcional: para cambiar el color del texto a blanco */
+}
+.list-unstyled {
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Alinea los botones verticalmente en el centro */
+  list-style-type: none;
+}
+.list2 {
+  margin-right: 5px;
+}
+.list2 a {
+  display: inline-block;
+  border-radius: 10px;
+  background-color: #429dff; /* Cambia el color de fondo según tu preferencia */
+  color: #fff; /* Cambia el color del texto según tu preferencia */
+  text-decoration: none;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  padding: 8px 10px;
+  margin-right: 5px; /* Agrega un espacio entre los botones */
+}
+.list2:last-child a {
+  margin-right: 0; /* Elimina el margen derecho del último botón para evitar espacio adicional */
+}
+.list2 a:hover {
+  background-color: #0056b3; /* Cambia el color de fondo al pasar el cursor */
+  transform: translateY(-2px); /* Agrega un ligero desplazamiento hacia arriba al pasar el cursor */
+}
+@media (max-width: 768px) {
+  .list-unstyled {
+    flex-wrap: wrap;
+  }
+  .list2 {
+    margin-bottom: 10px;
+    margin-right: 0; /* Elimina el margen derecho en dispositivos móviles */
+  }
+}
+
+
