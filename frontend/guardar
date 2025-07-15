@@ -1,91 +1,214 @@
-version: '3.8'
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
+import {
+  Container,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Alert,
+  Spinner
+} from 'react-bootstrap';
 
-services:
-  casapazreact:
-    build:
-      context: .
-    ports:
-      - "3000:80"
-    networks:
-      - app-network
+const API_URL = `${process.env.REACT_APP_API_URL}/api/tasks`;
 
-networks:
-  app-network:
-    external: true
+const TaskList = () => {
+  const [tasks, setTasks] = useState([]);
+  const [userRole, setUserRole] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [modalShow, setModalShow] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', frequency: 'semanal' });
+  const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-///////version 2
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-version: '3.8'
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const decoded = jwtDecode(token);
+    setUserRole(decoded.rol.toLowerCase());
+    fetchTasks();
+  }, []);
 
-services:
-  casapazreact:
-    build: .
-    container_name: casapazreact
-    ports:
-      - "3000:80"
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    external: true
-
-    /////////el default con a rede
-    
-    server {
-    listen 80;
-    server_name localhost;
-
-    location / {
-        root /usr/share/nginx/html;
-        try_files $uri /index.html;
+  const fetchTasks = async () => {
+    try {
+      const res = await axios.get(API_URL);
+      setTasks(res.data);
+    } catch (err) {
+      showMessage('danger', 'Error al cargar tareas');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    location /api/ {
-        proxy_pass http://backusuario:3307/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  const openModal = (task = null) => {
+    if (task) {
+      setForm({
+        title: task.title,
+        description: task.description,
+        frequency: task.frequency
+      });
+      setEditingId(task.id);
+    } else {
+      setForm({ title: '', description: '', frequency: 'semanal' });
+      setEditingId(null);
     }
+    setModalShow(true);
+  };
 
-    error_page 404 /404.html;
-    location = /404.html {
-        internal;
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingId) {
+        await axios.put(`${API_URL}/${editingId}`, form);
+        showMessage('success', 'Tarea actualizada');
+      } else {
+        await axios.post(API_URL, form);
+        showMessage('success', 'Tarea creada');
+      }
+      fetchTasks();
+      setModalShow(false);
+    } catch (err) {
+      showMessage('danger', err.response?.data?.message || 'Error al guardar tarea');
     }
-}
+  };
 
-.....///////////// dockerfile 8/5/2025 //////////.........
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Eliminar esta tarea?')) return;
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+      showMessage('success', 'Tarea eliminada');
+      fetchTasks();
+    } catch {
+      showMessage('danger', 'No se pudo eliminar');
+    }
+  };
 
-# Usa una imagen base oficial de Node.js para construir la aplicación
-FROM node:20-alpine as build
+  return (
+    <Container className="mt-4">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2>📅 Agenda de Tareas</h2>
+        {userRole === 'administrador' && (
+          <Button onClick={() => openModal()} variant="primary">
+            Nueva tarea
+          </Button>
+        )}
+      </div>
 
-# Establece el directorio de trabajo dentro del contenedor,  WORKDIR /usr/src/app
-WORKDIR /app
+      {message.text && <Alert variant={message.type}>{message.text}</Alert>}
 
-# Copia los archivos de configuración del proyecto
-COPY package*.json ./
+      {loading ? (
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <div>Cargando tareas...</div>
+        </div>
+      ) : tasks.length === 0 ? (
+        <Alert variant="info">No hay tareas disponibles.</Alert>
+      ) : (
+        <Table striped bordered hover>
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Descripción</th>
+              <th>Frecuencia</th>
+              <th>Autor</th>
+              {userRole === 'administrador' && <th>Acciones</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <tr key={task.id}>
+                <td>{task.title}</td>
+                <td>{task.description}</td>
+                <td>{task.frequency}</td>
+                <td>{task.creator?.username || '-'}</td>
+                {userRole === 'administrador' && (
+                  <td>
+                    <Button
+                      size="sm"
+                      variant="warning"
+                      onClick={() => openModal(task)}
+                      className="me-2"
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDelete(task.id)}
+                    >
+                      Eliminar
+                    </Button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
 
-# Instala las dependencias del proyecto
-RUN npm install
+      {/* Modal */}
+      <Modal show={modalShow} onHide={() => setModalShow(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{editingId ? 'Editar Tarea' : 'Nueva Tarea'}</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSubmit}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Título</Form.Label>
+              <Form.Control
+                type="text"
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Descripción</Form.Label>
+              <Form.Control
+                as="textarea"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Frecuencia</Form.Label>
+              <Form.Select
+                name="frequency"
+                value={form.frequency}
+                onChange={handleChange}
+              >
+                <option value="semanal">Semanal</option>
+                <option value="mensual">Mensual</option>
+                <option value="anual">Anual</option>
+              </Form.Select>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setModalShow(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary">
+              {editingId ? 'Actualizar' : 'Crear'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+    </Container>
+  );
+};
 
-# Copia el resto de los archivos del proyecto
-COPY . .
-
-# Construye la aplicación para producción
-RUN npm run build
-
-# Etapa de producción
-
-# Usa una imagen base de nginx para servir la aplicación
-FROM nginx:alpine
-
-# Copia los archivos construidos desde la etapa anterior, COPY --from=build /usr/src/app/build /usr/share/nginx/html
-COPY --from=build /app/build /usr/share/nginx/html
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-
-# Expone el puerto 80 para servir la aplicación
-EXPOSE 80
-
-# Comando para iniciar nginx
-CMD ["nginx", "-g", "daemon off;"]
+export default TaskList;

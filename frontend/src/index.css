@@ -15,15 +15,22 @@ header {
   height: 6rem;
 }
 /*  usuario logado en la parte superior */
-.user-info-bar {
-    position: fixed; /* Fija la barra en la ventana del navegador */
-    top: 0; /* Coloca la barra en la parte superior */
-    right: 0; /* Coloca la barra en la esquina derecha */
-    padding: 3px 0; /* Espaciado opcional */
+/*.user-info-bar {
+    position: fixed; /* Fija la barra en la ventana del navegador 
+    top: 0; /* Coloca la barra en la parte superior 
+    right: 0; /* Coloca la barra en la esquina derecha 
+    padding: 3px 0; /* Espaciado opcional 
     background-color: #ca932b;
-    z-index: 1000; /* Ajusta la profundidad para asegurarse de que esté encima de otros elementos */
+    z-index: 1000; /* Ajusta la profundidad para asegurarse de que esté encima de otros elementos 
   
+}*/
+.user-info-bar {
+  background-color: #f8f9fa;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
 }
+
+
 .user-info {
   margin-left: auto; /* Empuja el contenido a la derecha */
   display: flex;

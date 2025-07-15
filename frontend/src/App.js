@@ -23,24 +23,23 @@ import Col from 'react-bootstrap/Col';
 import { UserProvider, UserContext } from './UserContext'; // Importar el contexto del usuario
 import EmailConfirmation from './Screens/EmailConfirmation'; // Importar EmailConfirmation
 import './index.css'; // Asegúrate de importar tu archivo CSS
+import TaskList from './Screens/TaskList';
+
 function Header() {
   const { user } = useContext(UserContext);
-
   return (
     <header>
-     <div className="user-info-bar">
-        <Container>
-          <Row>
-            <Col className="text-right">
-              {user && (
-                <span style={{ color: 'black'}}>
-                   Bem-vindo: {user.username}
-                </span>
-              )}
-            </Col>
-          </Row>
-        </Container>
-      </div>
+     <Row className="justify-content-end">
+     <Col xs="auto">
+      {user ? (
+       <span className="text-muted" style={{ fontWeight: 'bold' }}>
+         Olá: {user.username}
+       </span>
+       ) : (
+        <span className="text-muted">Bem-vindo</span>
+       )}
+     </Col>
+     </Row>
       <Navbar className='menu-header'>
         <Container>
           <LinkContainer to="/">
@@ -65,12 +64,18 @@ function Header() {
             </NavLink>
             <NavLink to="/Seinscrever" style={({ isActive }) => ({
               textDecoration: 'none',
-              color: isActive ? 'white' : 'black',
+              color: isActive ? 'white' : 'black', 
               marginRight: '13px'
             })}>
               Registro
             </NavLink>
-           
+           <NavLink to="/TaskList" style={({ isActive }) => ({
+              textDecoration: 'none',
+              color: isActive ? 'white' : 'black', 
+              marginRight: '13px'
+            })}>
+              Agenda
+            </NavLink>
           </div>
         </Container>
       </Navbar>
@@ -103,7 +108,7 @@ export default function App() {
                 </Route>
                 <Route path="/Amo" element={<Amo />} />
                 <Route path="/Seinscrever" element={<Seinscrever />} />
-                <Route path="/EmailConfirmation" element={<EmailConfirmation />} /> {/* Nueva Ruta */}
+                <Route path="/TaskList" element={<TaskList />} /> {/* Nueva Ruta */}
               </Routes>
             </Container>
           </main>

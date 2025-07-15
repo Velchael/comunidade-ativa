@@ -10,7 +10,6 @@
     "bootstrap": "^5.3.3",
     "jwt-decode": "^4.0.0",
     "nth-check": "^2.0.1",
-    "postcss": "^8.4.31",
     "react": "^18.2.0",
     "react-bootstrap": "^2.10.1",
     "react-dom": "^18.2.0",
@@ -57,5 +56,4 @@
     "rimraf": "^4.0.0",
     "svgo": "^2.0.0"
   }
-  
 }

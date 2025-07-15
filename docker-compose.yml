@@ -4,9 +4,9 @@ services:
     image: postgres:14
     restart: always
     environment:
-      POSTGRES_DB: comunidad
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
+       POSTGRES_DB: comunidad
+       POSTGRES_USER: postgres
+       POSTGRES_PASSWORD: 123456
     ports:
       - "5432:5432"
     volumes:
@@ -30,11 +30,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:3000
     restart: always
     ports:
       - "3002:80"  # Exponiendo puerto para acceder desde navegador: http://localhost:3002 
     environment:
-      - REACT_APP_API_URL=http://backend:3000
+      - REACT_APP_API_URL=http://localhost:3000
     depends_on:
       - backend
 

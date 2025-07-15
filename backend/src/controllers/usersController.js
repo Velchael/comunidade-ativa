@@ -1,67 +1,93 @@
-const usersLogin = require('../models/usersLogin');
+
+const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-const createUsers = async (req, res) => {
-  console.log("📥 Registro recibido:", req.body); // <-- Agrega esto
+
+const createUser = async (req, res) => {
   try {
-    const result = await usersLogin.createUsers(req.body);
-    res.status(201).json(result);
+    const { email, googleId, ...rest } = req.body;
+
+    // Verificar si ya existe
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ message: 'El correo electrónico ya está registrado' });
+    }
+
+    // Crear nuevo usuario
+    const newUser = await User.create({
+      email,
+      googleId,
+      ...rest
+    });
+
+    res.status(201).json(newUser);
   } catch (error) {
-     console.error("❌ Error al registrar usuario:", error.message);
-     res.status(500).json({ error: error.message });
-    if (error.message === 'El correo electrónico ya está registrado') {
-      res.status(409).json({ message: error.message });
-    } else if (error.message === 'Grupo familiar no encontrado') {
-      res.status(400).json({ message: error.message });
+    console.error("Error al registrar usuario:", error.message);
+    res.status(500).json({ message: 'Error al registrar usuario' });
+  }
+};
+
+const getUserByEmail = async (req, res) => {
+  try {
+    const { email } = req.params; // ✅ antes estaba mal: req.body
+
+    const user = await User.findOne({
+      where: { email },
+      attributes: ['id', 'username', 'apellido', 'fecha_nacimiento', 'email']
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Error del servidor', error: err.message });
+  }
+};
+
+
+const completeGoogleProfile = async (req, res) => {
+ 
+  const { email, googleId, username, ...data } = req.body;
+  
+  console.log("📥 Payload recibido:", req.body);
+  try {
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      console.warn('❌ Usuario no encontrado con email:', email);
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Validar coincidencia opcional de googleId
+    if (user.googleId && user.googleId !== String(googleId)) {
+      return res.status(403).json({ message: 'Google ID no coincide' });
+    }
+ // ✅ Bloquear que se sobreescriba username si ya existe
+    if (user.username && user.username !== username) {
+      console.log('⚠️ Intento de sobrescribir username ignorado');
     } else {
-      res.status(500).json({ message: 'Error interno del servidor...' });
+      data.username = username; // solo si no existe o coincide
     }
+
+    if (user.apellido && user.fecha_nacimiento) {
+      return res.status(400).json({ message: 'Perfil ya fue completado' });
+    }
+
+    await user.update(data);
+    res.status(200).json({ message: 'Perfil actualizado correctamente' });
+
+  } catch (err) {
+    console.error('❌ Error al completar perfil Google:', err);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 };
 
-const getUserByUsernameAndPassword = async (req, res) => {
-  console.log("📩 Ruta /users/login accedida");
-  const { username, email, password } = req.body;
-  try {
-    const user = await usersLogin.getUserByUsernameAndPassword(username, email, password);
-    if (user) {
-      const token = jwt.sign(
-        { username: user.username, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '30m' }
-      );
-      return res.status(200).json({ token });
-    } else {
-      return res.status(404).json({ message: 'Usuario no encontrado o email no confirmado' });
-    }
-  } catch (error) {
-    return res.status(500).json({ message: 'Error del servidor interno' });
-  }
-};
-
-const confirmUserEmail = async (req, res) => {
-  try {
-    const token = req.body.token;
-    if (!token) {
-      return res.status(400).json({ message: 'Token de confirmación no proporcionado' });
-    }
-
-    const result = await usersLogin.confirmUserEmail(token);
-    return res.status(200).json(result);
-  } catch (error) {
-    if (error.code === 'INVALID_TOKEN') {
-      return res.status(404).json({ message: 'El token de confirmación no es válido' });
-    } else if (error.code === 'USED_TOKEN') {
-      return res.status(400).json({ message: 'El token ya ha sido utilizado' });
-    } else if (error.code === 'TOKEN_EXPIRED') {
-      return res.status(400).json({ message: 'El token ha expirado' });
-    }
-    return res.status(500).json({ message: 'Error al confirmar el correo electrónico.' });
-  }
-};
 
 module.exports = {
-  createUsers,
-  getUserByUsernameAndPassword,
-  confirmUserEmail
+  createUser,
+  getUserByEmail,
+  completeGoogleProfile
 };
