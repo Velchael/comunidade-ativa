@@ -1,12 +1,17 @@
 const app = require('./app');
-const result = require('dotenv').config();
-if (result.error) {
-    console.error('Error loading .env file:', result.error);
-  }
+
+const sequelize = require('./src/db');
+require('dotenv').config();
+
 const PORT = process.env.PORT || 3000;
 
-try {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  } catch (error) {
-    console.error('Error starting the server:', error.message);
-  }  
+sequelize.sync()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Backend en http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('❌ Error al conectar con la base de datos:', error.message);
+    process.exit(1); // Finaliza si la conexión falla
+  });

@@ -1,75 +1,115 @@
-const pool = require('../db/pool');
+const Task = require('../models/Task');
+const User = require('../models/User');
 
-exports.getAllTasks = async (req, res) => {
-  const { frecuencia } = req.query;
+// ✅ Obtener todas las tareas (puede filtrar por frecuencia)
+const getAllTasks = async (req, res) => {
   try {
-    let query = 'SELECT * FROM tasks';
-    let values = [];
+    const { frecuencia } = req.query;
+    const where = frecuencia ? { frequency: frecuencia } : {};
 
-    if (frecuencia) {
-      query += ' WHERE frequency = $1';
-      values.push(frecuencia);
-    }
+    const tasks = await Task.findAll({
+      where,
+      include: {
+        model: User,
+        as: 'creator',
+        attributes: ['id', 'email', 'username']
+      },
+      order: [['created_at', 'DESC']]
+    });
 
-    const result = await pool.query(query, values);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.getTaskById = async (req, res) => {
-  const { id } = req.params;
+// ✅ Obtener una tarea por ID
+const getTaskById = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
-    if (result.rows.length === 0) return res.status(404).json({ message: 'Tarea no encontrada' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { id } = req.params;
+
+    const task = await Task.findByPk(id, {
+      include: {
+        model: User,
+        as: 'creator',
+        attributes: ['id', 'email', 'username']
+      }
+    });
+
+    if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.createTask = async (req, res) => {
-  const { title, description, frequency } = req.body;
-  const email = req.user.email;
+// ✅ Crear nueva tarea
+const createTask = async (req, res) => {
   try {
-    const creator = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    const userId = creator.rows[0].id;
+    const { title, description, frequency, dueDate, status, priority } = req.body;
+    const userId = req.user.id;
 
-    const result = await pool.query(
-      `INSERT INTO tasks (title, description, frequency, created_by) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [title, description, frequency, userId]
-    );
+    const task = await Task.create({
+      title,
+      description,
+      frequency,
+      dueDate,
+      status,
+      priority,
+      createdBy: userId
+    });
 
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.updateTask = async (req, res) => {
-  const { id } = req.params;
-  const { title, description, frequency } = req.body;
+// ✅ Actualizar una tarea
+const updateTask = async (req, res) => {
   try {
-    const result = await pool.query(
-      `UPDATE tasks SET title=$1, description=$2, frequency=$3, updated_at=NOW() WHERE id=$4 RETURNING *`,
-      [title, description, frequency, id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ message: 'Tarea no encontrada' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { id } = req.params;
+    const { title, description, frequency, dueDate, status, priority } = req.body;
+
+    const task = await Task.findByPk(id);
+    if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
+
+    task.title = title;
+    task.description = description;
+    task.frequency = frequency;
+    task.dueDate = dueDate;
+    task.status = status;
+    task.priority = priority;
+
+    await task.save();
+
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.deleteTask = async (req, res) => {
-  const { id } = req.params;
+// ✅ Eliminar una tarea
+const deleteTask = async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM tasks WHERE id=$1 RETURNING *', [id]);
-    if (result.rows.length === 0) return res.status(404).json({ message: 'Tarea no encontrada' });
-    res.json({ message: 'Tarea eliminada', task: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { id } = req.params;
+
+    const task = await Task.findByPk(id);
+    if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
+
+    await task.destroy();
+    res.json({ message: 'Tarea eliminada correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
+
+module.exports = {
+  getAllTasks,
+  getTaskById,
+  createTask,
+  updateTask,
+  deleteTask
+};
+
+

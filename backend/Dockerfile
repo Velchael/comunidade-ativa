@@ -1,26 +1,28 @@
-# Usa Node 18 como base
+# ------------------------------
+# STAGE 1: Build base
+# ------------------------------
 FROM node:18
 
-# Crea el directorio de trabajo
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Copia archivos de dependencias y los instala
+# Copiar solo archivos de dependencias primero (para cache)
 COPY package*.json ./
 
-#solo para desarrollo
-RUN npm install && npm install -g nodemon
+# Instalar dependencias de producción por defecto
+RUN npm install
 
-# RUN npm install solo para producion
-
-# Copia el resto de los archivos
+# Copiar el resto del código fuente
 COPY . .
 
-# Expone el puerto que usas
+# Exponer el puerto que usará la API
 EXPOSE 3000
 
-# Comando para arrancar el servidor para producion
-#CMD ["npm", "run", "start"]
+# ------------------------------
+# STAGE 2: Entorno de ejecución
+# ------------------------------
+# ⚙️ Cambia este comando en producción:
+# CMD ["npm", "start"]
 
-#comando para desarrollo
-
-CMD ["nodemon", "server.js"]
+# 🔧 Comando por defecto para desarrollo
+CMD ["npx", "nodemon", "server.js"]

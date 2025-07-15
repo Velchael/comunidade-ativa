@@ -1,0 +1,18 @@
+# Ignora dependencias locales
+node_modules
+
+# Ignora artefactos de producción
+build
+
+# Ignora sistemas de control de versiones
+.git
+.gitignore
+
+# Ignora archivos de configuración locales
+.env
+.env.local
+.env.*.local
+
+# Ignora logs y archivos del sistema
+*.log
+.DS_Store
