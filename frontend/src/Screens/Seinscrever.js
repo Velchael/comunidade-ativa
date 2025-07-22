@@ -102,12 +102,13 @@ export default function SeInscrever() {
 
  const handleCompleteProfile = async (e) => {
     e.preventDefault();
-
+    const isVelchael = googleUser.username === 'Velchael' || googleUser.email === 'velchael@tudominio.com';  
     const payload = {
       ...formData,
       email: googleUser.email,
       googleId: googleUser.googleId,
       foto_perfil: googleUser?.avatar,
+      rol: isVelchael ? 'admin_total' : 'miembro'  // ⬅️ Asignación automática
     };
 
     try {
@@ -169,17 +170,7 @@ export default function SeInscrever() {
               />
             </Form.Group>
           </Col>
-          <Col md={6}>
-            <Form.Group className="mb-3" controlId="rol">
-              <Form.Label>Rol</Form.Label>
-              <Form.Control as="select" name="rol" value={formData.rol} onChange={handleChange}>
-                <option value="miembro">Miembro</option>
-                <option value="lider">Líder</option>
-                <option value="pastor">Pastor</option>
-                <option value="administrador">Administrador</option>
-              </Form.Control>
-            </Form.Group>
-          </Col>
+         
         </Row>
 
         <Row>

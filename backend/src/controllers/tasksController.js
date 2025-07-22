@@ -45,6 +45,9 @@ const getTaskById = async (req, res) => {
 
 // ✅ Crear nueva tarea
 const createTask = async (req, res) => {
+  if (!['admin_basic', 'admin_total'].includes(req.user.rol)) {
+  return res.status(403).json({ message: 'No tienes permisos para esta acción' });
+  }
   try {
     const { title, description, frequency, dueDate, status, priority } = req.body;
     const userId = req.user.id;
@@ -67,6 +70,9 @@ const createTask = async (req, res) => {
 
 // ✅ Actualizar una tarea
 const updateTask = async (req, res) => {
+  if (!['admin_basic', 'admin_total'].includes(req.user.rol)) {
+  return res.status(403).json({ message: 'No tienes permisos para esta acción' });
+  }
   try {
     const { id } = req.params;
     const { title, description, frequency, dueDate, status, priority } = req.body;
@@ -91,6 +97,9 @@ const updateTask = async (req, res) => {
 
 // ✅ Eliminar una tarea
 const deleteTask = async (req, res) => {
+  if (req.user.rol !== 'admin_total') {
+  return res.status(403).json({ message: 'Solo un administrador total puede eliminar tareas' });
+  }
   try {
     const { id } = req.params;
 
