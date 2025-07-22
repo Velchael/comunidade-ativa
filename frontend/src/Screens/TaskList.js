@@ -114,7 +114,7 @@ const TaskList = () => {
     <Container className="mt-4">
       <Row className="mb-3 align-items-center">
         <Col><h2>📅 Agenda de Tareas</h2></Col>
-        {userRole === 'administrador' && (
+        {(userRole === 'admin_total' || userRole === 'admin_basic') && (
           <Col className="text-end d-flex gap-2 justify-content-end">
             <Form.Select
               value={frecuenciaFiltro}
@@ -156,7 +156,7 @@ const TaskList = () => {
               <th>Estado</th>
               <th>Prioridad</th>
               <th>Autor</th>
-              {userRole === 'administrador' && <th>Acciones</th>}
+              {(userRole === 'admin_total' || userRole === 'admin_basic') && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -169,7 +169,7 @@ const TaskList = () => {
                 <td>{task.status}</td>
                 <td>{task.priority}</td>
                 <td>{task.creator?.username || '-'}</td>
-                {userRole === 'administrador' && (
+                {(userRole === 'admin_total' || userRole === 'admin_basic') && (
                   <td>
                     <Button
                       size="sm"
@@ -179,13 +179,15 @@ const TaskList = () => {
                     >
                       Editar
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDelete(task.id)}
-                    >
-                      Eliminar
-                    </Button>
+                      {userRole === 'admin_total' && (
+                      <Button
+                       size="sm"
+                       variant="danger"
+                       onClick={() => handleDelete(task.id)}
+      >
+                       Eliminar
+                      </Button>
+                      )}
                   </td>
                 )}
               </tr>

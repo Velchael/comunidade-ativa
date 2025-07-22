@@ -63,7 +63,8 @@ case $option in
     ;;
   9)
     echo "♻️ Reiniciando solo el contenedor frontend..."
-    docker compose restart frontend
+    docker-compose build frontend
+    docker-compose up -d frontend
     ;;
   10)
     echo "📄 Logs frontend (últimas 50 líneas + seguimiento en vivo)..."

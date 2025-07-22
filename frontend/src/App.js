@@ -24,6 +24,7 @@ import { UserProvider, UserContext } from './UserContext'; // Importar el contex
 import EmailConfirmation from './Screens/EmailConfirmation'; // Importar EmailConfirmation
 import './index.css'; // Asegúrate de importar tu archivo CSS
 import TaskList from './Screens/TaskList';
+import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 
 function Header() {
   const { user } = useContext(UserContext);
@@ -76,6 +77,13 @@ function Header() {
             })}>
               Agenda
             </NavLink>
+            <NavLink to="/ConfiguracionPanel" style={({ isActive }) => ({
+              textDecoration: 'none',
+              color: isActive ? 'white' : 'black', 
+              marginRight: '13px'
+            })}>
+              Configuraçao
+            </NavLink>
           </div>
         </Container>
       </Navbar>
@@ -109,6 +117,7 @@ export default function App() {
                 <Route path="/Amo" element={<Amo />} />
                 <Route path="/Seinscrever" element={<Seinscrever />} />
                 <Route path="/TaskList" element={<TaskList />} /> {/* Nueva Ruta */}
+                <Route path="/ConfiguracionPanel" element={<ConfiguracionPanel />} /> {/* Nueva Ruta */}
               </Routes>
             </Container>
           </main>

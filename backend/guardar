@@ -62,3 +62,12 @@ async function migrate() {
 }
 
 migrate();
+\\\\\\\\\\\\\\\\\\\\\\\\ pront para adaptar multi-comunidad aislada
+
+Como puedo Transformar mi app comunidad-activa en una plataforma multi-comunidad aislada. 
+Necesito hacer las siguientes adaptaciones,  
+1 El usuario nuevo logado nesecita completar su perfil con un campo nuevo llamado 'comunidad_id   ' que viene de la tabla comunidades. 
+2 Al momento de entrar al menu de opciones del APP a demas de dar la bienvenida al usuario ejemplo ' Olá Velchael   ', tambien describe el nombre de la comunidad. 
+3 Requerimientos: 1 crear la tabla comunidades con los siguientes campos basicos ' nombre, descripcion, direccion, telefono, nombre del administrador  ' 
+y crear el CRUD completo para la tabla donde tiene adceso solo el administrador, 2 agregar el campo 'comunidad_id ' en la tabla users
+

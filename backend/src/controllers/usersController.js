@@ -84,10 +84,72 @@ const completeGoogleProfile = async (req, res) => {
     res.status(500).json({ message: 'Error del servidor' });
   }
 };
+// ✅ Obtener todos los usuarios (solo admin_total)
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: { exclude: ['password'] }, // evita enviar el hash de contraseña
+      order: [['created_at', 'DESC']]
+    });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener usuarios' });
+  }
+};
+
+// ✅ Actualizar el rol de un usuario
+// ✅ Actualizar el rol de un usuario
+const updateUserRole = async (req, res) => {
+  const { id } = req.params;
+  const { rol } = req.body;
+
+  const validRoles = ['miembro', 'admin_basic', 'admin_total'];
+
+  // 1. Verificar que el nuevo rol sea válido
+  if (!validRoles.includes(rol)) {
+    return res.status(400).json({ message: 'Rol inválido' });
+  }
+
+  try {
+    // 2. Buscar al usuario por ID
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // 3. Actualizar y guardar
+    user.rol = rol;
+    await user.save();
+
+    res.status(200).json({ message: 'Rol actualizado con éxito' });
+  } catch (error) {
+    console.error('❌ Error al actualizar rol: ❌', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+
+// ✅ Eliminar un usuario
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    await user.destroy();
+    res.json({ message: 'Usuario eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar usuario' });
+  }
+};
 
 
 module.exports = {
   createUser,
   getUserByEmail,
-  completeGoogleProfile
+  completeGoogleProfile,
+  getAllUsers,
+  updateUserRole,
+  deleteUser
 };
