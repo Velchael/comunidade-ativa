@@ -1,13 +1,11 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { Usuario } = require('../models'); // 👈 nuevo import centralizado
 require('dotenv').config();
 
-/**
- * Callback de Google OAuth
- */
 const googleCallback = async (req, res) => {
   try {
     const user = req.user;
+
     if (!user || !user.id) {
       return res.status(401).json({ message: 'Error en autenticación Google (usuario inválido)' });
     }
@@ -32,31 +30,13 @@ const googleCallback = async (req, res) => {
   }
 };
 
-/**
- * Endpoint opcional: refrescar token
- */
-//const refreshToken = (req, res) => {
-  //try {
-   // const user = req.user;
-   // const newToken = jwt.sign({
-    //  id: user.id,
-    //  email: user.email,
-    //  rol: user.rol,
-    //  username: user.username,
-     // googleId: user.googleId
-    //}, process.env.JWT_SECRET, { expiresIn: '30m' });
-
-   // res.json({ token: newToken });
-  //} catch (err) {
-   // //console.error('❌ Error al refrescar token:', err.message);
-    //res.status(500).json({ message: 'Error al refrescar token' });
- // }
-//};
-
 const refreshToken = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    const user = await Usuario.findByPk(req.user.id); // 👈 usando `Usuario` del index
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
 
     const newToken = jwt.sign({
       id: user.id,
@@ -64,16 +44,16 @@ const refreshToken = async (req, res) => {
       rol: user.rol,
       username: user.username,
       googleId: user.googleId
-    }, process.env.JWT_SECRET, { expiresIn: '30m' });
+    }, process.env.JWT_SECRET, { expiresIn: '120m' });
 
-    res.json({ token: newToken });
     console.log('🔁 Refresh nuevo token enviado:', newToken);
+    res.json({ token: newToken });
 
   } catch (err) {
+    console.error('❌ Error al generar nuevo token:', err.message);
     res.status(500).json({ message: 'Error al generar nuevo token' });
   }
 };
-
 
 module.exports = {
   googleCallback,

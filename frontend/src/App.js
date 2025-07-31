@@ -21,10 +21,10 @@ import { Helmet } from 'react-helmet-async';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { UserProvider, UserContext } from './UserContext'; // Importar el contexto del usuario
-import EmailConfirmation from './Screens/EmailConfirmation'; // Importar EmailConfirmation
 import './index.css'; // Asegúrate de importar tu archivo CSS
 import TaskList from './Screens/TaskList';
 import ConfiguracionPanel from './Screens/ConfiguracionPanel';
+import ComunidadesPanel from './Screens/ComunidadesPanel';
 
 function Header() {
   const { user } = useContext(UserContext);
@@ -84,6 +84,13 @@ function Header() {
             })}>
               Configuraçao
             </NavLink>
+            <NavLink to="/ComunidadesPanel" style={({ isActive }) => ({
+              textDecoration: 'none',
+              color: isActive ? 'white' : 'black', 
+              marginRight: '13px'
+            })}>
+              Configuraçao_panel
+            </NavLink>
           </div>
         </Container>
       </Navbar>
@@ -118,6 +125,7 @@ export default function App() {
                 <Route path="/Seinscrever" element={<Seinscrever />} />
                 <Route path="/TaskList" element={<TaskList />} /> {/* Nueva Ruta */}
                 <Route path="/ConfiguracionPanel" element={<ConfiguracionPanel />} /> {/* Nueva Ruta */}
+                <Route path="/ComunidadesPanel" element={<ComunidadesPanel />} /> {/* Nueva Ruta */}
               </Routes>
             </Container>
           </main>

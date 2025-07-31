@@ -1,18 +1,19 @@
 const { Sequelize } = require('sequelize');
-const {
-  DB_HOST,
-  DB_USER,
-  DB_PASSWORD,
-  DB_DATABASE,
-  DB_PORT
-} = require('../config/config');
+const config = require('../config/config.js');
+const env = process.env.NODE_ENV || 'development';
 
-const sequelize = new Sequelize(DB_DATABASE, DB_USER, DB_PASSWORD, {
-  host: DB_HOST,
-  port: DB_PORT,
-  dialect: 'postgres',
-  logging: console.log // ponlo en true para debug
-});
+const dbConfig = config[env];
+
+const sequelize = new Sequelize(
+  dbConfig.database,
+  dbConfig.username,
+  dbConfig.password,
+  {
+    host: dbConfig.host,
+    port: dbConfig.port,
+    dialect: dbConfig.dialect,
+    logging: false, // puedes cambiar a true si deseas más detalles
+  }
+);
 
 module.exports = sequelize;
-

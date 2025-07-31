@@ -1,6 +1,6 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const User = require('../models/User');
+const { Usuario: User } = require('../models'); //Esto asume que en tu modelo el nombre es Usuario, pero lo exportas como parte del db.
 require('dotenv').config();
 
 passport.use(new GoogleStrategy(
