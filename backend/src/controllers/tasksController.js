@@ -1,5 +1,5 @@
-const Task = require('../models/Task');
-const User = require('../models/User');
+
+const { Task, Usuario } = require('../models'); // ✅ usando modelos centralizados
 
 // ✅ Obtener todas las tareas (puede filtrar por frecuencia)
 const getAllTasks = async (req, res) => {
@@ -10,7 +10,7 @@ const getAllTasks = async (req, res) => {
     const tasks = await Task.findAll({
       where,
       include: {
-        model: User,
+        model: Usuario,
         as: 'creator',
         attributes: ['id', 'email', 'username']
       },
@@ -30,7 +30,7 @@ const getTaskById = async (req, res) => {
 
     const task = await Task.findByPk(id, {
       include: {
-        model: User,
+        model: Usuario,
         as: 'creator',
         attributes: ['id', 'email', 'username']
       }

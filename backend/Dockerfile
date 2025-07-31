@@ -12,6 +12,10 @@ COPY package*.json ./
 # Instalar dependencias de producción por defecto
 RUN npm install
 
+# 👇 Asegúrate de copiar el script de espera
+COPY wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
+
 # Copiar el resto del código fuente
 COPY . .
 

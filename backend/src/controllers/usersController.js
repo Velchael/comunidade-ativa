@@ -1,40 +1,34 @@
-
-const User = require('../models/User');
+const { Usuario, Comunidad } = require('../models');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-
+// Crear usuario
 const createUser = async (req, res) => {
   try {
     const { email, googleId, ...rest } = req.body;
 
-    // Verificar si ya existe
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await Usuario.findOne({ where: { email } });
     if (existingUser) {
       return res.status(409).json({ message: 'El correo electrónico ya está registrado' });
     }
 
-    // Crear nuevo usuario
-    const newUser = await User.create({
-      email,
-      googleId,
-      ...rest
-    });
-
+    const newUser = await Usuario.create({ email, googleId, ...rest });
     res.status(201).json(newUser);
   } catch (error) {
-    console.error("Error al registrar usuario:", error.message);
+    console.error("❌ Error al registrar usuario:", error.message);
     res.status(500).json({ message: 'Error al registrar usuario' });
   }
 };
 
+// Obtener usuario por email
 const getUserByEmail = async (req, res) => {
   try {
-    const { email } = req.params; // ✅ antes estaba mal: req.body
+    const { email } = req.params;
 
-    const user = await User.findOne({
+    const user = await Usuario.findOne({
       where: { email },
-      attributes: ['id', 'username', 'apellido', 'fecha_nacimiento', 'email']
+      attributes: ['id', 'username', 'apellido', 'fecha_nacimiento', 'email', 'comunidad_id'],
+      include: [{ model: Comunidad, as: 'comunidad', attributes: [['nombre_comunidad', 'nombre']] }]
     });
 
     if (!user) {
@@ -47,29 +41,25 @@ const getUserByEmail = async (req, res) => {
   }
 };
 
-
+// Completar perfil Google
 const completeGoogleProfile = async (req, res) => {
- 
   const { email, googleId, username, ...data } = req.body;
-  
-  console.log("📥 Payload recibido:", req.body);
+
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await Usuario.findOne({ where: { email } });
 
     if (!user) {
-      console.warn('❌ Usuario no encontrado con email:', email);
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // Validar coincidencia opcional de googleId
     if (user.googleId && user.googleId !== String(googleId)) {
       return res.status(403).json({ message: 'Google ID no coincide' });
     }
- // ✅ Bloquear que se sobreescriba username si ya existe
+
     if (user.username && user.username !== username) {
       console.log('⚠️ Intento de sobrescribir username ignorado');
     } else {
-      data.username = username; // solo si no existe o coincide
+      data.username = username;
     }
 
     if (user.apellido && user.fecha_nacimiento) {
@@ -84,11 +74,17 @@ const completeGoogleProfile = async (req, res) => {
     res.status(500).json({ message: 'Error del servidor' });
   }
 };
-// ✅ Obtener todos los usuarios (solo admin_total)
+
+// Obtener todos los usuarios
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll({
-      attributes: { exclude: ['password'] }, // evita enviar el hash de contraseña
+    const users = await Usuario.findAll({
+      attributes: { exclude: ['password'] },
+      include: [{
+      model: Comunidad,
+      as: 'comunidad',
+      attributes: [['nombre_comunidad', 'nombre']]
+     }],
       order: [['created_at', 'DESC']]
     });
     res.json(users);
@@ -97,45 +93,41 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// ✅ Actualizar el rol de un usuario
-// ✅ Actualizar el rol de un usuario
+// Actualizar rol de usuario
 const updateUserRole = async (req, res) => {
   const { id } = req.params;
   const { rol } = req.body;
 
   const validRoles = ['miembro', 'admin_basic', 'admin_total'];
-
-  // 1. Verificar que el nuevo rol sea válido
   if (!validRoles.includes(rol)) {
     return res.status(400).json({ message: 'Rol inválido' });
   }
 
   try {
-    // 2. Buscar al usuario por ID
-    const user = await User.findByPk(id);
+    const user = await Usuario.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // 3. Actualizar y guardar
     user.rol = rol;
     await user.save();
 
     res.status(200).json({ message: 'Rol actualizado con éxito' });
   } catch (error) {
-    console.error('❌ Error al actualizar rol: ❌', error);
+    console.error('❌ Error al actualizar rol:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-
-// ✅ Eliminar un usuario
+// Eliminar usuario
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByPk(id);
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    const user = await Usuario.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
 
     await user.destroy();
     res.json({ message: 'Usuario eliminado correctamente' });
@@ -143,7 +135,6 @@ const deleteUser = async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar usuario' });
   }
 };
-
 
 module.exports = {
   createUser,
@@ -153,3 +144,4 @@ module.exports = {
   updateUserRole,
   deleteUser
 };
+

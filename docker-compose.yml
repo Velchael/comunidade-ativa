@@ -25,7 +25,8 @@ services:
       - ./backend/.env
     volumes:
       - ./backend:/app
-
+    command: ["/wait-for-it.sh", "db:5432", "--timeout=60", "--strict", "--", "npm", "start"]
+    
   frontend:
     build:
       context: ./frontend

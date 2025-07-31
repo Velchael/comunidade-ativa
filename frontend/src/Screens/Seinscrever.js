@@ -250,7 +250,7 @@ export default function SeInscrever() {
             </Form.Group>
           </Col>
         </Row>
-
+      
         <Button type="submit">Guardar Perfil</Button>
       </Form>
     </Container>
