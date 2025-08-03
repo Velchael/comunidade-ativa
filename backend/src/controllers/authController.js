@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { Usuario } = require('../models'); // 👈 nuevo import centralizado
+const { Usuario } = require('../models');
 require('dotenv').config();
 
 const googleCallback = async (req, res) => {
@@ -16,7 +16,8 @@ const googleCallback = async (req, res) => {
         email: user.email,
         rol: user.rol,
         username: user.username,
-        googleId: user.googleId
+        googleId: user.googleId,
+        comunidad_id: user.comunidad_id // ✅ importante
       },
       process.env.JWT_SECRET,
       { expiresIn: '30m' }
@@ -32,19 +33,24 @@ const googleCallback = async (req, res) => {
 
 const refreshToken = async (req, res) => {
   try {
-    const user = await Usuario.findByPk(req.user.id); // 👈 usando `Usuario` del index
+    const user = await Usuario.findByPk(req.user.id);
 
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    const newToken = jwt.sign({
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      username: user.username,
-      googleId: user.googleId
-    }, process.env.JWT_SECRET, { expiresIn: '120m' });
+    const newToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        rol: user.rol,
+        username: user.username,
+        googleId: user.googleId,
+        comunidad_id: user.comunidad_id // ✅ importante
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '120m' }
+    );
 
     console.log('🔁 Refresh nuevo token enviado:', newToken);
     res.json({ token: newToken });
@@ -59,5 +65,6 @@ module.exports = {
   googleCallback,
   refreshToken
 };
+
 
 

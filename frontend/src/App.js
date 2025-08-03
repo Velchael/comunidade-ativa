@@ -34,7 +34,7 @@ function Header() {
      <Col xs="auto">
       {user ? (
        <span className="text-muted" style={{ fontWeight: 'bold' }}>
-         Olá: {user.username}
+         Somos {user.comunidadNombre} - Bienvenido: {user.username}
        </span>
        ) : (
         <span className="text-muted">Bem-vindo</span>

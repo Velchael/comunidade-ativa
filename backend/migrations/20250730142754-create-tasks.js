@@ -1,64 +1,58 @@
 'use strict';
-
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('tasks', {
       id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
         type: Sequelize.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
       },
       title: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: false
       },
-      description: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-      },
+      description: Sequelize.TEXT,
       frequency: {
         type: Sequelize.ENUM('semanal', 'mensual', 'anual'),
-        allowNull: false,
+        allowNull: false
       },
       created_by: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'users',
-          key: 'id',
+          key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      comunidad_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'comunidades',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
       },
       due_date: {
         type: Sequelize.DATEONLY,
-        allowNull: false,
+        allowNull: false
       },
       status: {
         type: Sequelize.ENUM('pendiente', 'en_progreso', 'completada', 'cancelada'),
-        allowNull: false,
-        defaultValue: 'pendiente',
+        defaultValue: 'pendiente'
       },
       priority: {
         type: Sequelize.ENUM('baja', 'media', 'alta'),
-        allowNull: false,
-        defaultValue: 'media',
+        defaultValue: 'media'
       },
-      created_at: {
-        allowNull: false,
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.literal('NOW()'),
-      },
-      updated_at: {
-        allowNull: false,
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.literal('NOW()'),
-      }
+      created_at: Sequelize.DATE,
+      updated_at: Sequelize.DATE
     });
   },
-
-  down: async (queryInterface, Sequelize) => {
+  down: async (queryInterface) => {
     await queryInterface.dropTable('tasks');
   }
 };
