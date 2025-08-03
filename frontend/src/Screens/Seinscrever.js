@@ -19,58 +19,65 @@ export default function SeInscrever() {
     nivel_liderazgo: 'Nivel1',
     grupo_familiar_id: '',
     estado: 'activo',
-    foto_perfil: ''
+    foto_perfil: '',
+    comunidad_id: '', // 🆕 Nuevo campo
   });
 
+  const [comunidades, setComunidades] = useState([]); // 🆕 Lista de comunidades
   const [googleUser, setGoogleUser] = useState(null);
-  const [showForm, setShowForm] = useState(false); // ⬅️ NUEVO
-  const [checkingProfile, setCheckingProfile] = useState(true); // 🟡 estado para control de cargaconst [showForm, setShowForm] = useState(false); // ⬅️ NUEVO
+  const [showForm, setShowForm] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
- useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
 
-  if (token) {
-    // 🟡 Guardar token y decodificar
-    localStorage.setItem('token', token);
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    if (token) {
+      localStorage.setItem('token', token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      const decoded = jwtDecode(token);
+      const userData = {
+        id: decoded.id,
+        email: decoded.email,
+        rol: decoded.rol,
+        username: decoded.username || decoded.email.split('@')[0],
+        googleId: decoded.googleId,
+        avatar: decoded.avatar || null
+      };
+      setUser(userData);
+      setGoogleUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
 
-    const decoded = jwtDecode(token);
-    
-    // 🟢 Guardar usuario en contexto y localStorage
-    const userData = {
-      id: decoded.id,
-      email: decoded.email,
-      rol: decoded.rol,
-      username: decoded.username || decoded.email.split('@')[0],
-      googleId: decoded.googleId,
-      avatar: decoded.avatar || null
+      if (window.location.pathname !== '/seinscrever') {
+        navigate('/seinscrever', { replace: true });
+      }
+    } else {
+      const savedUser = localStorage.getItem('user');
+      const savedToken = localStorage.getItem('token');
+      if (savedUser && savedToken) {
+        const parsedUser = JSON.parse(savedUser);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+        setUser(parsedUser);
+        setGoogleUser(parsedUser);
+      }
+    }
+  }, [navigate, setUser]);
+
+  // ✅ Cargar comunidades al montar
+  useEffect(() => {
+    const fetchComunidades = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/comunidades`);
+        setComunidades(res.data);
+      } catch (error) {
+        console.error("❌ Error al cargar comunidades", error);
+      }
     };
+    fetchComunidades();
+  }, []);
 
-    setUser(userData);
-    setGoogleUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-
-    if (window.location.pathname !== '/seinscrever') {
-      navigate('/seinscrever', { replace: true });
-    }
-  } else {
-    // 🟢 Restaurar desde localStorage si no hay token nuevo
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-
-    if (savedUser && savedToken) {
-      const parsedUser = JSON.parse(savedUser);
-      axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
-      setUser(parsedUser);
-      setGoogleUser(parsedUser);
-    }
-  }
-}, [navigate, setUser]);
-
-
-  // ✅ Verificar si el perfil ya está completo
+  // ✅ Verificar perfil completo
   useEffect(() => {
     const checkIfProfileCompleted = async () => {
       if (googleUser?.email) {
@@ -79,7 +86,7 @@ export default function SeInscrever() {
           if (data.apellido && data.fecha_nacimiento) {
             navigate('/dashboard');
           } else {
-            setShowForm(true); // incompleto, mostrar formulario
+            setShowForm(true);
           }
         } catch (error) {
           console.warn('No se pudo verificar perfil:', error);
@@ -88,41 +95,39 @@ export default function SeInscrever() {
           setCheckingProfile(false);
         }
       } else {
-      setCheckingProfile(false); // ⬅️ Para evitar bucle infinito
-    }
+        setCheckingProfile(false);
+      }
     };
 
     checkIfProfileCompleted();
-    }, [googleUser, navigate]);
+  }, [googleUser, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
- const handleCompleteProfile = async (e) => {
+  const handleCompleteProfile = async (e) => {
     e.preventDefault();
-    const isVelchael = googleUser.username === 'Velchael' || googleUser.email === 'velchael@tudominio.com';  
+    const isVelchael = googleUser.username === 'Velchael' || googleUser.email === 'velchael@tudominio.com';
+
     const payload = {
       ...formData,
       email: googleUser.email,
       googleId: googleUser.googleId,
       foto_perfil: googleUser?.avatar,
-      rol: isVelchael ? 'admin_total' : 'miembro'  // ⬅️ Asignación automática
+      rol: isVelchael ? 'admin_total' : 'miembro'
     };
 
     try {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/google/complete`, payload);
-      console.log("✅ Perfil completado:", response.data);
       setMessage({ type: 'success', text: 'Perfil completado com sucesso!' });
       navigate('/dashboard');
     } catch (error) {
-      console.error('❌ Error al enviar datos:', error.response?.data || error.message);
       setMessage({ type: 'danger', text: error.response?.data?.message || 'Error al guardar perfil' });
     }
   };
 
-  // 🟡 Mostrar cargando mientras se verifica
   if (checkingProfile) {
     return (
       <Container className="small-container text-center mt-5">
@@ -131,7 +136,6 @@ export default function SeInscrever() {
       </Container>
     );
   }
-
 
   if (!googleUser) {
     return (
@@ -145,14 +149,13 @@ export default function SeInscrever() {
     );
   }
 
-  if (!showForm) return null; // ⬅️ No mostrar el formulario si ya está completo
+  if (!showForm) return null;
 
-   // 🧾 Render del formulario
   return (
     <Container className="small-container">
       <Helmet><title>Completar Perfil - Reddevida</title></Helmet>
       <h1 className="my-3">
-  👋   ¡Hola <strong>{googleUser?.username || googleUser?.email.split('@')[0]}</strong>!<br />
+        👋 ¡Hola <strong>{googleUser?.username || googleUser?.email.split('@')[0]}</strong>!<br />
         Bienvenido a Reddevida. Vamos a ayudarte a completar tu perfil.
       </h1>
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
@@ -161,39 +164,22 @@ export default function SeInscrever() {
           <Col md={6}>
             <Form.Group className="mb-3" controlId="apellido">
               <Form.Label>Apellido</Form.Label>
-              <Form.Control
-                type="text"
-                required
-                name="apellido"
-                value={formData.apellido}
-                onChange={handleChange}
-              />
+              <Form.Control type="text" required name="apellido" value={formData.apellido} onChange={handleChange} />
             </Form.Group>
           </Col>
-         
         </Row>
 
         <Row>
           <Col md={6}>
             <Form.Group className="mb-3" controlId="fecha_nacimiento">
               <Form.Label>Fecha de nacimiento</Form.Label>
-              <Form.Control
-                type="date"
-                name="fecha_nacimiento"
-                value={formData.fecha_nacimiento}
-                onChange={handleChange}
-              />
+              <Form.Control type="date" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleChange} />
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group className="mb-3" controlId="telefono">
               <Form.Label>Teléfono</Form.Label>
-              <Form.Control
-                type="text"
-                name="telefono"
-                value={formData.telefono}
-                onChange={handleChange}
-              />
+              <Form.Control type="text" name="telefono" value={formData.telefono} onChange={handleChange} />
             </Form.Group>
           </Col>
         </Row>
@@ -202,23 +188,13 @@ export default function SeInscrever() {
           <Col md={6}>
             <Form.Group className="mb-3" controlId="direccion">
               <Form.Label>Dirección</Form.Label>
-              <Form.Control
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleChange}
-              />
+              <Form.Control type="text" name="direccion" value={formData.direccion} onChange={handleChange} />
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group className="mb-3" controlId="nivel_liderazgo">
               <Form.Label>Nivel de liderazgo</Form.Label>
-              <Form.Control
-                as="select"
-                name="nivel_liderazgo"
-                value={formData.nivel_liderazgo}
-                onChange={handleChange}
-              >
+              <Form.Control as="select" name="nivel_liderazgo" value={formData.nivel_liderazgo} onChange={handleChange}>
                 <option value="Nivel1">Nivel 1</option>
                 <option value="Nivel2">Nivel 2</option>
                 <option value="Nivel3">Nivel 3</option>
@@ -231,12 +207,7 @@ export default function SeInscrever() {
           <Col md={6}>
             <Form.Group className="mb-3" controlId="grupo_familiar_id">
               <Form.Label>Grupo Familiar ID</Form.Label>
-              <Form.Control
-                type="number"
-                name="grupo_familiar_id"
-                value={formData.grupo_familiar_id}
-                onChange={handleChange}
-              />
+              <Form.Control type="number" name="grupo_familiar_id" value={formData.grupo_familiar_id} onChange={handleChange} />
             </Form.Group>
           </Col>
           <Col md={6}>
@@ -250,9 +221,29 @@ export default function SeInscrever() {
             </Form.Group>
           </Col>
         </Row>
-      
+
+        {/* 🆕 Selector de comunidad */}
+        <Form.Group className="mb-3" controlId="comunidad_id">
+          <Form.Label>Selecciona tu comunidad</Form.Label>
+          <Form.Control
+            as="select"
+            name="comunidad_id"
+            value={formData.comunidad_id || ''}
+            onChange={handleChange}
+            required
+          >
+            <option value="">-- Selecciona una --</option>
+            {comunidades.map((comunidad) => (
+              <option key={comunidad.id} value={comunidad.id}>
+                {comunidad.nombre} - {comunidad.administrador}
+              </option>
+            ))}
+          </Form.Control>
+        </Form.Group>
+
         <Button type="submit">Guardar Perfil</Button>
       </Form>
     </Container>
   );
 }
+

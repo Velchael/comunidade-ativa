@@ -84,18 +84,24 @@ const TaskList = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!form.dueDate) {
+    showMessage('danger', 'La fecha de vencimiento es obligatoria');
+    return;
+    }
+
     try {
-      if (editingId) {
-        await axios.put(`${API_URL}/${editingId}`, form);
-        showMessage('success', 'Tarea actualizada');
-      } else {
-        await axios.post(API_URL, form);
-        showMessage('success', 'Tarea creada');
-      }
-      fetchTasks();
-      setModalShow(false);
+    if (editingId) {
+      await axios.put(`${API_URL}/${editingId}`, form);
+      showMessage('success', 'Tarea actualizada');
+    } else {
+      await axios.post(API_URL, form);
+      showMessage('success', 'Tarea creada');
+    }
+    fetchTasks();
+     setModalShow(false);
     } catch (err) {
-      showMessage('danger', err.response?.data?.message || 'Error al guardar tarea');
+     showMessage('danger', err.response?.data?.message || 'Error al guardar tarea');
     }
   };
 
@@ -240,6 +246,7 @@ const TaskList = () => {
                 name="dueDate"
                 value={form.dueDate}
                 onChange={handleChange}
+                required // ✅ evita envío vacío
               />
             </Form.Group>
             <Form.Group className="mb-3">

@@ -1,11 +1,16 @@
 
-const { Task, Usuario } = require('../models'); // ✅ usando modelos centralizados
+const { Task, Usuario } = require('../models');
 
-// ✅ Obtener todas las tareas (puede filtrar por frecuencia)
+// ✅ Obtener todas las tareas (puede filtrar por frecuencia y comunidad)
 const getAllTasks = async (req, res) => {
   try {
     const { frecuencia } = req.query;
-    const where = frecuencia ? { frequency: frecuencia } : {};
+    const user = await Usuario.findByPk(req.user.id);
+
+    const where = {
+      ...(frecuencia && { frequency: frecuencia }),
+      comunidad_id: user.comunidad_id  // 🔥 Filtrar por comunidad del usuario logueado
+    };
 
     const tasks = await Task.findAll({
       where,
@@ -23,12 +28,17 @@ const getAllTasks = async (req, res) => {
   }
 };
 
-// ✅ Obtener una tarea por ID
+// ✅ Obtener una tarea por ID (solo si pertenece a su comunidad)
 const getTaskById = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = await Usuario.findByPk(req.user.id);
 
-    const task = await Task.findByPk(id, {
+    const task = await Task.findOne({
+      where: {
+        id,
+        comunidad_id: user.comunidad_id
+      },
       include: {
         model: Usuario,
         as: 'creator',
@@ -43,23 +53,25 @@ const getTaskById = async (req, res) => {
   }
 };
 
-// ✅ Crear nueva tarea
+// ✅ Crear nueva tarea (asignar comunidad del usuario automáticamente)
 const createTask = async (req, res) => {
   if (!['admin_basic', 'admin_total'].includes(req.user.rol)) {
-  return res.status(403).json({ message: 'No tienes permisos para esta acción' });
+    return res.status(403).json({ message: 'No tienes permisos para esta acción' });
   }
+
   try {
     const { title, description, frequency, dueDate, status, priority } = req.body;
-    const userId = req.user.id;
-
+    const user = await Usuario.findByPk(req.user.id);
+    console.log("Payload recibido para crear tarea:", req.body);
     const task = await Task.create({
       title,
       description,
       frequency,
-      dueDate,
+      due_date: dueDate,
       status,
       priority,
-      createdBy: userId
+      created_by: user.id,
+      comunidad_id: user.comunidad_id  // 🔥 Relación directa
     });
 
     res.status(201).json(task);
@@ -68,42 +80,52 @@ const createTask = async (req, res) => {
   }
 };
 
-// ✅ Actualizar una tarea
+// ✅ Actualizar una tarea (solo admins y si pertenece a su comunidad)
 const updateTask = async (req, res) => {
   if (!['admin_basic', 'admin_total'].includes(req.user.rol)) {
-  return res.status(403).json({ message: 'No tienes permisos para esta acción' });
+    return res.status(403).json({ message: 'No tienes permisos para esta acción' });
   }
+
   try {
     const { id } = req.params;
     const { title, description, frequency, dueDate, status, priority } = req.body;
+    const user = await Usuario.findByPk(req.user.id);
 
-    const task = await Task.findByPk(id);
+    const task = await Task.findOne({
+      where: {
+        id,
+        comunidad_id: user.comunidad_id
+      }
+    });
+
     if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
 
-    task.title = title;
-    task.description = description;
-    task.frequency = frequency;
-    task.dueDate = dueDate;
-    task.status = status;
-    task.priority = priority;
+    Object.assign(task, { title, description, frequency, dueDate, status, priority });
 
     await task.save();
-
     res.json(task);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Eliminar una tarea
+// ✅ Eliminar una tarea (solo admin_total y si pertenece a su comunidad)
 const deleteTask = async (req, res) => {
   if (req.user.rol !== 'admin_total') {
-  return res.status(403).json({ message: 'Solo un administrador total puede eliminar tareas' });
+    return res.status(403).json({ message: 'Solo un administrador total puede eliminar tareas' });
   }
+
   try {
     const { id } = req.params;
+    const user = await Usuario.findByPk(req.user.id);
 
-    const task = await Task.findByPk(id);
+    const task = await Task.findOne({
+      where: {
+        id,
+        comunidad_id: user.comunidad_id
+      }
+    });
+
     if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
 
     await task.destroy();
@@ -120,5 +142,4 @@ module.exports = {
   updateTask,
   deleteTask
 };
-
 

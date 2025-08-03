@@ -1,5 +1,3 @@
-// models/Task.js
-
 module.exports = (sequelize, DataTypes) => {
   const Task = sequelize.define('Task', {
     id: {
@@ -19,19 +17,17 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('semanal', 'mensual', 'anual'),
       allowNull: false
     },
-    createdBy: {
+    created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'created_by',
       references: {
         model: 'users',
         key: 'id'
       }
     },
-    dueDate: {
+    due_date: {
       type: DataTypes.DATEONLY,
-      allowNull: false,
-      field: 'due_date'
+      allowNull: false
     },
     status: {
       type: DataTypes.ENUM('pendiente', 'en_progreso', 'completada', 'cancelada'),
@@ -42,6 +38,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('baja', 'media', 'alta'),
       allowNull: false,
       defaultValue: 'media'
+    },
+    comunidad_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'comunidades',
+        key: 'id'
+      }
     }
   }, {
     tableName: 'tasks',
@@ -50,13 +54,17 @@ module.exports = (sequelize, DataTypes) => {
     updatedAt: 'updated_at'
   });
 
-  // ✅ Asociación diferida (para evitar dependencias cruzadas)
   Task.associate = (models) => {
     Task.belongsTo(models.Usuario, {
-      foreignKey: 'createdBy',
+      foreignKey: 'created_by',
       as: 'creator'
+    });
+    Task.belongsTo(models.Comunidad, {
+      foreignKey: 'comunidad_id',
+      as: 'comunidad'
     });
   };
 
   return Task;
 };
+

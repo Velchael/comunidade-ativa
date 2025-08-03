@@ -71,3 +71,19 @@ exports.eliminarComunidad = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar comunidad', error: error.message });
   }
 };
+
+// ✅ Obtener una comunidad por ID (para frontend/contexto)
+exports.obtenerComunidadPorId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const comunidad = await Comunidad.findByPk(id);
+
+    if (!comunidad) {
+      return res.status(404).json({ message: 'Comunidad no encontrada' });
+    }
+
+    res.json(comunidad);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener comunidad', error: error.message });
+  }
+};
