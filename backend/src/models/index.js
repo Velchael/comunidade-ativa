@@ -39,6 +39,7 @@ Object.keys(db).forEach((modelName) => {
 // Exponer sequelize y modelos
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
+console.log('Modelos cargados:', Object.keys(db));
 
 module.exports = db;
 

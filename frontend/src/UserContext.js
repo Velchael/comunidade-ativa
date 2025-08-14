@@ -38,7 +38,8 @@ export const UserProvider = ({ children }) => {
           rol: decoded.rol || 'miembro',
           googleId: decoded.googleId,
           comunidad_id: decoded.comunidad_id,
-          comunidadNombre
+          comunidadNombre,
+          token // ✅ Guardar token para usarlo en cualquier parte
         };
 
         setUser(userData);
