@@ -1,7 +1,9 @@
+
+// src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const authMiddleware = (req, res, next) => {
+const verificarToken = (req, res, next) => {
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
@@ -16,7 +18,6 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
-
+module.exports = { verificarToken };
 
 

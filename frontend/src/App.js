@@ -25,7 +25,7 @@ import './index.css'; // Asegúrate de importar tu archivo CSS
 import TaskList from './Screens/TaskList';
 import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 import ComunidadesPanel from './Screens/ComunidadesPanel';
-
+import GruposActivos from './Screens/GruposActivos';
 function Header() {
   const { user } = useContext(UserContext);
   return (
@@ -91,6 +91,13 @@ function Header() {
             })}>
               Configuraçao_panel
             </NavLink>
+              <NavLink to="/GruposActivos" style={({ isActive }) => ({
+              textDecoration: 'none',
+              color: isActive ? 'white' : 'black', 
+              marginRight: '13px'
+            })}>
+              Grupos_Activos
+            </NavLink>
           </div>
         </Container>
       </Navbar>
@@ -126,6 +133,7 @@ export default function App() {
                 <Route path="/TaskList" element={<TaskList />} /> {/* Nueva Ruta */}
                 <Route path="/ConfiguracionPanel" element={<ConfiguracionPanel />} /> {/* Nueva Ruta */}
                 <Route path="/ComunidadesPanel" element={<ComunidadesPanel />} /> {/* Nueva Ruta */}
+                <Route path="/GruposActivos" element={<GruposActivos />} /> {/* Nueva Ruta */}
               </Routes>
             </Container>
           </main>
