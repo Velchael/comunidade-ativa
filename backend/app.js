@@ -5,6 +5,8 @@ const passport = require('./src/config/passport');
 const apiRoutes = require('./src/routes');
 const comunidadRoutes = require('./src/routes/comunidades');
 
+const reportesRoutes = require('./src/routes/reportesRoutes');
+const grupoReportesRoutes = require('./src/routes/grupoReportesRoutes');
 
 const app = express();
 
@@ -26,4 +28,9 @@ app.use('/api', apiRoutes);
 app.use('/api/comunidades', comunidadRoutes);
 app.use('/api/grupos', gruposRoutes);
 app.use('/api/reuniones', reunionesRoutes);
+
+// Ahora separados
+app.use('/api/grupos', grupoReportesRoutes);   // para colección por grupo
+app.use('/api/reportes', reportesRoutes);      // para un reporte puntual
+
 module.exports = app;
