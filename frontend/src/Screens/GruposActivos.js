@@ -1,14 +1,19 @@
 // src/Screens/GruposActivos.js
 import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
-import { Button, Container, Table, Modal, Alert } from 'react-bootstrap';
+import { Button, Container, Table, Alert } from 'react-bootstrap';
 import GrupoFormModal from '../components/GrupoFormModal';
+import ReportesModal from '../components/ReportesModal'; // 🔹 nuevo import
 import { UserContext } from '../UserContext';
 
 const GruposActivos = () => {
   const [grupos, setGrupos] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedGrupo, setSelectedGrupo] = useState(null);
+
+  const [showReportesModal, setShowReportesModal] = useState(false); // 🔹 estado para reportes
+  const [selectedGrupoReportes, setSelectedGrupoReportes] = useState(null);
+
   const [message, setMessage] = useState({ type: '', text: '' });
   const { user } = useContext(UserContext);
 
@@ -61,6 +66,16 @@ const GruposActivos = () => {
     setSelectedGrupo(null);
   };
 
+  const handleOpenReportes = (grupo) => {
+    setSelectedGrupoReportes(grupo);
+    setShowReportesModal(true);
+  };
+
+  const handleCloseReportes = () => {
+    setShowReportesModal(false);
+    setSelectedGrupoReportes(null);
+  };
+
   return (
     <Container className="mt-4">
       <h2>📘 Grupos Activos</h2>
@@ -90,6 +105,7 @@ const GruposActivos = () => {
             <th>Co-Líder</th>
             <th>Anfitrión</th>
             <th>Dirección</th>
+            <th>📄 Reportes</th>
             {esAdmin && <th>Acciones</th>}
           </tr>
         </thead>
@@ -101,6 +117,15 @@ const GruposActivos = () => {
                 <td>{grupo.colider_nombre || '-'}</td>
                 <td>{grupo.anfitrion_nombre || '-'}</td>
                 <td>{grupo.direccion_grupo || '-'}</td>
+                <td>
+                  <Button
+                    variant="info"
+                    size="sm"
+                    onClick={() => handleOpenReportes(grupo)}
+                  >
+                    📄 Ver Reportes
+                  </Button>
+                </td>
                 {esAdmin && (
                   <td>
                     <Button
@@ -123,7 +148,7 @@ const GruposActivos = () => {
             ))
           ) : (
             <tr>
-              <td colSpan={esAdmin ? 5 : 4} className="text-center">
+              <td colSpan={esAdmin ? 6 : 5} className="text-center">
                 No hay grupos disponibles
               </td>
             </tr>
@@ -141,9 +166,16 @@ const GruposActivos = () => {
         }}
         grupo={selectedGrupo}
       />
+
+      {/* Modal de Reportes */}
+      <ReportesModal
+        show={showReportesModal}
+        handleClose={handleCloseReportes}
+        grupo={selectedGrupoReportes}
+        user={user}
+      />
     </Container>
   );
 };
 
 export default GruposActivos;
-
