@@ -1,4 +1,3 @@
-// src/components/ReportesModal.js
 import React, { useEffect, useState, useContext } from 'react';
 import { Modal, Button, Table, Form, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
@@ -14,12 +13,15 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   const esAdmin = user?.rol === 'admin_basic' || user?.rol === 'admin_total';
   const esLider = grupo?.lider_id === user?.id;
 
+  // ✅ Base URL centralizada
+  const API_URL = process.env.REACT_APP_API_URL;
+
   // 🔹 Cargar reportes del grupo
   const fetchReportes = async () => {
     if (!grupo) return;
     setLoading(true);
     try {
-      const res = await axios.get(`/api/grupos/${grupo.id}/reportes`, {
+      const res = await axios.get(`${API_URL}/api/grupos/${grupo.id}/reportes`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setReportes(res.data);
@@ -41,13 +43,12 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   // 🔹 Crear reporte
   const handleCreate = async () => {
     try {
-      // formatear fecha (asegurarse que sea YYYY-MM-DD)
       const payload = {
         ...nuevoReporte,
         semana: nuevoReporte.semana ? new Date(nuevoReporte.semana).toISOString().split('T')[0] : null
       };
 
-      await axios.post(`/api/grupos/${grupo.id}/reportes`, payload, {
+      await axios.post(`${API_URL}/api/grupos/${grupo.id}/reportes`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 

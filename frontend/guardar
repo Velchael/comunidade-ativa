@@ -1,214 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
-import {
-  Container,
-  Table,
-  Button,
-  Modal,
-  Form,
-  Alert,
-  Spinner
-} from 'react-bootstrap';
+docker-CompositionEvent.yml 27/08/25
+services:
+  db:
+    image: postgres:14
+    restart: always
+    environment:
+       POSTGRES_DB: comunidad
+       POSTGRES_USER: postgres
+       POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
-const API_URL = `${process.env.REACT_APP_API_URL}/api/tasks`;
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    command: ["/wait-for-it.sh", "db:5432", "--timeout=60", "--strict", "--", "npm", "start"]
+    
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:3000
+    restart: always
+    ports:
+      - "3002:80"  # Exponiendo puerto para acceder desde navegador: http://localhost:3002 
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+    depends_on:
+      - backend
 
-const TaskList = () => {
-  const [tasks, setTasks] = useState([]);
-  const [userRole, setUserRole] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [modalShow, setModalShow] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', frequency: 'semanal' });
-  const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState({ type: '', text: '' });
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    const decoded = jwtDecode(token);
-    setUserRole(decoded.rol.toLowerCase());
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
-    try {
-      const res = await axios.get(API_URL);
-      setTasks(res.data);
-    } catch (err) {
-      showMessage('danger', 'Error al cargar tareas');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const showMessage = (type, text) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  };
-
-  const openModal = (task = null) => {
-    if (task) {
-      setForm({
-        title: task.title,
-        description: task.description,
-        frequency: task.frequency
-      });
-      setEditingId(task.id);
-    } else {
-      setForm({ title: '', description: '', frequency: 'semanal' });
-      setEditingId(null);
-    }
-    setModalShow(true);
-  };
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingId) {
-        await axios.put(`${API_URL}/${editingId}`, form);
-        showMessage('success', 'Tarea actualizada');
-      } else {
-        await axios.post(API_URL, form);
-        showMessage('success', 'Tarea creada');
-      }
-      fetchTasks();
-      setModalShow(false);
-    } catch (err) {
-      showMessage('danger', err.response?.data?.message || 'Error al guardar tarea');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta tarea?')) return;
-    try {
-      await axios.delete(`${API_URL}/${id}`);
-      showMessage('success', 'Tarea eliminada');
-      fetchTasks();
-    } catch {
-      showMessage('danger', 'No se pudo eliminar');
-    }
-  };
-
-  return (
-    <Container className="mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2>📅 Agenda de Tareas</h2>
-        {userRole === 'administrador' && (
-          <Button onClick={() => openModal()} variant="primary">
-            Nueva tarea
-          </Button>
-        )}
-      </div>
-
-      {message.text && <Alert variant={message.type}>{message.text}</Alert>}
-
-      {loading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" />
-          <div>Cargando tareas...</div>
-        </div>
-      ) : tasks.length === 0 ? (
-        <Alert variant="info">No hay tareas disponibles.</Alert>
-      ) : (
-        <Table striped bordered hover>
-          <thead>
-            <tr>
-              <th>Título</th>
-              <th>Descripción</th>
-              <th>Frecuencia</th>
-              <th>Autor</th>
-              {userRole === 'administrador' && <th>Acciones</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task) => (
-              <tr key={task.id}>
-                <td>{task.title}</td>
-                <td>{task.description}</td>
-                <td>{task.frequency}</td>
-                <td>{task.creator?.username || '-'}</td>
-                {userRole === 'administrador' && (
-                  <td>
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      onClick={() => openModal(task)}
-                      className="me-2"
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDelete(task.id)}
-                    >
-                      Eliminar
-                    </Button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-
-      {/* Modal */}
-      <Modal show={modalShow} onHide={() => setModalShow(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{editingId ? 'Editar Tarea' : 'Nueva Tarea'}</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Título</Form.Label>
-              <Form.Control
-                type="text"
-                name="title"
-                value={form.title}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Descripción</Form.Label>
-              <Form.Control
-                as="textarea"
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Frecuencia</Form.Label>
-              <Form.Select
-                name="frequency"
-                value={form.frequency}
-                onChange={handleChange}
-              >
-                <option value="semanal">Semanal</option>
-                <option value="mensual">Mensual</option>
-                <option value="anual">Anual</option>
-              </Form.Select>
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setModalShow(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary">
-              {editingId ? 'Actualizar' : 'Crear'}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-    </Container>
-  );
-};
-
-export default TaskList;
+volumes:
+  pgdata:

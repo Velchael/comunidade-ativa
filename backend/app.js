@@ -14,7 +14,7 @@ const gruposRoutes = require('./src/routes/grupos');
 const reunionesRoutes = require('./src/routes/reuniones');
 
 const corsOptions = {
-  origin: 'http://localhost:3002', // 🚨 Poné aquí el puerto del FRONTEND
+  origin: ['http://localhost:3001', 'http://localhost:3002'], // 🚨 Poné aquí el puerto del FRONTEND
   credentials: true,
 };
 app.use(cors(corsOptions));

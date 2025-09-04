@@ -1,12 +1,11 @@
-
 services:
   db:
     image: postgres:14
     restart: always
     environment:
-       POSTGRES_DB: comunidad
-       POSTGRES_USER: postgres
-       POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: comunidad
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
     ports:
       - "5432:5432"
     volumes:
@@ -26,7 +25,8 @@ services:
     volumes:
       - ./backend:/app
     command: ["/wait-for-it.sh", "db:5432", "--timeout=60", "--strict", "--", "npm", "start"]
-    
+
+  # 🚀 FRONTEND PRODUCCIÓN (construido y servido por NGINX)
   frontend:
     build:
       context: ./frontend
@@ -35,13 +35,34 @@ services:
         REACT_APP_API_URL: http://localhost:3000
     restart: always
     ports:
-      - "3002:80"  # Exponiendo puerto para acceder desde navegador: http://localhost:3002 
+      - "3002:80"  # Producción -> http://localhost:3002
     environment:
       - REACT_APP_API_URL=http://localhost:3000
     depends_on:
       - backend
 
+  # 🟢 FRONTEND DESARROLLO (hot reload con React)
+  frontend-dev:
+    image: node:18
+    working_dir: /app
+    volumes:
+      - ./frontend:/app            # monta tu código
+      - /app/node_modules          # evita sobrescribir node_modules dentro
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+      - CHOKIDAR_USEPOLLING=true   # necesario en WSL/Windows/Docker Desktop
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=0
+      - HOST=0.0.0.0
+      - PORT=3001
+    ports:
+      - "3001:3001"  # Dev server -> http://localhost:3001
+    command: sh -c "npm install && npm start"
+    depends_on:
+      - backend
+
 volumes:
   pgdata:
+
 
 

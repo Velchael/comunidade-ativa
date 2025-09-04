@@ -1,10 +1,11 @@
-// src/Screens/GruposActivos.js
 import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
 import { Button, Container, Table, Alert } from 'react-bootstrap';
 import GrupoFormModal from '../components/GrupoFormModal';
 import ReportesModal from '../components/ReportesModal'; // 🔹 nuevo import
 import { UserContext } from '../UserContext';
+
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
 const GruposActivos = () => {
   const [grupos, setGrupos] = useState([]);
@@ -24,11 +25,11 @@ const GruposActivos = () => {
     try {
       let res;
       if (esAdmin) {
-        res = await axios.get(`/api/grupos`, {
+        res = await axios.get(`${API_BASE}/api/grupos`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
       } else {
-        res = await axios.get(`/api/grupos/mios`, {
+        res = await axios.get(`${API_BASE}/api/grupos/mios`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
       }
@@ -50,7 +51,7 @@ const GruposActivos = () => {
     if (!window.confirm('¿Seguro que quieres eliminar este grupo?')) return;
 
     try {
-      await axios.delete(`/api/grupos/${id}`, {
+      await axios.delete(`${API_BASE}/api/grupos/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setMessage({ type: 'success', text: 'Grupo eliminado correctamente' });

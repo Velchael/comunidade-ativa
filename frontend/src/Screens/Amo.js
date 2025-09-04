@@ -1,11 +1,8 @@
 import React from "react";
-import { Helmet } from "react-helmet-async";
 function Amo() {
   return (
     <section>
-      <Helmet>
-        <title>A.M.O</title>
-      </Helmet>
+    
       <div className="Containerdos">
         <h1 className="imgemprega">A.M.O Salvador</h1>
         <h4>

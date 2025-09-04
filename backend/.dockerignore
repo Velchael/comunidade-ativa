@@ -1,13 +1,39 @@
+# 🚫 Dependencias locales
 node_modules
+
+# 🚫 Archivos de entorno / secretos
 .env
 .env.local
 .env.*.local
+
+# 🚫 Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.DS_Store
+pnpm-debug.log*
+
+# 🚫 Archivos de control de versiones
 .git
+.gitignore
+
+# 🚫 Archivos temporales / backups
 *.sqlite
 *.bak
-*.log
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 🚫 Cobertura de tests
 coverage
+.nyc_output
+
+# 🚫 Archivos de build / cache
+dist
+build
+.cache
+
+# 🚫 Configuración de IDEs
+.vscode
+.idea

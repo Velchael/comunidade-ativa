@@ -31,14 +31,7 @@ const SocialMediaButtons = () => {
             </svg>
           </a>
         </li>
-        {/* Nuevo botón "Comunidad" */}
-        <li className="list2">
-          <a href="#comunidad" className="botao botao__secundario">Comunidad</a>
-        </li>
-        {/* Nuevo botón "Registro" */}
-        <li className="list2">
-          <a href="#registro" className="botao botao__secundario">Registro</a>
-        </li>
+      
       </ul>
     </nav>
   );
