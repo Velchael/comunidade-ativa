@@ -1,10 +1,23 @@
 import React, { useContext } from 'react';
-import { BrowserRouter, Route, Routes, NavLink } from 'react-router-dom';
-import logo_large from './logo_large.jpeg';
+import { BrowserRouter, Route, Routes, NavLink, useNavigate } from 'react-router-dom';
+import { HelmetProvider, Helmet } from 'react-helmet-async';
+import { Container, Navbar, NavDropdown, Button, Row, Col } from 'react-bootstrap';
+import { LinkContainer } from 'react-router-bootstrap';
+
+import logo_large1 from './logo_large1.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import './index.css'; // CSS personalizado
+
+// Screens
 import Casapaz from './Screens/Casapaz';
 import Seinscrever from './Screens/Seinscrever';
 import Amo from './Screens/Amo';
+import TaskList from './Screens/TaskList';
+import ConfiguracionPanel from './Screens/ConfiguracionPanel';
+import ComunidadesPanel from './Screens/ComunidadesPanel';
+import GruposActivos from './Screens/GruposActivos';
+
+// Components
 import Fidelidade from './components/Fidelidade';
 import Redecao from './components/Redecao';
 import Conquista from './components/Conquista';
@@ -13,88 +26,109 @@ import Productividade from './components/Productividade';
 import Proposito from './components/Proposito';
 import Consagracao from './components/Consagracao';
 import SocialMediaButtons from './components/SocialMediaButtons'; 
-import Navbar from 'react-bootstrap/Navbar';
-import Container from 'react-bootstrap/Container';
-import { LinkContainer } from 'react-router-bootstrap';
-import { HelmetProvider } from 'react-helmet-async';
-import { Helmet } from 'react-helmet-async';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import { UserProvider, UserContext } from './UserContext'; // Importar el contexto del usuario
-import './index.css'; // Asegúrate de importar tu archivo CSS
-import TaskList from './Screens/TaskList';
-import ConfiguracionPanel from './Screens/ConfiguracionPanel';
-import ComunidadesPanel from './Screens/ComunidadesPanel';
-import GruposActivos from './Screens/GruposActivos';
+
+// Context
+import { UserProvider, UserContext } from './UserContext';
+
+
 function Header() {
-  const { user } = useContext(UserContext);
+  const { user, setUser } = useContext(UserContext);
+  const navigate = useNavigate();
+
+  const handleLogin = () => {
+    navigate("/Seinscrever"); // va al login con Google
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/");
+  };
+
   return (
     <header>
-     <Row className="justify-content-end">
-     <Col xs="auto">
-      {user ? (
-       <span className="text-muted" style={{ fontWeight: 'bold' }}>
-         Somos {user.comunidadNombre} - Bienvenido: {user.username}
-       </span>
-       ) : (
-        <span className="text-muted">Bem-vindo</span>
-       )}
-     </Col>
-     </Row>
-      <Navbar className='menu-header'>
+      <Row className="justify-content-end">
+        <Col xs="auto">
+          {user ? (
+            <span className="text-muted" style={{ fontWeight: "bold" }}>
+              Somos {user.comunidadNombre} - Bienvenido: {user.username}{" "}
+              <Button
+                variant="outline-danger"
+                size="sm"
+                onClick={handleLogout}
+                style={{ marginLeft: "10px" }}
+              >
+                Logout
+              </Button>
+            </span>
+          ) : (
+            <Button variant="primary" onClick={handleLogin}>
+              Login
+            </Button>
+          )}
+        </Col>
+      </Row>
+
+      <Navbar className="menu-header">
         <Container>
           <LinkContainer to="/">
             <Navbar.Brand>
-              <img src={logo_large} className="App-logo" alt="logo" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+              <img
+                src={logo_large1}
+                className="App-logo"
+                alt="logo"
+                style={{ maxWidth: "100%", maxHeight: "100%" }}
+              />
             </Navbar.Brand>
-          </LinkContainer>              
-          <div className='menu'>             
+          </LinkContainer>
+
+          <div className="menu">
             <NavLink to="/Casapaz" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black',
-              marginRight: '13px'
+              textDecoration: "none",
+              color: isActive ? "white" : "black",
+              marginRight: "13px"
             })}>
               Casapaz
             </NavLink>
+
             <NavLink to="/Amo" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black',
-              marginRight: '13px'
+              textDecoration: "none",
+              color: isActive ? "white" : "black",
+              marginRight: "13px"
             })}>
-              A.M.O 
+              A.M.O
             </NavLink>
-            <NavLink to="/Seinscrever" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black', 
-              marginRight: '13px'
-            })}>
-              Registro
-            </NavLink>
-           <NavLink to="/TaskList" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black', 
-              marginRight: '13px'
+
+            {/* 🔴 Eliminamos el NavLink a Registro/Seinscrever */}
+            
+            <NavLink to="/TaskList" style={({ isActive }) => ({
+              textDecoration: "none",
+              color: isActive ? "white" : "black",
+              marginRight: "13px"
             })}>
               Agenda
             </NavLink>
-            <NavLink to="/ConfiguracionPanel" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black', 
-              marginRight: '13px'
-            })}>
-              Configuraçao
-            </NavLink>
-            <NavLink to="/ComunidadesPanel" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black', 
-              marginRight: '13px'
-            })}>
-              Configuraçao_panel
-            </NavLink>
-              <NavLink to="/GruposActivos" style={({ isActive }) => ({
-              textDecoration: 'none',
-              color: isActive ? 'white' : 'black', 
-              marginRight: '13px'
+
+           <NavDropdown
+              title="Configuração"
+              id="configuracion-dropdown"
+              className="custom-dropdown"
+            >
+              <NavDropdown.Item as={NavLink} to="/configuracion/panel">
+                ⚙️ Usuarios
+              </NavDropdown.Item>
+              <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
+                🏘️ Comunidades
+              </NavDropdown.Item>
+            </NavDropdown>
+
+
+            <NavLink to="/GruposActivos" style={({ isActive }) => ({
+              textDecoration: "none",
+              color: isActive ? "white" : "black",
+              marginRight: "13px",
+              marginLeft: "13px"   // 👈 esto lo mueve a la derecha
             })}>
               Grupos_Activos
             </NavLink>
@@ -105,6 +139,7 @@ function Header() {
   );
 }
 
+
 export default function App() {
   return (
     <UserProvider>
@@ -112,7 +147,7 @@ export default function App() {
       <BrowserRouter>
         <div className='d-flex flex-column site-container'>
           <Helmet>
-            <title>Casa de Paz</title>
+            <title>Comunidad Ativa</title>
           </Helmet>
           <Header />
           <main>
@@ -131,8 +166,10 @@ export default function App() {
                 <Route path="/Amo" element={<Amo />} />
                 <Route path="/Seinscrever" element={<Seinscrever />} />
                 <Route path="/TaskList" element={<TaskList />} /> {/* Nueva Ruta */}
-                <Route path="/ConfiguracionPanel" element={<ConfiguracionPanel />} /> {/* Nueva Ruta */}
-                <Route path="/ComunidadesPanel" element={<ComunidadesPanel />} /> {/* Nueva Ruta */}
+                <Route path="/configuracion">
+                    <Route path="panel" element={<ConfiguracionPanel />} />
+                    <Route path="comunidades" element={<ComunidadesPanel />} />
+                </Route>
                 <Route path="/GruposActivos" element={<GruposActivos />} /> {/* Nueva Ruta */}
               </Routes>
             </Container>
@@ -143,7 +180,7 @@ export default function App() {
               {/* Agregar los botones de redes sociales */}
               <SocialMediaButtons />
               <p>
-                &copy; 2023 Todos os Dereitos Reservados
+                &copy; 2025 Todos os Dereitos Reservados
               </p>
             </Container>
           </footer>

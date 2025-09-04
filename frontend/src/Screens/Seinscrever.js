@@ -120,7 +120,7 @@ export default function SeInscrever() {
     };
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/google/complete`, payload);
+      //const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/google/complete`, payload);
       setMessage({ type: 'success', text: 'Perfil completado com sucesso!' });
       navigate('/dashboard');
     } catch (error) {
@@ -153,7 +153,9 @@ export default function SeInscrever() {
 
   return (
     <Container className="small-container">
-      <Helmet><title>Completar Perfil - Reddevida</title></Helmet>
+      <Helmet><title>Login / Completar Perfil</title></Helmet>
+      <h2>Login con Google</h2>
+
       <h1 className="my-3">
         👋 ¡Hola <strong>{googleUser?.username || googleUser?.email.split('@')[0]}</strong>!<br />
         Bienvenido a Reddevida. Vamos a ayudarte a completar tu perfil.
