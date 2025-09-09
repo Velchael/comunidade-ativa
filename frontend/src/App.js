@@ -6,7 +6,7 @@ import { LinkContainer } from 'react-router-bootstrap';
 
 import logo_large1 from './logo_large1.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './index.css'; // CSS personalizado
+import './index.css';
 
 // Screens
 import Casapaz from './Screens/Casapaz';
@@ -25,20 +25,16 @@ import Identidad from './components/Identidad';
 import Productividade from './components/Productividade';
 import Proposito from './components/Proposito';
 import Consagracao from './components/Consagracao';
-import SocialMediaButtons from './components/SocialMediaButtons'; 
+import SocialMediaButtons from './components/SocialMediaButtons';
 
 // Context
 import { UserProvider, UserContext } from './UserContext';
-
 
 function Header() {
   const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    navigate("/Seinscrever"); // va al login con Google
-  };
-
+  const handleLogin = () => navigate("/Seinscrever");
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -46,22 +42,32 @@ function Header() {
     navigate("/");
   };
 
+  const isAdmin = user?.rol === "admin_total" || user?.rol === "admin_basic";
+
   return (
     <header>
-      <Row className="justify-content-end">
+      {/* Header superior */}
+      <Row className="justify-content-end mb-2">
         <Col xs="auto">
           {user ? (
-            <span className="text-muted" style={{ fontWeight: "bold" }}>
-              Somos {user.comunidadNombre} - Bienvenido: {user.username}{" "}
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={handleLogout}
-                style={{ marginLeft: "10px" }}
-              >
+            <div className="d-flex align-items-center" style={{ gap: "10px", fontWeight: "bold" }}>
+              Somos {user.comunidadNombre} - Bienvenido: {user.username}
+
+              {isAdmin && (
+                <NavDropdown title="⚙️" id="config-dropdown">
+                  <NavDropdown.Item as={NavLink} to="/configuracion/panel">
+                    Panel de Usuarios
+                  </NavDropdown.Item>
+                  <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
+                    Comunidades
+                  </NavDropdown.Item>
+                </NavDropdown>
+              )}
+
+              <Button variant="outline-danger" size="sm" onClick={handleLogout}>
                 Logout
               </Button>
-            </span>
+            </div>
           ) : (
             <Button variant="primary" onClick={handleLogin}>
               Login
@@ -70,6 +76,7 @@ function Header() {
         </Col>
       </Row>
 
+      {/* Navbar principal */}
       <Navbar className="menu-header">
         <Container>
           <LinkContainer to="/">
@@ -84,52 +91,47 @@ function Header() {
           </LinkContainer>
 
           <div className="menu">
-            <NavLink to="/Casapaz" style={({ isActive }) => ({
-              textDecoration: "none",
-              color: isActive ? "white" : "black",
-              marginRight: "13px"
-            })}>
+            <NavLink
+              to="/Casapaz"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
               Casapaz
             </NavLink>
 
-            <NavLink to="/Amo" style={({ isActive }) => ({
-              textDecoration: "none",
-              color: isActive ? "white" : "black",
-              marginRight: "13px"
-            })}>
+            <NavLink
+              to="/Amo"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
               A.M.O
             </NavLink>
 
-            {/* 🔴 Eliminamos el NavLink a Registro/Seinscrever */}
-            
-            <NavLink to="/TaskList" style={({ isActive }) => ({
-              textDecoration: "none",
-              color: isActive ? "white" : "black",
-              marginRight: "13px"
-            })}>
+            <NavLink
+              to="/TaskList"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
               Agenda
             </NavLink>
 
-           <NavDropdown
-              title="Configuração"
-              id="configuracion-dropdown"
-              className="custom-dropdown"
+            <NavLink
+              to="/GruposActivos"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
             >
-              <NavDropdown.Item as={NavLink} to="/configuracion/panel">
-                ⚙️ Usuarios
-              </NavDropdown.Item>
-              <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
-                🏘️ Comunidades
-              </NavDropdown.Item>
-            </NavDropdown>
-
-
-            <NavLink to="/GruposActivos" style={({ isActive }) => ({
-              textDecoration: "none",
-              color: isActive ? "white" : "black",
-              marginRight: "13px",
-              marginLeft: "13px"   // 👈 esto lo mueve a la derecha
-            })}>
               Grupos_Activos
             </NavLink>
           </div>
@@ -139,53 +141,51 @@ function Header() {
   );
 }
 
-
 export default function App() {
   return (
     <UserProvider>
       <HelmetProvider>
-      <BrowserRouter>
-        <div className='d-flex flex-column site-container'>
-          <Helmet>
-            <title>Comunidad Ativa</title>
-          </Helmet>
-          <Header />
-          <main>
-            <Container className="mt-3">
-              <Routes>
-                <Route path="/" element={<Casapaz />} />
-                <Route path="/Casapaz" element={<Casapaz />}>
-                  <Route path="Fidelidade" element={<Fidelidade />} />
-                  <Route path="Redecao" element={<Redecao />} />
-                  <Route path="Conquista" element={<Conquista />} />
-                  <Route path="Identidad" element={<Identidad />} />
-                  <Route path="Productividade" element={<Productividade />} />
-                  <Route path="Proposito" element={<Proposito />} />
-                  <Route path="Consagracao" element={<Consagracao />} />
-                </Route>
-                <Route path="/Amo" element={<Amo />} />
-                <Route path="/Seinscrever" element={<Seinscrever />} />
-                <Route path="/TaskList" element={<TaskList />} /> {/* Nueva Ruta */}
-                <Route path="/configuracion">
+        <BrowserRouter>
+          <div className='d-flex flex-column site-container'>
+            <Helmet>
+              <title>Comunidad Activa</title>
+            </Helmet>
+
+            <Header />
+
+            <main>
+              <Container className="mt-3">
+                <Routes>
+                  <Route path="/" element={<Casapaz />} />
+                  <Route path="/Casapaz" element={<Casapaz />}>
+                    <Route path="Fidelidade" element={<Fidelidade />} />
+                    <Route path="Redecao" element={<Redecao />} />
+                    <Route path="Conquista" element={<Conquista />} />
+                    <Route path="Identidad" element={<Identidad />} />
+                    <Route path="Productividade" element={<Productividade />} />
+                    <Route path="Proposito" element={<Proposito />} />
+                    <Route path="Consagracao" element={<Consagracao />} />
+                  </Route>
+                  <Route path="/Amo" element={<Amo />} />
+                  <Route path="/Seinscrever" element={<Seinscrever />} />
+                  <Route path="/TaskList" element={<TaskList />} />
+                  <Route path="/configuracion">
                     <Route path="panel" element={<ConfiguracionPanel />} />
                     <Route path="comunidades" element={<ComunidadesPanel />} />
-                </Route>
-                <Route path="/GruposActivos" element={<GruposActivos />} /> {/* Nueva Ruta */}
-              </Routes>
-            </Container>
-          </main>
-          <footer>
-            {/* Contenido del footer */}
-            <Container className="text-center">
-              {/* Agregar los botones de redes sociales */}
-              <SocialMediaButtons />
-              <p>
-                &copy; 2025 Todos os Dereitos Reservados
-              </p>
-            </Container>
-          </footer>
-        </div>
-      </BrowserRouter>
+                  </Route>
+                  <Route path="/GruposActivos" element={<GruposActivos />} />
+                </Routes>
+              </Container>
+            </main>
+
+            <footer>
+              <Container className="text-center">
+                <SocialMediaButtons />
+                <p>&copy; 2025 Todos os Dereitos Reservados</p>
+              </Container>
+            </footer>
+          </div>
+        </BrowserRouter>
       </HelmetProvider>
     </UserProvider>
   );
