@@ -4,13 +4,34 @@ const db = require('../models');
 // 📍 Listar todos los grupos (según rol)
 exports.listarTodosGrupos = async (req, res) => {
   try {
+    const { comunidad_id, lider_id } = req.query; // filtros opcionales
+
+    // Construir where dinámico
+    const where = {};
+
+    // Si viene comunidad_id por query y el user es admin_total, permitir filtrar por eso
+    if (comunidad_id) {
+      where.comunidad_id = comunidad_id;
+    }
+
+    // Filtrado por lider_id si viene
+    if (lider_id) {
+      where.lider_id = lider_id;
+    }
+
     let grupos;
 
     if (req.user.rol === 'admin_total') {
-      grupos = await db.GrupoActivo.findAll({ include: ['lider', 'comunidad'] });
-    } else if (req.user.rol === 'admin_basic') {
+      // Admin total ve todos (pero con filtros si se envían)
       grupos = await db.GrupoActivo.findAll({
-        where: { comunidad_id: req.user.comunidad_id },
+        where,
+        include: ['lider', 'comunidad']
+      });
+    } else if (req.user.rol === 'admin_basic') {
+      // Admin basic solo su comunidad: forzamos comunidad_id
+      where.comunidad_id = req.user.comunidad_id;
+      grupos = await db.GrupoActivo.findAll({
+        where,
         include: ['lider', 'comunidad']
       });
     } else {
@@ -50,20 +71,47 @@ exports.obtenerGrupo = async (req, res) => {
   }
 };
 
-// 📍 Crear un grupo (todos logados pueden)
+// ✅ Controlador: Crear Grupo
 exports.crearGrupo = async (req, res) => {
   try {
+    // 1️⃣ Determinar qué lider_id usar (según rol)
+    let liderIdToUse;
+    if (req.user.rol === 'admin_total' && req.body.lider_id) {
+      liderIdToUse = req.body.lider_id; // admin_total puede elegir líder
+    } else {
+      liderIdToUse = req.user.id; // otros roles solo pueden asignarse a sí mismos
+    }
+
+    // 2️⃣ Verificar si ya existe un grupo duplicado
+    const existente = await db.GrupoActivo.findOne({
+      where: {
+        lider_id: liderIdToUse,
+        comunidad_id: req.user.comunidad_id,
+        direccion_grupo: req.body.direccion_grupo
+      }
+    });
+
+    if (existente) {
+      return res.status(409).json({
+        message: 'Ya existe un grupo registrado con ese líder y dirección'
+      });
+    }
+
+    // 3️⃣ Crear grupo
     const nuevoGrupo = await db.GrupoActivo.create({
       ...req.body,
-      lider_id: req.user.id,
+      lider_id: liderIdToUse,
       comunidad_id: req.user.comunidad_id || null
     });
+
     res.status(201).json(nuevoGrupo);
+
   } catch (error) {
     console.error('❌ Error al crear grupo:', error);
     res.status(500).json({ message: 'Error al crear grupo' });
   }
 };
+
 
 // 📍 Actualizar grupo (solo admins)
 exports.actualizarGrupo = async (req, res) => {

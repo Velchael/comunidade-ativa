@@ -1,3 +1,4 @@
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
