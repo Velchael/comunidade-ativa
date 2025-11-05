@@ -158,7 +158,7 @@ export default function SeInscrever() {
 
       <h1 className="my-3">
         👋 ¡Hola <strong>{googleUser?.username || googleUser?.email.split('@')[0]}</strong>!<br />
-        Bienvenido a Reddevida. Vamos a ayudarte a completar tu perfil.
+        Bienvenido a Comunidad-ativa Vamos a ayudarte a completar tu perfil.
       </h1>
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
       <Form onSubmit={handleCompleteProfile}>

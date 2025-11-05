@@ -37,7 +37,7 @@ case $option in
     sleep 2
     echo "🔧 Reconstruyendo imágenes y levantando contenedores..."
     docker compose up --build
-    echo "🌐 Frontend producción: http://localhost:3002"
+    # echo "🌐 Frontend producción: http://localhost:3002"
     echo "🌐 Frontend desarrollo: http://localhost:3001"
     echo "🖥️  Backend: http://localhost:3000"
     ;;
@@ -80,8 +80,9 @@ case $option in
     ;;
   11)
     echo "🚀 Levantando frontend-dev (modo desarrollo con hot reload en 3001)..."
-    docker compose up -d frontend-dev
+    docker compose up frontend-dev
     echo "🌐 Disponible en: http://localhost:3001"
+    #docker restart comunidad-activa-frontend-dev-1
     ;;
   0)
     echo "👋 Saliendo..."
