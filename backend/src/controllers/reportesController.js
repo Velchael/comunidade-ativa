@@ -14,15 +14,25 @@ exports.crearReporte = async (req, res) => {
     }
 
     // 🔐 Reglas: el usuario debe ser líder de este grupo
+    console.log('👤 Usuario autenticado:', req.user);
+    console.log('🆔 grupoId recibido:', req.params.grupoId);
     if (grupo.lider_id !== req.user.id) {
-      return res.status(403).json({ error: 'No autorizado para crear reportes en este grupo' });
+     return res.status(403).json({ error: 'No autorizado para crear reportes en este grupo' });
+    }
+    const asistenciaNum = asistencia === '' || asistencia === null || asistencia === undefined
+      ? null
+      : parseInt(asistencia, 10);
+
+    // Validar que sea un número si el campo no es nulo
+    if (asistenciaNum !== null && isNaN(asistenciaNum)) {
+      return res.status(400).json({ error: 'El valor de asistencia debe ser un número válido' });
     }
 
     const nuevo = await Reporte.create({
       grupo_id: grupoId,
       creador_id: req.user.id,
       semana,
-      asistencia,
+      asistencia: asistenciaNum,
       tema,
       observaciones,
     });

@@ -81,10 +81,10 @@ const getAllUsers = async (req, res) => {
     const users = await Usuario.findAll({
       attributes: { exclude: ['password'] },
       include: [{
-      model: Comunidad,
-      as: 'comunidad',
-      attributes: [['nombre_comunidad', 'nombre']]
-     }],
+        model: Comunidad,
+        as: 'comunidad',
+        attributes: [['nombre_comunidad', 'nombre']]
+      }],
       order: [['created_at', 'DESC']]
     });
     res.json(users);
@@ -93,7 +93,46 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// Actualizar rol de usuario
+// ✅ NUEVA FUNCIÓN: Actualizar usuario completo
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;   // usuario que será editado
+    const data = req.body;
+    const loggedUser = req.user; // viene del middleware verificarToken
+
+    const user = await Usuario.findByPk(id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    // ⚠️ Si se intenta cambiar comunidad_id, solo admin_total puede hacerlo
+    if (data.hasOwnProperty('comunidad_id') && loggedUser.rol !== 'admin_total') {
+      return res.status(403).json({ message: 'Solo admin_total puede cambiar comunidad' });
+    }
+
+    // ⚠️ Si se intenta cambiar rol, solo admin_total puede hacerlo
+    if (data.hasOwnProperty('rol') && loggedUser.rol !== 'admin_total') {
+      return res.status(403).json({ message: 'Solo admin_total puede cambiar roles' });
+    }
+
+    // ⚠️ Si el usuario intenta editar otro usuario y NO es admin_total
+    if (loggedUser.rol !== 'admin_total' && loggedUser.id !== user.id) {
+      return res.status(403).json({ message: 'No tienes permiso para editar otros usuarios' });
+    }
+
+    await user.update(data);
+
+    const updated = await Usuario.findByPk(id, {
+      attributes: { exclude: ['password'] },
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+    });
+
+    return res.json(updated);
+  } catch (err) {
+    console.error('❌ Error al actualizar usuario:', err);
+    return res.status(500).json({ message: 'Error actualizando usuario' });
+  }
+};
+
+// Actualizar solo el rol de usuario
 const updateUserRole = async (req, res) => {
   const { id } = req.params;
   const { rol } = req.body;
@@ -123,8 +162,8 @@ const updateUserRole = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-
     const user = await Usuario.findByPk(id);
+
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
@@ -141,6 +180,7 @@ module.exports = {
   getUserByEmail,
   completeGoogleProfile,
   getAllUsers,
+  updateUser,        // ✅ NUEVO EXPORT
   updateUserRole,
   deleteUser
 };

@@ -8,7 +8,7 @@ function Amo() {
         <h4>
         Projeto A.M.O Salvador é composto por três siglas: Ação, Missão e Oração.
         </h4>
-        <div class="align-right">
+        <div className="align-right">
               <p><strong>Ação:</strong> Trazer as boas novas da salvação</p>
               <p><strong>Missão: </strong>Vá e faça discípulos, treinando. </p> 
               <p><strong>Oração: </strong> Oração e amor pelos necesitados. </p>

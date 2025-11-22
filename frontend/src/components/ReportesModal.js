@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { Modal, Button, Table, Form, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
 import { UserContext } from '../UserContext';
@@ -14,31 +14,32 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   const esLider = grupo?.lider_id === user?.id;
 
   // ✅ Base URL centralizada
-  const API_URL = process.env.REACT_APP_API_URL;
 
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
   // 🔹 Cargar reportes del grupo
-  const fetchReportes = async () => {
-    if (!grupo) return;
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API_URL}/api/grupos/${grupo.id}/reportes`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      setReportes(res.data);
-    } catch (err) {
-      console.error('❌ Error al cargar reportes:', err);
-      setMessage({ type: 'danger', text: 'Error al cargar reportes' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchReportes = useCallback(async () => {
+  if (!grupo || !grupo.id) return;
+  setLoading(true);
+  try {
+    const res = await axios.get(`${API_URL}/api/grupos/${grupo.id}/reportes`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    setReportes(res.data);
+  } catch (err) {
+    console.error('❌ Error al cargar reportes:', err);
+    setMessage({ type: 'danger', text: 'Error al cargar reportes' });
+  } finally {
+    setLoading(false);
+  }
+}, [grupo, API_URL]);
 
-  useEffect(() => {
-    if (show && grupo) {
-      setMessage({ type: '', text: '' }); // limpiar mensajes previos
-      fetchReportes();
-    }
-  }, [show, grupo]);
+ useEffect(() => {
+  if (show && grupo && grupo.id) {
+    setMessage({ type: '', text: '' });
+    fetchReportes();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [show, grupo]);
 
   // 🔹 Crear reporte
   const handleCreate = async () => {
@@ -57,7 +58,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
       setNuevoReporte({ semana: '', asistencia: '', tema: '', observaciones: '' });
     } catch (err) {
       console.error('❌ Error al crear reporte:', err);
-      setMessage({ type: 'danger', text: 'Error al crear reporte' });
+      setMessage({ type: 'danger', text: 'Usuario não autorizado por encuanto' });
     }
   };
 

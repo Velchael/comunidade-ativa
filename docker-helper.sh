@@ -76,7 +76,7 @@ case $option in
     ;;
   10)
     echo "📄 Logs frontend (últimas 50 líneas + seguimiento en vivo)..."
-    docker logs --tail 50 -f $(get_container_id frontend)
+    docker logs --tail 50 -f $(get_container_id comunidad-activa-frontend-dev-1)
     ;;
   11)
     echo "🚀 Levantando frontend-dev (modo desarrollo con hot reload en 3001)..."

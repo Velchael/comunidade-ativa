@@ -11,7 +11,7 @@ const grupoReportesRoutes = require('./src/routes/grupoReportesRoutes');
 const app = express();
 
 const gruposRoutes = require('./src/routes/grupos');
-const reunionesRoutes = require('./src/routes/reuniones');
+
 
 const corsOptions = {
   origin: ['http://localhost:3001', 'http://localhost:3002'], // 🚨 Poné aquí el puerto del FRONTEND
@@ -27,7 +27,7 @@ app.use(passport.initialize());
 app.use('/api', apiRoutes);
 app.use('/api/comunidades', comunidadRoutes);
 app.use('/api/grupos', gruposRoutes);
-app.use('/api/reuniones', reunionesRoutes);
+
 
 // Ahora separados
 app.use('/api/grupos', grupoReportesRoutes);   // para colección por grupo

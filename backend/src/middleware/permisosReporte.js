@@ -46,20 +46,24 @@ module.exports = {
       const { grupoId } = req.params;
 
       if (user.rol === 'admin_basic' || user.rol === 'admin_total') {
+        console.log('🟢 Admin detectado, acceso permitido.');
         return next();
       }
 
       const grupo = await GrupoActivo.findByPk(grupoId);
 
       if (!grupo) {
+         console.log('❌ Grupo no encontrado con ID:', grupoId);
         return res.status(404).json({ error: 'Grupo no encontrado' });
       }
-
+     console.log('👤 User en permiso:', user);
+     console.log('📋 Grupo encontrado:', grupo.id, 'Líder:', grupo.lider_id);
       // Solo el líder de ese grupo puede crear reportes
       if (user.rol === 'miembro' && grupo.lider_id === user.id) {
+        console.log('✅ Usuario autorizado como líder del grupo.');
         return next();
       }
-
+      console.log('🚫 Bloqueado: user.id', user.id, 'rol:', user.rol, 'grupo.lider_id:', grupo.lider_id);
       return res.status(403).json({ error: 'No tienes permisos para crear/editar' });
     } catch (error) {
       console.error(error);
