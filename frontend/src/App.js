@@ -16,6 +16,7 @@ import TaskList from './Screens/TaskList';
 import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 import ComunidadesPanel from './Screens/ComunidadesPanel';
 import GruposActivos from './Screens/GruposActivos';
+//import Dashboard from './Screens/Dashboard';
 
 // Components
 import Fidelidade from './components/Fidelidade';
@@ -51,12 +52,12 @@ function Header() {
         <Col xs="auto">
           {user ? (
             <div className="d-flex align-items-center" style={{ gap: "10px", fontWeight: "bold" }}>
-              Somos {user.comunidadNombre} - Bienvenido: {user.username}
+              {user.comunidadNombre} - Olá: {user.username}
 
               {isAdmin && (
                 <NavDropdown title="⚙️" id="config-dropdown">
                   <NavDropdown.Item as={NavLink} to="/configuracion/panel">
-                    Panel de Usuarios
+                    Usuarios
                   </NavDropdown.Item>
                   <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
                     Comunidades
@@ -174,6 +175,7 @@ export default function App() {
                     <Route path="comunidades" element={<ComunidadesPanel />} />
                   </Route>
                   <Route path="/GruposActivos" element={<GruposActivos />} />
+                  
                 </Routes>
               </Container>
             </main>
