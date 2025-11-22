@@ -35,7 +35,6 @@ passport.use(new GoogleStrategy(
         googleId,
         foto_perfil: avatar,
         password: 'oauth-google',
-        rol: 'usuario',
       });
 
       return done(null, user);

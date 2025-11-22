@@ -17,7 +17,7 @@ const GruposActivos = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const { user } = useContext(UserContext);
-  const [nuevoLiderId, setNuevoLiderId] = useState('')
+  const [nuevoLiderId, setNuevoLiderId] = useState('');
   // Roles
   const esAdminBasic = user?.rol === 'admin_basic';
   const esAdminTotal = user?.rol === 'admin_total';
@@ -148,7 +148,7 @@ const GruposActivos = () => {
             <th>Co-Líder</th>
             <th>Anfitrión</th>
             <th>Dirección</th>
-            <th>📄 Reportes</th>
+            <th>Reporte</th>
             {esAdmin && <th>Acciones</th>}
           </tr>
         </thead>
@@ -162,7 +162,7 @@ const GruposActivos = () => {
                 <td>{grupo.direccion_grupo || '-'}</td>
                 <td>
                   <Button variant="info" size="sm" onClick={() => { setSelectedGrupoReportes(grupo); setShowReportesModal(true); }}>
-                    📄 Ver Reportes
+                    Reporte
                   </Button>
                 </td>
                 {esAdmin && (
@@ -171,10 +171,10 @@ const GruposActivos = () => {
                     {puedeModificar(grupo) ? (
                       <>
                         <Button variant="warning" size="sm" onClick={() => { setSelectedGrupo(grupo); setShowModal(true); }}>
-                          ✏️ Editar
+                          ✏️ 
                         </Button>{' '}
                         <Button variant="danger" size="sm" onClick={() => handleDelete(grupo.id)}>
-                          🗑 Eliminar
+                          🗑 
                         </Button>
                       </>
                     ) : (

@@ -10,26 +10,30 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
   const { user } = useContext(UserContext);
 
   const [formData, setFormData] = useState({
+    comunidad_id: '',
     lider_id: '',
     colider_nombre: '',
     anfitrion_nombre: '',
     direccion_grupo: ''
   });
+
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (grupo) {
-      // Modo edición: cargar valores del grupo a editar
+      // ---- MODO EDICIÓN ----
       setFormData({
+        comunidad_id: grupo.comunidad_id || user?.comunidad_id || '',
         lider_id: grupo.lider_id || '',
         colider_nombre: grupo.colider_nombre || '',
         anfitrion_nombre: grupo.anfitrion_nombre || '',
         direccion_grupo: grupo.direccion_grupo || ''
       });
     } else {
-      // Modo creación: usar initialLiderId (si viene) o user.id
+      // ---- MODO CREACIÓN ----
       setFormData({
+        comunidad_id: user?.comunidad_id || '',
         lider_id: initialLiderId || user?.id || '',
         colider_nombre: '',
         anfitrion_nombre: '',
@@ -54,19 +58,19 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
       const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
 
       if (grupo) {
-        // PUT (editar)
+        // -------- PUT: EDITAR GRUPO --------
         await axios.put(`${API_BASE}/api/grupos/${grupo.id}`, formData, { headers });
       } else {
-        // POST (crear)
+        // -------- POST: CREAR GRUPO --------
         await axios.post(`${API_BASE}/api/grupos`, formData, { headers });
       }
 
       onSave();
       handleClose();
+
     } catch (err) {
       console.error("❌ Error al guardar grupo:", err);
-      // Si backend devuelve mensajes específicos (p.ej. 409), mostrarlos
-      const msg = err?.response?.data?.message || 'Error al guardar el grupo';
+      const msg = err?.response?.data?.message || "Error al guardar el grupo";
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -80,7 +84,16 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
       </Modal.Header>
       <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
+
         <Form onSubmit={handleSubmit}>
+
+          {/* Campo oculto: comunidad_id */}
+          <Form.Control
+            type="hidden"
+            name="comunidad_id"
+            value={formData.comunidad_id}
+          />
+
           <Form.Group className="mb-3">
             <Form.Label>ID del Líder</Form.Label>
             <Form.Control
@@ -89,32 +102,47 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
               value={formData.lider_id}
               onChange={handleChange}
               required
-              // opcional: si no quieres que admin_total edite el ID aquí, descomenta la línea siguiente:
-              // readOnly={user?.rol !== 'admin_total'}
             />
             <Form.Text className="text-muted">
-              Si eres admin_total puedes asignar otro líder (ingresa su id), si no, se usará tu id.
+              Si eres admin_total puedes asignar otro líder (ingresa su id).  
+              Si no, se usa automáticamente tu id.
             </Form.Text>
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Nombre del Co-Líder</Form.Label>
-            <Form.Control type="text" name="colider_nombre" value={formData.colider_nombre} onChange={handleChange} />
+            <Form.Control
+              type="text"
+              name="colider_nombre"
+              value={formData.colider_nombre}
+              onChange={handleChange}
+            />
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Nombre del Anfitrión</Form.Label>
-            <Form.Control type="text" name="anfitrion_nombre" value={formData.anfitrion_nombre} onChange={handleChange} />
+            <Form.Control
+              type="text"
+              name="anfitrion_nombre"
+              value={formData.anfitrion_nombre}
+              onChange={handleChange}
+            />
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Dirección del Grupo</Form.Label>
-            <Form.Control type="text" name="direccion_grupo" value={formData.direccion_grupo} onChange={handleChange} />
+            <Form.Control
+              type="text"
+              name="direccion_grupo"
+              value={formData.direccion_grupo}
+              onChange={handleChange}
+            />
           </Form.Group>
 
           <Button variant="primary" type="submit" disabled={submitting}>
-            {submitting ? 'Guardando...' : (grupo ? 'Guardar cambios' : 'Crear grupo')}
+            {submitting ? "Guardando..." : (grupo ? "Guardar cambios" : "Crear grupo")}
           </Button>
+
         </Form>
       </Modal.Body>
     </Modal>
