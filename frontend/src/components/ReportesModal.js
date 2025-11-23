@@ -65,7 +65,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   return (
     <Modal show={show} onHide={handleClose} size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>📄 Reportes del grupo: {grupo?.direccion_grupo}</Modal.Title>
+        <Modal.Title>📄 Reporte: {user?.nombre || user?.username}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {message.text && <Alert variant={message.type}>{message.text}</Alert>}
