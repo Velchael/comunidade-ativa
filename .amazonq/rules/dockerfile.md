@@ -1,4 +1,4 @@
-# Regras para Dockerfile - Projeto BIA
+# Regras para Dockerfile - Projeto Comunidad
 
 ## Filosofia de Desenvolvimento
 - **Público-alvo:** Alunos em aprendizado
