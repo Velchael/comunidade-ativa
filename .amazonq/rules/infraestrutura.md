@@ -1,4 +1,4 @@
-# Regras de Infraestrutura - Projeto BIA
+# Regras de Infraestrutura - Projeto Comunidad
 
 ## Arquitetura Base
 - **Plataforma:** ECS com cluster de instâncias EC2
@@ -57,7 +57,7 @@
   - `comunidad-ec2` (quando com ALB) → Descrição: "acesso vindo de comunidad-ec2"
   - `comunidad-web` (quando sem ALB) → Descrição: "acesso vindo de comunidad-web"
 
-### EC2 com ALB (bia-ec2)
+### EC2 com ALB (comunidad-ec2)
 **Inbound Rules:**
 - **Protocolo:** All TCP
 - **Source:** `comunidad-alb` → Descrição: "acesso vindo de comunidad-alb"

@@ -11,10 +11,10 @@ set -e  # Para o script em caso de erro
 
 # Configurações padrão
 DEFAULT_REGION="us-east-1"
-DEFAULT_ECR_REPO="bia"
-DEFAULT_CLUSTER="cluster-bia"
-DEFAULT_SERVICE="service-bia"
-DEFAULT_TASK_FAMILY="task-def-bia"
+DEFAULT_ECR_REPO="comunidad"
+DEFAULT_CLUSTER="cluster-comunidad"
+DEFAULT_SERVICE="service-comunidad"
+DEFAULT_TASK_FAMILY="task-def-comunidad"
 
 # Cores para output
 RED='\033[0;31m'
@@ -129,7 +129,7 @@ build_image() {
     log_info "Tag: $tag"
     
     # Build com múltiplas tags
-    docker build -t bia-app:$tag -t bia-app:latest -t $ecr_uri:$tag -t $ecr_uri:latest .
+    docker build -t comunidad-app:$tag -t comunidad-app:latest -t $ecr_uri:$tag -t $ecr_uri:latest .
     
     log_success "Build concluído com sucesso"
 }
