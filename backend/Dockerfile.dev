@@ -22,11 +22,5 @@ COPY . .
 # Exponer el puerto que usará la API
 EXPOSE 3000
 
-# ------------------------------
-# STAGE 2: Entorno de ejecución
-# ------------------------------
-# ⚙️ Cambia este comando en producción:
-# CMD ["npm", "start"]
-
 # 🔧 Comando por defecto para desarrollo
 CMD ["npx", "nodemon", "server.js"]
