@@ -18,10 +18,6 @@ get_container_id() {
 echo "1) 🧱 Reconstruir y levantar todos los contenedores (build completo)"
 echo "2) 📄 Ver logs del backend (en tiempo real)"
 echo "3) 📄 Ver últimas 50 líneas de logs del backend"
-echo "4) 🔍 Buscar palabra clave en logs del backend"
-echo "5) 📦 Ejecutar migraciones dentro del contenedor"
-echo "6) 🔧 Entrar al contenedor backend"
-echo "7) 🛢️ Entrar al contenedor de base de datos (psql)"
 echo "8) ♻️ Reconstruir y levantar solo el backend"
 echo "9) ♻️ Reconstruir y reiniciar solo el frontend (producción)"
 echo "10) 📄 Logs frontend (últimas 50 líneas + seguimiento en vivo)"
@@ -48,22 +44,6 @@ case $option in
   3)
     echo "📄 Últimas 50 líneas de logs del backend..."
     docker logs --tail 50 $(get_container_id backend)
-    ;;
-  4)
-    read -p "🔍 Palabra a buscar en logs del backend: " keyword
-    docker logs $(get_container_id backend) 2>&1 | grep --color=always "$keyword"
-    ;;
-  5)
-    echo "🚀 Ejecutando migraciones dentro del contenedor backend..."
-    docker exec -it $(get_container_id backend) node migrate.js
-    ;;
-  6)
-    echo "🔧 Entrando al contenedor backend..."
-    docker exec -it $(get_container_id backend) bash
-    ;;
-  7)
-    echo "🛢️ Entrando a la base de datos (psql)..."
-    docker exec -it $(get_container_id db) psql -U postgres -d comunidad
     ;;
   8)
     echo "♻️ Reconstruyendo y levantando solo el backend..."
