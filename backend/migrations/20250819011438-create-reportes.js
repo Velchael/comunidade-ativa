@@ -18,7 +18,7 @@ module.exports = {
       creador_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        references: { model: 'usuarios', key: 'id' },
+        references: { model: 'users', key: 'id' },
         onDelete: 'CASCADE'
       },
       semana: {

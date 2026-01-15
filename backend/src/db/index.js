@@ -1,19 +1,16 @@
-const { Sequelize } = require('sequelize');
-const config = require('../config/config.js');
-const env = process.env.NODE_ENV || 'development';
+const { Sequelize } = require("sequelize");
 
-const dbConfig = config[env];
+const dbUrl = process.env.DATABASE_URL;
 
-const sequelize = new Sequelize(
-  dbConfig.database,
-  dbConfig.username,
-  dbConfig.password,
-  {
-    host: dbConfig.host,
-    port: dbConfig.port,
-    dialect: dbConfig.dialect,
-    logging: false, // puedes cambiar a true si deseas más detalles
-  }
-);
+if (!dbUrl) {
+  console.error("❌ ERROR: DATABASE_URL no está definido");
+  process.exit(1);
+}
+
+const sequelize = new Sequelize(dbUrl, {
+  dialect: "postgres",
+  logging: false,
+});
 
 module.exports = sequelize;
+

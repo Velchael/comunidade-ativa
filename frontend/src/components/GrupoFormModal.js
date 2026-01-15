@@ -86,13 +86,7 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
         {error && <Alert variant="danger">{error}</Alert>}
 
         <Form onSubmit={handleSubmit}>
-
-          {/* Campo oculto: comunidad_id */}
-          <Form.Control
-            type="hidden"
-            name="comunidad_id"
-            value={formData.comunidad_id}
-          />
+          <Form.Control type="hidden" name="comunidad_id" value={formData.comunidad_id} />
 
           <Form.Group className="mb-3">
             <Form.Label>ID del Líder</Form.Label>
@@ -104,7 +98,7 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
               required
             />
             <Form.Text className="text-muted">
-              Si eres admin_total puedes asignar otro líder (ingresa su id).  
+              Si eres admin_total puedes asignar otro líder (ingresa su id).
               Si no, se usa automáticamente tu id.
             </Form.Text>
           </Form.Group>
@@ -116,6 +110,7 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
               name="colider_nombre"
               value={formData.colider_nombre}
               onChange={handleChange}
+              placeholder="Nombre del co-líder"
             />
           </Form.Group>
 
@@ -126,6 +121,7 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
               name="anfitrion_nombre"
               value={formData.anfitrion_nombre}
               onChange={handleChange}
+              placeholder="Nombre del anfitrión"
             />
           </Form.Group>
 
@@ -136,13 +132,13 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
               name="direccion_grupo"
               value={formData.direccion_grupo}
               onChange={handleChange}
+              placeholder="Dirección del grupo"
             />
           </Form.Group>
 
           <Button variant="primary" type="submit" disabled={submitting}>
             {submitting ? "Guardando..." : (grupo ? "Guardar cambios" : "Crear grupo")}
           </Button>
-
         </Form>
       </Modal.Body>
     </Modal>
@@ -150,5 +146,3 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
 };
 
 export default GrupoFormModal;
-
-

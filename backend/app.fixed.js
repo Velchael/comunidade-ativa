@@ -10,17 +10,12 @@ const grupoReportesRoutes = require('./src/routes/grupoReportesRoutes');
 
 const app = express();
 
-// Desactivar todas las características de seguridad automáticas de Express
-app.disable('x-powered-by');
-app.set('trust proxy', true);
-
-// Middleware para eliminar CSP completamente
+// Desactivar CSP automático de Express (Nginx maneja CSP)
 app.use((req, res, next) => {
-  // Sobrescribir setHeader para interceptar CSP
   const originalSetHeader = res.setHeader;
   res.setHeader = function(name, value) {
-    if (name.toLowerCase().includes('content-security-policy')) {
-      return res;
+    if (name.toLowerCase() === 'content-security-policy') {
+      return;
     }
     return originalSetHeader.call(this, name, value);
   };

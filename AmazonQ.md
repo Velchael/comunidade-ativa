@@ -40,7 +40,7 @@ O foco base dele é fornecer uma estrutura educacional em que o aluno possa evol
 - EJS e HBS como template engines
 
 **Infraestrutura:**
-- Docker containerizado
+- Docker containerizado (usa docker-compose.prod.yml em EC2)
 - AWS SDK integrado (Secrets Manager, STS)
 - PostgreSQL como banco principal
 - Suporte a variáveis de ambiente

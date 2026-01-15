@@ -4,35 +4,30 @@ const db = require('../models');
 // 📍 Listar todos los grupos (según rol)
 exports.listarTodosGrupos = async (req, res) => {
   try {
-    const { comunidad_id, lider_id } = req.query; // filtros opcionales
-
-    // Construir where dinámico
+    const { comunidad_id, lider_id } = req.query;
     const where = {};
 
-    // Si viene comunidad_id por query y el user es admin_total, permitir filtrar por eso
-    if (comunidad_id) {
-      where.comunidad_id = comunidad_id;
-    }
-
-    // Filtrado por lider_id si viene
-    if (lider_id) {
-      where.lider_id = lider_id;
-    }
+    if (comunidad_id) where.comunidad_id = comunidad_id;
+    if (lider_id) where.lider_id = lider_id;
 
     let grupos;
 
     if (req.user.rol === 'admin_total') {
-      // Admin total ve todos (pero con filtros si se envían)
       grupos = await db.GrupoActivo.findAll({
         where,
-        include: ['lider', 'comunidad']
+        include: [
+          { model: db.Usuario, as: 'lider' },
+          { model: db.Comunidad, as: 'comunidad' }
+        ]
       });
     } else if (req.user.rol === 'admin_basic') {
-      // Admin basic solo su comunidad: forzamos comunidad_id
       where.comunidad_id = req.user.comunidad_id;
       grupos = await db.GrupoActivo.findAll({
         where,
-        include: ['lider', 'comunidad']
+        include: [
+          { model: db.Usuario, as: 'lider' },
+          { model: db.Comunidad, as: 'comunidad' }
+        ]
       });
     } else {
       return res.status(403).json({ message: 'No tienes permiso para ver todos los grupos' });
@@ -50,7 +45,10 @@ exports.listarMisGrupos = async (req, res) => {
   try {
     const grupos = await db.GrupoActivo.findAll({
       where: { lider_id: req.user.id },
-      include: ['lider', 'comunidad']
+      include: [
+        { model: db.Usuario, as: 'lider' },
+        { model: db.Comunidad, as: 'comunidad' }
+      ]
     });
     res.json(grupos);
   } catch (error) {
@@ -62,7 +60,12 @@ exports.listarMisGrupos = async (req, res) => {
 // 📍 Obtener un grupo específico
 exports.obtenerGrupo = async (req, res) => {
   try {
-    const grupo = await db.GrupoActivo.findByPk(req.params.id, { include: ['lider', 'comunidad'] });
+    const grupo = await db.GrupoActivo.findByPk(req.params.id, {
+      include: [
+        { model: db.Usuario, as: 'lider' },
+        { model: db.Comunidad, as: 'comunidad' }
+      ]
+    });
     if (!grupo) return res.status(404).json({ message: 'Grupo no encontrado' });
     res.json(grupo);
   } catch (error) {
@@ -71,15 +74,13 @@ exports.obtenerGrupo = async (req, res) => {
   }
 };
 
-// ✅ Controlador: Crear Grupo
+// ✅ Crear Grupo
 exports.crearGrupo = async (req, res) => {
   try {
-    // Verificar que req.user esté presente
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: 'No autorizado: usuario no válido' });
     }
 
-    // 1️⃣ Determinar líder
     let liderIdToUse;
     if (req.user.rol === 'admin_total' && req.body.lider_id) {
       liderIdToUse = req.body.lider_id;
@@ -87,14 +88,12 @@ exports.crearGrupo = async (req, res) => {
       liderIdToUse = req.user.id;
     }
 
-    // 2️⃣ Validar comunidad (evitar NULL o undefined)
     if (!req.user.comunidad_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Tu usuario no tiene comunidad asignada. Completa tu perfil antes de crear un grupo.'
       });
     }
 
-    // 3️⃣ Verificar duplicado
     const existente = await db.GrupoActivo.findOne({
       where: {
         lider_id: liderIdToUse,
@@ -109,12 +108,13 @@ exports.crearGrupo = async (req, res) => {
       });
     }
 
-    // 4️⃣ Crear grupo (ARREGLADO)
+    // ✅ Campos corregidos según el modelo real
     const nuevoGrupo = await db.GrupoActivo.create({
-      ...req.body,
-      lider_id: liderIdToUse,
       comunidad_id: req.user.comunidad_id,
-      creado_por: req.user.id   // ✔️ IMPORTANTE!!
+      lider_id: liderIdToUse,
+      colider_nombre: req.body.colider_nombre || null,
+      anfitrion_nombre: req.body.anfitrion_nombre || null,
+      direccion_grupo: req.body.direccion_grupo
     });
 
     res.status(201).json(nuevoGrupo);
@@ -124,7 +124,6 @@ exports.crearGrupo = async (req, res) => {
     res.status(500).json({ message: 'Error al crear grupo en el servidor' });
   }
 };
-
 
 // 📍 Actualizar grupo (solo admins)
 exports.actualizarGrupo = async (req, res) => {
@@ -136,7 +135,10 @@ exports.actualizarGrupo = async (req, res) => {
       return res.status(403).json({ message: 'No puedes editar grupos de otra comunidad' });
     }
 
-    await grupo.update(req.body);
+    // ✅ Solo los campos válidos según el modelo
+    const { colider_nombre, anfitrion_nombre, direccion_grupo } = req.body;
+    await grupo.update({ colider_nombre, anfitrion_nombre, direccion_grupo });
+
     res.json({ message: 'Grupo actualizado correctamente', grupo });
   } catch (error) {
     console.error('❌ Error al actualizar grupo:', error);
@@ -161,7 +163,3 @@ exports.eliminarGrupo = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar grupo' });
   }
 };
-
-
-
-

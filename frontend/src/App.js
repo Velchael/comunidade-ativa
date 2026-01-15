@@ -92,27 +92,15 @@ function Header() {
           </LinkContainer>
 
           <div className="menu">
-            <NavLink
-              to="/Casapaz"
-              style={({ isActive }) => ({
+            <span
+              style={{
                 textDecoration: "none",
-                color: isActive ? "white" : "black",
+                color: "black",
                 marginRight: "13px"
-              })}
+              }}
             >
-              Casapaz
-            </NavLink>
-
-            <NavLink
-              to="/Amo"
-              style={({ isActive }) => ({
-                textDecoration: "none",
-                color: isActive ? "white" : "black",
-                marginRight: "13px"
-              })}
-            >
-              A.M.O
-            </NavLink>
+              Comunidade
+            </span>
 
             <NavLink
               to="/TaskList"
@@ -154,9 +142,25 @@ export default function App() {
 
             <Header />
 
-            <main>
-              <Container className="mt-3">
-                <Routes>
+            <main
+              style={{
+                backgroundImage: `url(${logo_large1})`,
+                backgroundSize: 'contain',
+                backgroundPosition: 'center center',
+                backgroundRepeat: 'no-repeat',
+                backgroundAttachment: 'fixed',
+                minHeight: '100vh',
+                position: 'relative'
+              }}
+            >
+              <div style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                minHeight: '100vh',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <Container className="mt-3">
+                  <Routes>
                   <Route path="/" element={<Casapaz />} />
                   <Route path="/Casapaz" element={<Casapaz />}>
                     <Route path="Fidelidade" element={<Fidelidade />} />
@@ -178,6 +182,7 @@ export default function App() {
                   
                 </Routes>
               </Container>
+              </div>
             </main>
 
             <footer>
