@@ -1,1 +1,5 @@
 backend/.env.development
+frontend/.env
+docker-compose.prod.yml
+*.env
+.env.*
