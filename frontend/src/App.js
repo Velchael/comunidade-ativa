@@ -188,7 +188,7 @@ export default function App() {
             <footer>
               <Container className="text-center">
                 <SocialMediaButtons />
-                <p>&copy; 2025 Todos os Dereitos Reservados</p>
+                <p>&copy; 2026 Todos os Dereitos Reservados</p>
               </Container>
             </footer>
           </div>
