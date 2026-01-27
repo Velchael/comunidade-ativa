@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) => {
     comunidad_id: { type: DataTypes.INTEGER, allowNull: false },
     lider_id: { type: DataTypes.INTEGER, allowNull: false },
     colider_id: { type: DataTypes.INTEGER, allowNull: true },
-    colider_nombre: { type: DataTypes.STRING, allowNull: false },
+    colider_nombre: { type: DataTypes.STRING, allowNull: true },
     anfitrion_nombre: { type: DataTypes.STRING, allowNull: true },
     direccion_grupo: { type: DataTypes.TEXT, allowNull: false },
   }, {

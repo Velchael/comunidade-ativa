@@ -156,9 +156,9 @@ const GruposActivos = () => {
           {grupos.length > 0 ? (
             grupos.map(grupo => (
               <tr key={grupo.id}>
-                <td>{grupo.lider?.username || 'Sin nombre'}</td>
-                <td>{grupo.colider?.username || '-'}</td>
-                <td>{grupo.anfitrion?.username || '-'}</td>
+                <td>{grupo.lider?.username || grupo.lider_id || 'Sin nombre'}</td>
+                <td>{grupo.colider_nombre || '-'}</td>
+                <td>{grupo.anfitrion_nombre || '-'}</td>
                 <td>{grupo.direccion_grupo || '-'}</td>
                 <td>
                   <Button variant="info" size="sm" onClick={() => { setSelectedGrupoReportes(grupo); setShowReportesModal(true); }}>
