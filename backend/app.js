@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
 const passport = require('./src/config/passport');
 const apiRoutes = require('./src/routes');
 const comunidadRoutes = require('./src/routes/comunidades');

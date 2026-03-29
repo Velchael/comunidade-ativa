@@ -1,14 +1,18 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { Usuario: User } = require('../models'); //Esto asume que en tu modelo el nombre es Usuario, pero lo exportas como parte del db.
-require('dotenv').config();
+const { Usuario: User } = require('../models');
+
+// Validar variables de entorno críticas
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error('❌ GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET son requeridos');
+}
 
 passport.use(new GoogleStrategy(
   {
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.NODE_ENV === 'production' 
-      ? "https://comunidad-ativa.reddevida.com.br/api/auth/google/callback"
+    callbackURL: process.env.NODE_ENV === 'production'
+      ? "https://comuva.com/api/auth/google/callback"
       : "http://localhost:3000/api/auth/google/callback",
   },
   async (accessToken, refreshToken, profile, done) => {

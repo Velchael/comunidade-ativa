@@ -3,3 +3,4 @@ frontend/.env
 docker-compose.prod.yml
 *.env
 .env.*
+certbot/
