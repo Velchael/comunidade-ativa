@@ -1,22 +1,13 @@
 // src/models/index.js
-
-require('dotenv').config(); // 👈obligatorio para  Carga las variables de entorno desde .env
+// Carga automática de modelos usando la instancia única de Sequelize
 
 const fs = require('fs');
 const path = require('path');
-const Sequelize = require('sequelize');
+const sequelize = require('../db'); // ← Importar instancia única
+const { Sequelize } = require('sequelize');
 
 const basename = path.basename(__filename);
-const db = {}; // 🔄 se llamará `db`, no `models`
-console.log('📦 DATABASE_URL:', process.env.DATABASE_URL);
-
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: 'postgres',
-  logging: false,
-  define: {
-    freezeTableName: true,
-  },
-});
+const db = {};
 
 // Cargar todos los modelos automáticamente
 fs.readdirSync(__dirname)
@@ -39,7 +30,5 @@ Object.keys(db).forEach((modelName) => {
 // Exponer sequelize y modelos
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
-console.log('Modelos cargados:', Object.keys(db));
 
 module.exports = db;
-
