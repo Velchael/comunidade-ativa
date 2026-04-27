@@ -197,6 +197,7 @@ const GruposActivos = () => {
         handleClose={() => { setShowModal(false); setSelectedGrupo(null); }}
         onSave={() => { fetchGrupos(); setMessage({ type: 'success', text: selectedGrupo ? 'Grupo actualizado' : 'Grupo creado correctamente' }); }}
         grupo={selectedGrupo}
+        initialLiderId={nuevoLiderId} // 👈 ESTA ES LA LÍNEA QUE FALTA
       />
 
       <ReportesModal show={showReportesModal} handleClose={() => setShowReportesModal(false)} grupo={selectedGrupoReportes} user={user} />

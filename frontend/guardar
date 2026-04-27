@@ -1,45 +1,665 @@
-docker-CompositionEvent.yml 27/08/25
-services:
-  db:
-    image: postgres:14
-    restart: always
-    environment:
-       POSTGRES_DB: comunidad
-       POSTGRES_USER: postgres
-       POSTGRES_PASSWORD: 123456
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: always
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-    env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend:/app
-    command: ["/wait-for-it.sh", "db:5432", "--timeout=60", "--strict", "--", "npm", "start"]
-    
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        REACT_APP_API_URL: http://localhost:3000
-    restart: always
-    ports:
-      - "3002:80"  # Exponiendo puerto para acceder desde navegador: http://localhost:3002 
-    environment:
-      - REACT_APP_API_URL=http://localhost:3000
-    depends_on:
-      - backend
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+header {
+  background-color: #ca932b;
+  padding: 1rem;
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 7.5rem;
+}
 
-volumes:
-  pgdata:
+.user-info-bar {
+  background-color: #f8f9fa;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+}
+
+
+.user-info {
+  margin-left: auto; /* Empuja el contenido a la derecha */
+  display: flex;
+  align-items: center;
+  color: darkblue;
+  font-weight: bold;
+}
+.site-container {
+  min-height: 100vh;
+}
+.menu {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+main {
+  flex: 1;
+}
+.btn {
+  background-color: #fdbb05;
+  color: #431a03;
+  font-weight: bold;
+}
+.img-large {
+  max-width: 55%;
+}
+.App-logo {
+  height: 12vmin;
+  padding: 0 1rem;
+  float: left;
+  animation: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+.controls {
+  padding: 5px;
+  border-radius: 4px;
+  height: 20px;
+  border: 0.01rem solid black;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.button {
+  margin-top: 1rem;
+  background-color: #ca932b;
+  color: black;
+  font-weight: bolder;
+  font-size: 1.3rem;
+  border-radius: 0.4rem;
+  border: 0.1rem solid black;
+}
+.Containerdos {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.Containerdos ul li {
+  list-style: none;
+  color: white;
+}
+.Containerdos ul li a {
+  text-decoration: none;
+  list-style: none;
+  color: #333;
+}
+.h1emprega {
+  color: #333;
+  font-size: 24px;
+  font-weight: bold;
+}
+.ulemprega {
+  list-style: disc;
+  color: #666;
+  margin-bottom: 10px;
+  padding-left: 20px;
+}
+.imgemprega {
+  width: 50%;
+  max-width: 400px;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px rgba(202, 147, 43);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.imgservico {
+  width: 50%;
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px rgba(202, 147, 43);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+h5 {
+  text-align: center;
+}
+p {
+  text-align: center;
+}
+.imgempregadois {
+  width: 48%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px #ca932b;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.imgservicodois {
+  width: 100%;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px #ca932b;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.imgemprega:hover {
+  transform: scale(1.2);
+}
+.imgservico:hover {
+  transform: scale(1.2);
+}
+
+.small-container {
+  max-width: 600px;
+}
+
+footer {
+  background-color: #ca932b;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 7 derramamiento     */
+.botonavegador {
+  margin-top: 30px;
+  font-size: 30px; /* Ajusta el tamaño de fuente según tus preferencias */
+  font-weight: bold; /* Aplica un estilo de fuente en negrita si deseas */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4); /* Agrega una sombra al texto */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0px;
+  margin-top: 0px;
+}
+
+.align-right {
+  text-align: right;
+}
+
+.carrusel-itemdos {
+  min-width: 330px;
+ /* max-width: 18px;*/
+  height: 220px;
+ cursor: pointer;
+}
+.foto2desender{
+  margin-top: 20px; 
+}
+.custom-primary {
+  background-color: rgba(202, 147, 43);
+  border-color: rgba(202, 147, 43); /* Opcional: para cambiar el color del borde */
+ /* color: #fff; /* Opcional: para cambiar el color del texto a blanco */
+}
+.list-unstyled {
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Alinea los botones verticalmente en el centro */
+  list-style-type: none;
+}
+.list2 {
+  margin-right: 5px;
+}
+.list2 a {
+  display: inline-block;
+  border-radius: 10px;
+  background-color: #429dff; /* Cambia el color de fondo según tu preferencia */
+  color: #fff; /* Cambia el color del texto según tu preferencia */
+  text-decoration: none;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  padding: 8px 10px;
+  margin-right: 5px; /* Agrega un espacio entre los botones */
+}
+.list2:last-child a {
+  margin-right: 0; /* Elimina el margen derecho del último botón para evitar espacio adicional */
+}
+.list2 a:hover {
+  background-color: #0056b3; /* Cambia el color de fondo al pasar el cursor */
+  transform: translateY(-2px); /* Agrega un ligero desplazamiento hacia arriba al pasar el cursor */
+}
+@media (max-width: 768px) {
+  .list-unstyled {
+    flex-wrap: wrap;
+  }
+  .list2 {
+    margin-bottom: 10px;
+    margin-right: 0; /* Elimina el margen derecho en dispositivos móviles */
+  }
+}
+........................css nuevo ........................
+
+/* ============================= */
+/* 1. RESET & BASE */
+/* ============================= */
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+    'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* ============================= */
+/* 2. GLOBAL */
+/* ============================= */
+
+h5, p {
+  text-align: center;
+}
+
+.btn {
+  background-color: #fdbb05;
+  color: #431a03;
+  font-weight: bold;
+}
+
+footer {
+  background-color: #ca932b;
+  font-weight: bold;
+  text-align: center;
+}
+
+.small-container {
+  max-width: 600px;
+}
+
+
+/* ============================= */
+/* 3. IMÁGENES Y CONTENIDO */
+/* ============================= */
+
+.img-large {
+  max-width: 55%;
+}
+
+.imgemprega,
+.imgservico {
+  width: 50%;
+  max-width: 400px;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px rgba(202, 147, 43);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.imgemprega:hover,
+.imgservico:hover {
+  transform: scale(1.1);
+}
+
+.imgempregadois {
+  width: 48%;
+  max-width: 400px;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px #ca932b;
+}
+
+.imgservicodois {
+  width: 100%;
+  border-radius: 5px;
+  box-shadow: 0 3px 4px #ca932b;
+}
+
+
+/* ============================= */
+/* 4. LISTAS / SOCIAL */
+/* ============================= */
+
+.list-unstyled {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  list-style: none;
+}
+
+.list2 {
+  margin-right: 5px;
+}
+
+.list2 a {
+  display: inline-block;
+  border-radius: 10px;
+  background-color: #429dff;
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 10px;
+  transition: 0.3s;
+}
+
+.list2 a:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .list-unstyled {
+    flex-wrap: wrap;
+  }
+
+  .list2 {
+    margin-bottom: 10px;
+  }
+}
+
+
+/* ============================= */
+/* 5. 🔥 NUEVO LAYOUT (SIDEBAR PRO) */
+/* ============================= */
+
+/* SIDEBAR */
+.sidebar {
+  width: 250px;
+  height: 100vh;
+  background: #111;
+  color: white;
+  position: fixed;
+  left: -250px;
+  top: 0;
+  transition: 0.3s ease;
+  z-index: 1000;
+}
+
+.sidebar.open {
+  left: 0;
+}
+
+.sidebar a {
+  display: block;
+  padding: 12px 20px;
+  color: #ccc;
+  text-decoration: none;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background: #333;
+  color: #fff;
+}
+
+/* OVERLAY */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* MOBILE TOPBAR */
+.mobile-topbar {
+  background: #111;
+  color: white;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* MAIN */
+.main-content {
+  min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+
+/* DESKTOP MODE */
+
+@media (min-width: 768px) {
+  .sidebar {
+    left: 0; /* visible en desktop */
+  }
+
+  .main-content {
+    margin-left: 250px;
+  }
+}
+
+/* HEADER DESKTOP */
+.menu-header {
+  background-color: #ca932b;
+  padding: 10px 0;
+}
+
+/* LINKS NAVBAR */
+.menu-header a {
+  color: black;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.menu-header a.active {
+  color: white;
+}
+
+/* MOBILE */
+.mobile-topbar {
+  background-color: #ca932b;
+}
+
+/* BOTÓN MENU */
+.menu-btn {
+  font-size: 22px;
+  background: none;
+  border: none;
+  color: black;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* LOGOS */
+.logo-desktop {
+  height: 40px;
+}
+
+.logo-mobile {
+  height: 30px;
+}
+..................................... 23-04-26
+
+import React, { useContext, useState } from 'react';
+import Sidebar from './components/Sidebar';
+import { BrowserRouter, Route, Routes, NavLink, useNavigate } from 'react-router-dom';
+import { HelmetProvider, Helmet } from 'react-helmet-async';
+import { Container, Navbar, NavDropdown, Button, Row, Col } from 'react-bootstrap';
+import { LinkContainer } from 'react-router-bootstrap';
+import logo_large1 from './logo_large1.png';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './index.css';
+// Screens
+import Casapaz from './Screens/Casapaz';
+import Seinscrever from './Screens/Seinscrever';
+import TaskList from './Screens/TaskList';
+import ConfiguracionPanel from './Screens/ConfiguracionPanel';
+import ComunidadesPanel from './Screens/ComunidadesPanel';
+import GruposActivos from './Screens/GruposActivos'
+// Components
+import SocialMediaButtons from './components/SocialMediaButtons';
+// Context
+import { UserProvider, UserContext } from './UserContext';
+
+function Header({ toggleSidebar }) {
+  const { user, setUser } = useContext(UserContext);
+  const navigate = useNavigate();
+
+  const handleLogin = () => navigate("/Seinscrever");
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/");
+  };
+
+  const isAdmin = user?.rol === "admin_total" || user?.rol === "admin_basic";
+
+  return (  
+    <header>
+      {/* Header superior */}
+      <Row className="justify-content-end mb-2">
+        <Col xs="auto">
+          {user ? (
+            <div className="d-flex align-items-center" style={{ gap: "10px", fontWeight: "bold" }}>
+              {user.comunidadNombre} - Olá: {user.username}
+
+              {isAdmin && (
+                <NavDropdown title="⚙️" id="config-dropdown">
+                  <NavDropdown.Item as={NavLink} to="/configuracion/panel">
+                    Usuarios
+                  </NavDropdown.Item>
+                  <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
+                    Comunidades
+                  </NavDropdown.Item>
+                </NavDropdown>
+              )}
+              <Button variant="outline-danger" size="sm" onClick={handleLogout}>
+                Logout
+              </Button>
+            </div>
+          ) : (
+            <Button variant="primary" onClick={handleLogin}>
+              Login
+            </Button>
+          )}
+        </Col>
+      </Row>
+
+      {/* Navbar principal */}
+      <Navbar className="menu-header">
+        <Container>
+          <LinkContainer to="/">
+            <Navbar.Brand>
+              <button
+                onClick={toggleSidebar}
+                style={{
+                marginRight: "10px",
+                fontSize: "20px",
+                background: "none",
+                border: "none",
+                cursor: "pointer"
+                }}
+              >
+              Menu ☰
+              </button>
+              <img
+                src={logo_large1}
+                className="App-logo"
+                alt="logo"
+                style={{ maxWidth: "100%", maxHeight: "100%" }}
+              />
+            </Navbar.Brand>
+          </LinkContainer>
+
+          <div className="menu">
+            <span
+              style={{
+                textDecoration: "none",
+                color: "black",
+                marginRight: "13px"
+              }}
+            >
+              Comunidade
+            </span>
+
+            <NavLink
+              to="/TaskList"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
+              Agenda
+            </NavLink>
+
+            <NavLink
+              to="/GruposActivos"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
+              Grupos_Activos
+            </NavLink>
+          </div>
+        </Container>
+      </Navbar>
+     
+    </header>
+  );
+}
+
+export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  return (
+    <UserProvider>
+      <HelmetProvider>
+        <BrowserRouter>
+          <div className='d-flex flex-column site-container'>
+            <Helmet>
+              <title>Comunidad Activa</title>
+            </Helmet>
+
+            <Sidebar
+              isOpen={sidebarOpen}
+              toggle={() => setSidebarOpen(!sidebarOpen)}
+            />
+              <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+            <main
+              style={{
+                backgroundImage: `url(${logo_large1})`,
+                backgroundSize: 'contain',
+                backgroundPosition: 'center center',
+                backgroundRepeat: 'no-repeat',
+                
+                minHeight: '100vh',
+                position: 'relative'
+              }}
+            >
+              <div style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                minHeight: '100vh',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <Container className="mt-3">
+                  <Routes>
+                  <Route path="/" element={<Casapaz />} />
+                  <Route path="/Casapaz" element={<Casapaz />}>
+                  </Route>
+                  <Route path="/Seinscrever" element={<Seinscrever />} />
+                  <Route path="/TaskList" element={<TaskList />} />
+                  <Route path="/configuracion">
+                    <Route path="panel" element={<ConfiguracionPanel />} />
+                    <Route path="comunidades" element={<ComunidadesPanel />} />
+                  </Route>
+                  <Route path="/GruposActivos" element={<GruposActivos />} />
+                </Routes>
+              </Container>
+              </div>
+            </main>
+            <footer>
+              <Container className="text-center">
+                <SocialMediaButtons />
+                <p>&copy; 2026 Todos os Dereitos Reservados</p>
+              </Container>
+            </footer>
+          </div>
+        </BrowserRouter>
+      </HelmetProvider>
+    </UserProvider>
+  );
+}

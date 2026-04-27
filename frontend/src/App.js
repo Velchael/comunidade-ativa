@@ -1,4 +1,5 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
+import Sidebar from './components/Sidebar';
 import { BrowserRouter, Route, Routes, NavLink, useNavigate } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { Container, Navbar, NavDropdown, Button, Row, Col } from 'react-bootstrap';
@@ -7,31 +8,19 @@ import { LinkContainer } from 'react-router-bootstrap';
 import logo_large1 from './logo_large1.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
-
 // Screens
 import Casapaz from './Screens/Casapaz';
 import Seinscrever from './Screens/Seinscrever';
-import Amo from './Screens/Amo';
 import TaskList from './Screens/TaskList';
 import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 import ComunidadesPanel from './Screens/ComunidadesPanel';
-import GruposActivos from './Screens/GruposActivos';
-//import Dashboard from './Screens/Dashboard';
-
+import GruposActivos from './Screens/GruposActivos'
 // Components
-import Fidelidade from './components/Fidelidade';
-import Redecao from './components/Redecao';
-import Conquista from './components/Conquista';
-import Identidad from './components/Identidad';
-import Productividade from './components/Productividade';
-import Proposito from './components/Proposito';
-import Consagracao from './components/Consagracao';
 import SocialMediaButtons from './components/SocialMediaButtons';
-
 // Context
 import { UserProvider, UserContext } from './UserContext';
 
-function Header() {
+function Header({ toggleSidebar }) {
   const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
 
@@ -45,49 +34,77 @@ function Header() {
 
   const isAdmin = user?.rol === "admin_total" || user?.rol === "admin_basic";
 
-  return (
+  return (  
     <header>
       {/* Header superior */}
-      <Row className="justify-content-end mb-2">
-        <Col xs="auto">
-          {user ? (
-            <div className="d-flex align-items-center" style={{ gap: "10px", fontWeight: "bold" }}>
-              {user.comunidadNombre} - Olá: {user.username}
+      
+  <Row className="justify-content-between align-items-center mb-2">
 
-              {isAdmin && (
-                <NavDropdown title="⚙️" id="config-dropdown">
-                  <NavDropdown.Item as={NavLink} to="/configuracion/panel">
-                    Usuarios
-                  </NavDropdown.Item>
-                  <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
-                    Comunidades
-                  </NavDropdown.Item>
-                </NavDropdown>
-              )}
+  {/* IZQUIERDA → LOGO */}
+  
+  <Col xs="auto">
+    <img
+      src={logo_large1}
+      alt="logo"
+      onClick={() => {
+       // toggleSidebar(false);   // 🔥 cierra sidebar
+       navigate("/");          // 🔥 va al inicio
+       // window.scrollTo(0, 0);  // 🔥 sube al top
+      }}
+      style={{
+        height: "50px",
+        objectFit: "contain"
+      }}
+    />
+  </Col>
 
-              <Button variant="outline-danger" size="sm" onClick={handleLogout}>
-                Logout
-              </Button>
-            </div>
-          ) : (
-            <Button variant="primary" onClick={handleLogin}>
-              Login
-            </Button>
-          )}
-        </Col>
-      </Row>
+  {/* DERECHA → USUARIO */}
+  <Col xs="auto">
+    {user ? (
+      <div className="d-flex align-items-center" style={{ gap: "10px", fontWeight: "bold" }}>
+        {user.comunidadNombre} - Olá: {user.username}
+
+        {isAdmin && (
+          <NavDropdown title="⚙️" id="config-dropdown">
+            <NavDropdown.Item as={NavLink} to="/configuracion/panel">
+              Usuarios
+            </NavDropdown.Item>
+            <NavDropdown.Item as={NavLink} to="/configuracion/comunidades">
+              Comunidades
+            </NavDropdown.Item>
+          </NavDropdown>
+        )}
+
+        <Button variant="outline-danger" size="sm" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
+    ) : (
+      <Button variant="primary" onClick={handleLogin}>
+        Login
+      </Button>
+    )}
+  </Col>
+</Row>
 
       {/* Navbar principal */}
       <Navbar className="menu-header">
         <Container>
           <LinkContainer to="/">
             <Navbar.Brand>
-              <img
-                src={logo_large1}
-                className="App-logo"
-                alt="logo"
-                style={{ maxWidth: "100%", maxHeight: "100%" }}
-              />
+              <button
+                onClick={toggleSidebar}
+                style={{
+                marginRight: "10px",
+                fontSize: "20px",
+                background: "none",
+                border: "none",
+                cursor: "pointer"
+                }}
+              >
+              Menu ☰
+              </button>
+              
             </Navbar.Brand>
           </LinkContainer>
 
@@ -126,11 +143,13 @@ function Header() {
           </div>
         </Container>
       </Navbar>
+     
     </header>
   );
 }
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <UserProvider>
       <HelmetProvider>
@@ -140,15 +159,18 @@ export default function App() {
               <title>Comunidad Activa</title>
             </Helmet>
 
-            <Header />
-
+            <Sidebar
+              isOpen={sidebarOpen}
+              toggle={() => setSidebarOpen(!sidebarOpen)}
+            />
+              <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
             <main
               style={{
                 backgroundImage: `url(${logo_large1})`,
                 backgroundSize: 'contain',
                 backgroundPosition: 'center center',
                 backgroundRepeat: 'no-repeat',
-                backgroundAttachment: 'fixed',
+                
                 minHeight: '100vh',
                 position: 'relative'
               }}
@@ -163,15 +185,7 @@ export default function App() {
                   <Routes>
                   <Route path="/" element={<Casapaz />} />
                   <Route path="/Casapaz" element={<Casapaz />}>
-                    <Route path="Fidelidade" element={<Fidelidade />} />
-                    <Route path="Redecao" element={<Redecao />} />
-                    <Route path="Conquista" element={<Conquista />} />
-                    <Route path="Identidad" element={<Identidad />} />
-                    <Route path="Productividade" element={<Productividade />} />
-                    <Route path="Proposito" element={<Proposito />} />
-                    <Route path="Consagracao" element={<Consagracao />} />
                   </Route>
-                  <Route path="/Amo" element={<Amo />} />
                   <Route path="/Seinscrever" element={<Seinscrever />} />
                   <Route path="/TaskList" element={<TaskList />} />
                   <Route path="/configuracion">
@@ -179,12 +193,10 @@ export default function App() {
                     <Route path="comunidades" element={<ComunidadesPanel />} />
                   </Route>
                   <Route path="/GruposActivos" element={<GruposActivos />} />
-                  
                 </Routes>
               </Container>
               </div>
             </main>
-
             <footer>
               <Container className="text-center">
                 <SocialMediaButtons />
