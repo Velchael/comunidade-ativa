@@ -11,7 +11,7 @@ module.exports = {
   },
 
   puedeGestionarGrupo: async (req, res, next) => {
-    const { GrupoActivo, Usuario } = require('../models');
+    const { GrupoActivo } = require('../models');
     const grupoId = req.params.id;
     const grupo = await GrupoActivo.findByPk(grupoId);
 

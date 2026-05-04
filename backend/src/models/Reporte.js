@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
   // asociaciones
   Reporte.associate = (models) => {
     Reporte.belongsTo(models.GrupoActivo, { foreignKey: 'grupo_id', as: 'grupo' });
-    Reporte.belongsTo(models.Usuario, { foreignKey: 'creador_id', as: 'creador' });
+    Reporte.belongsTo(models.User, { foreignKey: 'creador_id', as: 'creador' });
   };
 
   return Reporte;

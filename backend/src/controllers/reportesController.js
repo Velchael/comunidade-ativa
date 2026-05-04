@@ -1,5 +1,5 @@
 // src/controllers/reportesController.js
-const { Reporte, GrupoActivo, Usuario } = require('../models');
+const { Reporte, GrupoActivo, User } = require('../models');
 
 // ✅ Crear reporte en un grupo (solo si el usuario es líder/miembro autorizado del grupo)
 exports.crearReporte = async (req, res) => {
@@ -58,7 +58,7 @@ exports.listarReportes = async (req, res) => {
       where: { grupo_id: grupoId },
       include: [
         { model: GrupoActivo, as: 'grupo' },
-        { model: Usuario, as: 'creador', attributes: ['id', 'username', 'email'] },
+        { model: User, as: 'creador', attributes: ['id', 'username', 'email'] },
       ],
       order: [['semana', 'DESC']],
     });
@@ -78,7 +78,7 @@ exports.obtenerReporte = async (req, res) => {
     const reporte = await Reporte.findByPk(reporteId, {
       include: [
         { model: GrupoActivo, as: 'grupo' },
-        { model: Usuario, as: 'creador', attributes: ['id', 'username', 'email'] },
+        { model: User, as: 'creador', attributes: ['id', 'username', 'email'] },
       ],
     });
 

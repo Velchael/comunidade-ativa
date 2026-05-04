@@ -16,7 +16,7 @@ exports.listarTodosGrupos = async (req, res) => {
       grupos = await db.GrupoActivo.findAll({
         where,
         include: [
-          { model: db.Usuario, as: 'lider' },
+          { model: db.User, as: 'lider' },
           { model: db.Comunidad, as: 'comunidad' }
         ]
       });
@@ -25,7 +25,7 @@ exports.listarTodosGrupos = async (req, res) => {
       grupos = await db.GrupoActivo.findAll({
         where,
         include: [
-          { model: db.Usuario, as: 'lider' },
+          { model: db.User, as: 'lider' },
           { model: db.Comunidad, as: 'comunidad' }
         ]
       });
@@ -46,7 +46,7 @@ exports.listarMisGrupos = async (req, res) => {
     const grupos = await db.GrupoActivo.findAll({
       where: { lider_id: req.user.id },
       include: [
-        { model: db.Usuario, as: 'lider' },
+        { model: db.User, as: 'lider' },
         { model: db.Comunidad, as: 'comunidad' }
       ]
     });
@@ -62,7 +62,7 @@ exports.obtenerGrupo = async (req, res) => {
   try {
     const grupo = await db.GrupoActivo.findByPk(req.params.id, {
       include: [
-        { model: db.Usuario, as: 'lider' },
+        { model: db.User, as: 'lider' },
         { model: db.Comunidad, as: 'comunidad' }
       ]
     });

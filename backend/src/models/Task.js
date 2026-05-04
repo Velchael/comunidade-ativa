@@ -55,7 +55,7 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Task.associate = (models) => {
-    Task.belongsTo(models.Usuario, {
+    Task.belongsTo(models.User, {
       foreignKey: 'created_by',
       as: 'creator'
     });

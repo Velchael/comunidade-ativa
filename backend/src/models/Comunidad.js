@@ -31,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Comunidad.associate = (models) => {
-    Comunidad.hasMany(models.Usuario, {
+    Comunidad.hasMany(models.User, {
       foreignKey: 'comunidad_id',
       as: 'usuarios'
     });

@@ -1,7 +1,7 @@
 // backend/controllers/authController.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { Usuario, Comunidad } = require('../models'); // Ajusta según index.js de models
+const { User, Comunidad } = require('../models'); // Ajusta según index.js de models
 const createToken = require('../utils/createToken');
 require('dotenv').config();
 
@@ -11,7 +11,7 @@ const login = async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email y password son requeridos' });
 
-    const user = await Usuario.findOne({
+    const user = await User.findOne({
       where: { email },
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
     });
@@ -82,7 +82,7 @@ const getMe = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: 'No autenticado' });
 
-    const user = await Usuario.findByPk(userId, {
+    const user = await User.findByPk(userId, {
       attributes: ['id', 'email', 'rol', 'username', 'apellido', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
     });
@@ -123,7 +123,7 @@ const refreshToken = async (req, res) => {
     if (!payload?.id) return res.status(400).json({ message: 'Payload inválido en token' });
 
     // Obtener usuario actual desde DB (para reflejar cambios de rol/comunidad)
-    const user = await Usuario.findByPk(payload.id, {
+    const user = await User.findByPk(payload.id, {
       attributes: ['id', 'email', 'rol', 'username', 'apellido', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
     });

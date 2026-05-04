@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { Comunidad, Usuario } = require('./src/models');
+const { Comunidad, User } = require('./src/models');
 
 async function insertTestData() {
   try {

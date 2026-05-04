@@ -14,7 +14,8 @@ import Seinscrever from './Screens/Seinscrever';
 import TaskList from './Screens/TaskList';
 import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 import ComunidadesPanel from './Screens/ComunidadesPanel';
-import GruposActivos from './Screens/GruposActivos'
+import GruposActivos from './Screens/GruposActivos';
+import Interacciones from './Screens/Interacciones';
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
 // Context
@@ -109,15 +110,17 @@ function Header({ toggleSidebar }) {
           </LinkContainer>
 
           <div className="menu">
-            <span
-              style={{
-                textDecoration: "none",
-                color: "black",
-                marginRight: "13px"
-              }}
+           
+            <NavLink
+              to="/interacciones"
+              style={({ isActive }) => ({
+              textDecoration: "none",
+              color: isActive ? "white" : "black",
+              marginRight: "13px"
+              })}
             >
-              Comunidade
-            </span>
+             Interacción
+            </NavLink>
 
             <NavLink
               to="/TaskList"
@@ -193,6 +196,7 @@ export default function App() {
                     <Route path="comunidades" element={<ComunidadesPanel />} />
                   </Route>
                   <Route path="/GruposActivos" element={<GruposActivos />} />
+                  <Route path="/interacciones" element={<Interacciones />} />
                 </Routes>
               </Container>
               </div>

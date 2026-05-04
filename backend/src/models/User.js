@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const Usuario = sequelize.define('Usuario', {
+  const User = sequelize.define('User', {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
     },
     rol: {
-      type: DataTypes.ENUM('admin_total', 'admin_basic', 'miembro'), // actualiza si deseas roles más precisos
+      type: DataTypes.ENUM('admin_total', 'admin_basic', 'miembro'),
       defaultValue: 'miembro'
     },
     fecha_nacimiento: {
@@ -71,7 +71,7 @@ module.exports = (sequelize, DataTypes) => {
     comunidad_id: {
       type: DataTypes.INTEGER,
       references: {
-        model: 'comunidades', // el nombre real de la tabla, en minúscula
+        model: 'comunidades',
         key: 'id'
       }
     }
@@ -82,14 +82,14 @@ module.exports = (sequelize, DataTypes) => {
     updatedAt: 'updated_at'
   });
 
-  // ✅ Asociaciones aquí, centralizadas
-  Usuario.associate = (models) => {
-    Usuario.belongsTo(models.Comunidad, {
+  // 🔗 RELACIONES
+  User.associate = (models) => {
+    User.belongsTo(models.Comunidad, {
       foreignKey: 'comunidad_id',
       as: 'comunidad'
     });
   };
 
-  return Usuario;
+  return User; // ✅ ahora sí existe
 };
 

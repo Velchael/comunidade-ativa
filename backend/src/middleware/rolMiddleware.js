@@ -1,5 +1,5 @@
 // src/middlewares/rolMiddleware.js
-const { Usuario } = require('../models');
+const { User } = require('../models');
 
 const verificarRol = (rolesPermitidos = []) => {
   return async (req, res, next) => {
@@ -10,17 +10,23 @@ const verificarRol = (rolesPermitidos = []) => {
         return res.status(401).json({ message: 'No autorizado' });
       }
 
-      const usuario = await Usuario.findByPk(userId);
+      const user = await User.findByPk(userId, {
+        include: [
+          {
+            association: "comunidad"
+          }
+        ]
+      });
 
-      if (!usuario) {
+      if (!user) {
         return res.status(404).json({ message: 'Usuario no encontrado' });
       }
 
-      if (!rolesPermitidos.includes(usuario.rol)) {
+      if (!rolesPermitidos.includes(user.rol)) {
         return res.status(403).json({ message: 'Acceso denegado: permisos insuficientes' });
       }
 
-      req.usuarioLogado = usuario; // 🔄 inyectamos datos del usuario logado (incluye comunidad_id)
+      req.usuarioLogado = user;
 
       next();
     } catch (err) {

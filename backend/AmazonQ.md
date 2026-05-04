@@ -13,17 +13,27 @@ backend/
 │   ├── config/
 │   │   └── passport.js       # Configuración de autenticación
 │   ├── controllers/          # Lógica de negocio
+        taskController.js
+        usersController.js
 │   ├── db/
 │   │   └── index.js          # ✅ INSTANCIA ÚNICA DE SEQUELIZE
 │   ├── middleware/           # Middlewares de Express
 │   ├── models/
 │   │   ├── index.js          # ✅ Cargador de modelos (usa instancia única)
-│   │   ├── User.js           # Modelo de Usuario
+│   │   ├── User.js           # Modelo de User
 │   │   ├── Task.js           # Modelo de Tarea
 │   │   ├── Comunidad.js      # Modelo de Comunidad
 │   │   ├── GrupoActivo.js    # Modelo de Grupo Activo
 │   │   └── Reporte.js        # Modelo de Reporte
 │   ├── routes/               # Rutas de la API
+│   │   ├── authRoutes.js          
+│   │   ├── comunidades.js          
+│   │   ├── gruporeporteRoutes.js     
+│   │   ├── grupos.js   
+│   │   └── index.js       
+            reportesRoutes.js
+            tasks.js
+            users.js       
 │   └── utils/                # Utilidades
 ├── .env.production           # Variables de entorno (producción)
 ├── app.js                    # Configuración de Express

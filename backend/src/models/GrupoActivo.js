@@ -14,9 +14,21 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   GrupoActivo.associate = (models) => {
-    GrupoActivo.belongsTo(models.Usuario, { foreignKey: 'colider_id', as: 'colider' });
-    GrupoActivo.belongsTo(models.Usuario, { foreignKey: 'lider_id', as: 'lider' });
-    GrupoActivo.belongsTo(models.Comunidad, { foreignKey: 'comunidad_id', as: 'comunidad' });
+    // ✅ CAMBIO AQUÍ
+    GrupoActivo.belongsTo(models.User, { 
+      foreignKey: 'colider_id', 
+      as: 'colider' 
+    });
+
+    GrupoActivo.belongsTo(models.User, { 
+      foreignKey: 'lider_id', 
+      as: 'lider' 
+    });
+
+    GrupoActivo.belongsTo(models.Comunidad, { 
+      foreignKey: 'comunidad_id', 
+      as: 'comunidad' 
+    });
   };
 
   return GrupoActivo;

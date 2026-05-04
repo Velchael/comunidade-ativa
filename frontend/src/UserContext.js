@@ -12,23 +12,30 @@ export const UserProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
 
   // Guarda token + user y sincroniza sesión (axios header + localStorage)
-  const saveSession = (jwt, userObj = null) => {
-    try {
-      const decoded = jwtDecode(jwt);
-      setUser(userObj || decoded);
-      setToken(jwt);
+ const saveSession = (jwt, userObj = null) => {
+  try {
+    const decoded = jwtDecode(jwt);
 
-      // Guardar en localStorage
-      localStorage.setItem("token", jwt);
-      localStorage.setItem("user", JSON.stringify(userObj || decoded));
+    const baseUser = userObj || decoded;
 
-      // Configurar axios globalmente
-      axios.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
-    } catch (err) {
-      console.error("❌ Error al decodificar token:", err.message);
-      logout();
-    }
-  };
+    // 🔥 NORMALIZACIÓN CLAVE
+    const normalizedUser = {
+      ...baseUser,
+      comunidadId: baseUser.comunidadId || baseUser.comunidad_id
+    };
+
+    setUser(normalizedUser);
+    setToken(jwt);
+
+    localStorage.setItem("token", jwt);
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
+
+    axios.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
+  } catch (err) {
+    console.error("❌ Error al decodificar token:", err.message);
+    logout();
+  }
+};
 
   // Login desde token
   const login = (jwt, userObj = null) => saveSession(jwt, userObj);
@@ -75,7 +82,14 @@ export const UserProvider = ({ children }) => {
       axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
       setToken(savedToken);
       try {
-        setUser(JSON.parse(savedUser));
+        //setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+
+       setUser({
+        ...parsed,
+        comunidadId: parsed.comunidadId || parsed.comunidad_id
+       });
+
       } catch {
         setUser(null);
       }

@@ -26,7 +26,7 @@ Object.keys(db).forEach((modelName) => {
     db[modelName].associate(db);
   }
 });
-
+console.log("📦 MODELOS CARGADOS:", Object.keys(db));
 // Exponer sequelize y modelos
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
