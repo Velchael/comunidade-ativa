@@ -23,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
     estado: {
       type: DataTypes.STRING,
       defaultValue: "abierto"
+    },
+    categoria: {
+      type: DataTypes.STRING,
+      defaultValue: "servicio"
     }
   }, {
     tableName: "interacciones",
