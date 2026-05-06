@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import { Container, Button, Form, Card } from "react-bootstrap";
 import axios from "axios";
 import { UserContext } from "../UserContext";
-import { useCallback } from "react";
 
 export default function Interacciones() {
   const { user } = useContext(UserContext);
 
   const [tipo, setTipo] = useState("necesidad");
+  const [categoria, setCategoria] = useState("servicio");
   const [texto, setTexto] = useState("");
   const [visibilidad, setVisibilidad] = useState("global");
   const [lista, setLista] = useState([]);
-  const [categoria, setCategoria] = useState("servicio");
+
+  const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState("todos");
 
   // 🔄 CARGAR INTERACCIONES
   const cargarInteracciones = useCallback(async () => {
@@ -33,7 +35,7 @@ export default function Interacciones() {
     if (user) cargarInteracciones();
   }, [user, cargarInteracciones]);
 
-  // 🔁 AUTO-REFRESH
+  // 🔁 AUTO REFRESH
   useEffect(() => {
     if (!user) return;
 
@@ -44,23 +46,37 @@ export default function Interacciones() {
     return () => clearInterval(interval);
   }, [user, cargarInteracciones]);
 
-  // 🔥 PUBLICAR
+  // 🔥 PUBLICAR (optimista)
   const publicar = async () => {
     if (!texto || !user) return;
 
+    const comunidadId = user.comunidadId || user.comunidad_id;
+
+    if (!comunidadId) {
+      alert("Usuario sin comunidad asignada");
+      return;
+    }
+
+    const nueva = {
+      id: Date.now(),
+      tipo,
+      categoria,
+      descripcion: texto,
+      visibilidad,
+      usuario: { username: user.username },
+      comunidad: { nombre_comunidad: user.comunidadNombre },
+      respuestas: []
+    };
+
+    // UI inmediata
+    setLista(prev => [nueva, ...prev]);
+
     try {
-      const comunidadId = user.comunidadId || user.comunidad_id;
-
-      if (!comunidadId) {
-        alert("Usuario sin comunidad asignada");
-        return;
-      }
-
       await axios.post("http://localhost:3000/api/interacciones", {
         user_id: user.id,
         comunidad_id: comunidadId,
         tipo,
-        categoria, // ✅ IMPORTANTE
+        categoria,
         descripcion: texto,
         visibilidad
       });
@@ -89,19 +105,57 @@ export default function Interacciones() {
     }
   };
 
-const getActiveStyle = (activo) => {
-  return activo
-    ? {
-        transform: "scale(1.05)",
-        boxShadow: "0 0 10px rgba(0,0,0,0.2)",
-        border: "2px solid #000"
-      }
-    : {};
-};
+  // 🎨 ESTILO BOTONES ACTIVOS
+  const getActiveStyle = (activo) => {
+    return activo
+      ? {
+          transform: "scale(1.05)",
+          boxShadow: "0 0 10px rgba(0,0,0,0.2)",
+          border: "2px solid #000"
+        }
+      : {};
+  };
+
+  // 🎨 COLOR TARJETA
+  const getCardColor = (tipo) => {
+    if (tipo === "necesidad") return "#fff5f5";
+    if (tipo === "ayuda") return "#f0fff4";
+    return "#fff";
+  };
+
+  // 🔍 FILTROS
+  const listaFiltrada = lista.filter(item => {
+    return (
+      (filtroTipo === "todos" || item.tipo === filtroTipo) &&
+      (filtroCategoria === "todos" || item.categoria === filtroCategoria)
+    );
+  });
 
   return (
     <Container>
       <h2>Interacción</h2>
+
+      {/* 🔍 FILTROS */}
+      <div style={{ marginBottom: "15px" }}>
+        <strong>Filtrar:</strong>
+
+        <Button onClick={() => setFiltroTipo("todos")} style={{ marginLeft: 5 }}>
+          Todos
+        </Button>
+        <Button onClick={() => setFiltroTipo("necesidad")} style={{ marginLeft: 5 }}>
+          Necesidades
+        </Button>
+        <Button onClick={() => setFiltroTipo("ayuda")} style={{ marginLeft: 5 }}>
+          Ayuda
+        </Button>
+
+        <Button onClick={() => setFiltroCategoria("servicio")} style={{ marginLeft: 10 }}>
+          Servicios
+        </Button>
+        <Button onClick={() => setFiltroCategoria("producto")} style={{ marginLeft: 5 }}>
+          Productos
+        </Button>
+      </div>
 
       {/* TIPO */}
       <div style={{ marginBottom: "10px" }}>
@@ -115,10 +169,7 @@ const getActiveStyle = (activo) => {
 
         <Button
           variant={tipo === "ayuda" ? "success" : "outline-success"}
-          style={{
-            marginLeft: "10px",
-            ...getActiveStyle(tipo === "ayuda")
-          }}
+          style={{ marginLeft: 10, ...getActiveStyle(tipo === "ayuda") }}
           onClick={() => setTipo("ayuda")}
         >
           Quiero ayudar
@@ -128,55 +179,43 @@ const getActiveStyle = (activo) => {
       {/* VISIBILIDAD */}
       <div style={{ marginBottom: "10px" }}>
         <strong>Visibilidad:</strong>
-        
-       <Button
-         variant={visibilidad === "global" ? "dark" : "outline-dark"}
-         style={{
-         marginLeft: "10px",
-         ...getActiveStyle(visibilidad === "global")
-         }}
-         onClick={() => setVisibilidad("global")}
-       >
-        🌍 Global
-       </Button>
 
-       <Button
-         variant={visibilidad === "comunidad" ? "secondary" : "outline-secondary"}
-         style={{
-           marginLeft: "10px",
-           ...getActiveStyle(visibilidad === "comunidad")
-         }}
-        onClick={() => setVisibilidad("comunidad")}
-       >
-        🏘️ Comunidad
-       </Button>
+        <Button
+          variant={visibilidad === "global" ? "dark" : "outline-dark"}
+          style={{ marginLeft: 10, ...getActiveStyle(visibilidad === "global") }}
+          onClick={() => setVisibilidad("global")}
+        >
+          🌍 Global
+        </Button>
+
+        <Button
+          variant={visibilidad === "comunidad" ? "secondary" : "outline-secondary"}
+          style={{ marginLeft: 10, ...getActiveStyle(visibilidad === "comunidad") }}
+          onClick={() => setVisibilidad("comunidad")}
+        >
+          🏘️ Comunidad
+        </Button>
       </div>
 
       {/* CATEGORIA */}
       <div style={{ marginBottom: "10px" }}>
         <strong>Categoría:</strong>
-      <Button
-        variant={categoria === "servicio" ? "warning" : "outline-warning"}
-        style={{
-          marginLeft: "10px",
-          ...getActiveStyle(categoria === "servicio")
-        }}
-          onClick={() => setCategoria("servicio")}
-      >
-        🛠️ Servicio
-      </Button>
 
-      <Button
-        variant={categoria === "producto" ? "info" : "outline-info"}
-        style={{
-        marginLeft: "10px",
-        ...getActiveStyle(categoria === "producto")
-        }}
-        onClick={() => setCategoria("producto")}
-      >
-       📦 Producto
-      </Button>
-        
+        <Button
+          variant={categoria === "servicio" ? "warning" : "outline-warning"}
+          style={{ marginLeft: 10, ...getActiveStyle(categoria === "servicio") }}
+          onClick={() => setCategoria("servicio")}
+        >
+          🛠️ Servicio
+        </Button>
+
+        <Button
+          variant={categoria === "producto" ? "info" : "outline-info"}
+          style={{ marginLeft: 10, ...getActiveStyle(categoria === "producto") }}
+          onClick={() => setCategoria("producto")}
+        >
+          📦 Producto
+        </Button>
       </div>
 
       {/* INPUT */}
@@ -191,20 +230,34 @@ const getActiveStyle = (activo) => {
       </Button>
 
       {/* LISTA */}
-      {lista.map((item) => (
-        <Card key={item.id} style={{ marginTop: "15px" }}>
+      {listaFiltrada.map((item) => (
+        <Card
+          key={item.id}
+          style={{
+            marginTop: "15px",
+            backgroundColor: getCardColor(item.tipo)
+          }}
+        >
           <Card.Body>
 
             {/* HEADER */}
             <strong>
-              {item.tipo.toUpperCase()} {" | "}
-              {item.categoria?.toUpperCase() || "GENERAL"}
+              {item.tipo?.toUpperCase()} | {item.categoria?.toUpperCase()}
             </strong>
 
             {/* USUARIO */}
             <div style={{ fontSize: "13px", color: "#555" }}>
-              👤 {item.usuario?.username} {" - "}
-              🏘️ {item.comunidad?.nombre_comunidad}
+              👤 {item.usuario?.username} - 🏘️ {item.comunidad?.nombre_comunidad}
+            </div>
+
+            {/* ESTADO SOCIAL */}
+            <div>
+              {item.respuestas?.length === 0 && (
+                <span style={{ color: "red" }}>🆘 Sin respuestas</span>
+              )}
+              {item.respuestas?.length > 0 && (
+                <span style={{ color: "green" }}>🤝 Con ayuda</span>
+              )}
             </div>
 
             {/* VISIBILIDAD */}
