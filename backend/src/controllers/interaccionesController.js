@@ -1,21 +1,34 @@
-//const { Interaccion, Respuesta } = require("../models");
+
 const { Interaccion, Respuesta, User, Comunidad } = require("../models");
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 
 exports.crear = async (req, res) => {
   try {
-    const data = await Interaccion.create(req.body);
+    let { urgencia = "normal", tipo, descripcion } = req.body;
+
+    if (tipo !== "necesidad") {
+      urgencia = "normal";
+    }
+
+    const texto = (descripcion || "").toLowerCase();
+
+    if (
+      texto.includes("hambre") ||
+      texto.includes("comida") ||
+      texto.includes("emergencia")
+    ) {
+      urgencia = "critica";
+    }
+
+    const data = await Interaccion.create({
+      ...req.body,
+      urgencia
+    });
+
     res.json(data);
   } catch (err) {
-   // res.status(500).json(err);
-  console.error("🔥 ERROR AL CREAR INTERACCION:");
-  console.error(err);
-  console.error("BODY:", req.body);
-
-  res.status(500).json({
-    message: err.message,
-    error: err
-  });
+    console.error(err);
+    res.status(500).json(err);
   }
 };
 
@@ -53,7 +66,20 @@ exports.listar = async (req, res) => {
           ]
         }
       ],
-      order: [["created_at", "DESC"]]
+      order: [
+        [
+          Sequelize.literal(`
+            CASE 
+              WHEN urgencia = 'critica' THEN 1
+              WHEN urgencia = 'alta' THEN 2
+              WHEN urgencia = 'normal' THEN 3
+              ELSE 4
+            END
+          `),
+          "ASC"
+        ],
+        ["created_at", "DESC"]
+      ]
     });
 
     res.json(data);
@@ -63,4 +89,3 @@ exports.listar = async (req, res) => {
     res.status(500).json(err);
   }
 };
-

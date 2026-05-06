@@ -14,7 +14,7 @@ export default function Interacciones() {
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
-
+  const [urgencia, setUrgencia] = useState("normal");
   // 🔄 CARGAR INTERACCIONES
   const cargarInteracciones = useCallback(async () => {
     const comunidadId = user?.comunidadId || user?.comunidad_id;
@@ -63,6 +63,7 @@ export default function Interacciones() {
       categoria,
       descripcion: texto,
       visibilidad,
+      urgencia,
       usuario: { username: user.username },
       comunidad: { nombre_comunidad: user.comunidadNombre },
       respuestas: []
@@ -78,7 +79,8 @@ export default function Interacciones() {
         tipo,
         categoria,
         descripcion: texto,
-        visibilidad
+        visibilidad,
+        urgencia
       });
 
       setTexto("");
@@ -143,7 +145,7 @@ export default function Interacciones() {
           Todos
         </Button>
         <Button onClick={() => setFiltroTipo("necesidad")} style={{ marginLeft: 5 }}>
-          Necesidades
+          Necesidade
         </Button>
         <Button onClick={() => setFiltroTipo("ayuda")} style={{ marginLeft: 5 }}>
           Ayuda
@@ -159,12 +161,14 @@ export default function Interacciones() {
 
       {/* TIPO */}
       <div style={{ marginBottom: "10px" }}>
+        <strong>Tipo: </strong>
         <Button
           variant={tipo === "necesidad" ? "primary" : "outline-primary"}
           style={getActiveStyle(tipo === "necesidad")}
           onClick={() => setTipo("necesidad")}
+          
         >
-          Necesito ayuda
+          Necesidade
         </Button>
 
         <Button
@@ -172,10 +176,39 @@ export default function Interacciones() {
           style={{ marginLeft: 10, ...getActiveStyle(tipo === "ayuda") }}
           onClick={() => setTipo("ayuda")}
         >
-          Quiero ayudar
+          Ayuda
         </Button>
+        
       </div>
+  {tipo === "necesidad" && (
+  <div style={{ marginBottom: "10px" }}>
+    <strong>Urgencia:</strong>
 
+    <Button
+      variant={urgencia === "normal" ? "success" : "outline-success"}
+      style={{ marginLeft: 10 }}
+      onClick={() => setUrgencia("normal")}
+    >
+      🟢 Normal
+    </Button>
+
+    <Button
+      variant={urgencia === "alta" ? "warning" : "outline-warning"}
+      style={{ marginLeft: 10 }}
+      onClick={() => setUrgencia("alta")}
+    >
+      🟠 Alta
+    </Button>
+
+    <Button
+      variant={urgencia === "critica" ? "danger" : "outline-danger"}
+      style={{ marginLeft: 10 }}
+      onClick={() => setUrgencia("critica")}
+    >
+      🔴 Crítica
+    </Button>
+  </div>
+  )}
       {/* VISIBILIDAD */}
       <div style={{ marginBottom: "10px" }}>
         <strong>Visibilidad:</strong>
@@ -196,6 +229,7 @@ export default function Interacciones() {
           🏘️ Comunidad
         </Button>
       </div>
+      
 
       {/* CATEGORIA */}
       <div style={{ marginBottom: "10px" }}>
@@ -241,6 +275,14 @@ export default function Interacciones() {
           <Card.Body>
 
             {/* HEADER */}
+            <div>
+             {item.urgencia === "critica" && (
+              <span style={{ color: "red" }}>🚨 URGENTE</span>
+             )}
+             {item.urgencia === "alta" && (
+              <span style={{ color: "orange" }}>⚠️ Alta prioridad</span>
+             )}
+            </div>
             <strong>
               {item.tipo?.toUpperCase()} | {item.categoria?.toUpperCase()}
             </strong>
@@ -261,12 +303,26 @@ export default function Interacciones() {
             </div>
 
             {/* VISIBILIDAD */}
+
             <div>
               <small style={{ color: "gray" }}>
                 {item.visibilidad === "global"
                   ? "🌍 Global"
                   : "🏘️ Comunidad"}
               </small>
+            </div>
+
+             <div>
+            <small style={{
+              color:
+                item.urgencia === "critica"
+                ? "red"
+                : item.urgencia === "alta"
+                ? "orange"
+                : "green"
+               }}>
+               ⚡ {item.urgencia?.toUpperCase() || "NORMAL"}
+            </small>
             </div>
 
             {/* TEXTO */}

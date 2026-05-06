@@ -27,21 +27,15 @@ module.exports = (sequelize, DataTypes) => {
     categoria: {
       type: DataTypes.STRING,
       defaultValue: "servicio"
+    },
+    urgencia: {
+      type: DataTypes.STRING,
+      defaultValue: "normal"
     }
   }, {
     tableName: "interacciones",
     timestamps: false
   });
-
-  // 🔗 RELACIÓN
-  
-  //Interaccion.associate = (models) => {
-   // Interaccion.hasMany(models.Respuesta, {
-   //   foreignKey: "interaccion_id",
-   //   as: "respuestas"
-  //  });
-  //};
-  //return Interaccion;
 
   Interaccion.associate = (models) => {
   Interaccion.belongsTo(models.User, {
