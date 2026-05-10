@@ -11,10 +11,11 @@ export default function Interacciones() {
   const [texto, setTexto] = useState("");
   const [visibilidad, setVisibilidad] = useState("global");
   const [lista, setLista] = useState([]);
+  const [urgencia, setUrgencia] = useState("normal");
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
-  const [urgencia, setUrgencia] = useState("normal");
+
   // 🔄 CARGAR INTERACCIONES
   const cargarInteracciones = useCallback(async () => {
     const comunidadId = user?.comunidadId || user?.comunidad_id;
@@ -25,6 +26,7 @@ export default function Interacciones() {
       const res = await axios.get(
         `http://localhost:3000/api/interacciones/${comunidadId}`
       );
+
       setLista(res.data);
     } catch (error) {
       console.error("Error cargando interacciones", error);
@@ -46,7 +48,7 @@ export default function Interacciones() {
     return () => clearInterval(interval);
   }, [user, cargarInteracciones]);
 
-  // 🔥 PUBLICAR (optimista)
+  // 🔥 PUBLICAR
   const publicar = async () => {
     if (!texto || !user) return;
 
@@ -57,19 +59,25 @@ export default function Interacciones() {
       return;
     }
 
+    // ✅ Si es ayuda, urgencia siempre normal
+    const urgenciaFinal =
+      tipo === "ayuda" ? "normal" : urgencia;
+
     const nueva = {
       id: Date.now(),
       tipo,
       categoria,
       descripcion: texto,
       visibilidad,
-      urgencia,
+      urgencia: urgenciaFinal,
       usuario: { username: user.username },
-      comunidad: { nombre_comunidad: user.comunidadNombre },
+      comunidad: {
+        nombre_comunidad: user.comunidadNombre
+      },
       respuestas: []
     };
 
-    // UI inmediata
+    // ⚡ UI optimista
     setLista(prev => [nueva, ...prev]);
 
     try {
@@ -80,11 +88,16 @@ export default function Interacciones() {
         categoria,
         descripcion: texto,
         visibilidad,
-        urgencia
+        urgencia: urgenciaFinal
       });
 
       setTexto("");
+
+      // reset opcional
+      setUrgencia("normal");
+
       cargarInteracciones();
+
     } catch (error) {
       console.error("Error publicando", error);
     }
@@ -102,6 +115,7 @@ export default function Interacciones() {
       });
 
       cargarInteracciones();
+
     } catch (error) {
       console.error("Error respondiendo", error);
     }
@@ -111,144 +125,215 @@ export default function Interacciones() {
   const getActiveStyle = (activo) => {
     return activo
       ? {
-          transform: "scale(1.05)",
-          boxShadow: "0 0 10px rgba(0,0,0,0.2)",
-          border: "2px solid #000"
+          //transform: "scale(1.05)",
+          //boxShadow: "0 0 10px rgba(0,0,0,0.2)",
+          //border: "2px solid #000"
+        transform: "scale(1.10)",
+        boxShadow: "0 0 13px rgba(0,0,0,0.50)",
+        border: "2px solid #000",
+        transition: "all 0.2s ease"
+
         }
-      : {};
+      : {
+        transition: "all 0.2s ease"
+        };
   };
 
   // 🎨 COLOR TARJETA
   const getCardColor = (tipo) => {
     if (tipo === "necesidad") return "#fff5f5";
     if (tipo === "ayuda") return "#f0fff4";
+
     return "#fff";
   };
 
   // 🔍 FILTROS
   const listaFiltrada = lista.filter(item => {
     return (
-      (filtroTipo === "todos" || item.tipo === filtroTipo) &&
-      (filtroCategoria === "todos" || item.categoria === filtroCategoria)
+      (filtroTipo === "todos" ||
+        item.tipo === filtroTipo) &&
+
+      (filtroCategoria === "todos" ||
+        item.categoria === filtroCategoria)
     );
   });
 
   return (
     <Container>
+
       <h2>Interacción</h2>
 
-      {/* 🔍 FILTROS */}
-      <div style={{ marginBottom: "15px" }}>
-        <strong>Filtrar:</strong>
+      {/* ========================= */}
+      {/* 📝 CREAR PUBLICACIÓN */}
+      {/* ========================= */}
 
-        <Button onClick={() => setFiltroTipo("todos")} style={{ marginLeft: 5 }}>
-          Todos
-        </Button>
-        <Button onClick={() => setFiltroTipo("necesidad")} style={{ marginLeft: 5 }}>
-          Necesidade
-        </Button>
-        <Button onClick={() => setFiltroTipo("ayuda")} style={{ marginLeft: 5 }}>
-          Ayuda
-        </Button>
-
-        <Button onClick={() => setFiltroCategoria("servicio")} style={{ marginLeft: 10 }}>
-          Servicios
-        </Button>
-        <Button onClick={() => setFiltroCategoria("producto")} style={{ marginLeft: 5 }}>
-          Productos
-        </Button>
+      <div style={{ marginBottom: "20px" }}>
+        <h5>Crear publicación</h5>
       </div>
 
       {/* TIPO */}
       <div style={{ marginBottom: "10px" }}>
-        <strong>Tipo: </strong>
+        <strong>Tipo:</strong>
+
         <Button
-          variant={tipo === "necesidad" ? "primary" : "outline-primary"}
-          style={getActiveStyle(tipo === "necesidad")}
+          variant={
+            tipo === "necesidad"
+              ? "primary"
+              : "outline-primary"
+          }
+          style={{
+            marginLeft: 10,
+            ...getActiveStyle(tipo === "necesidad")
+          }}
           onClick={() => setTipo("necesidad")}
-          
         >
-          Necesidade
+          Necesidad
         </Button>
 
         <Button
-          variant={tipo === "ayuda" ? "success" : "outline-success"}
-          style={{ marginLeft: 10, ...getActiveStyle(tipo === "ayuda") }}
+          variant={
+            tipo === "ayuda"
+              ? "success"
+              : "outline-success"
+          }
+          style={{
+            marginLeft: 10,
+            ...getActiveStyle(tipo === "ayuda")
+          }}
           onClick={() => setTipo("ayuda")}
         >
           Ayuda
         </Button>
-        
       </div>
-  {tipo === "necesidad" && (
-  <div style={{ marginBottom: "10px" }}>
-    <strong>Urgencia:</strong>
 
-    <Button
-      variant={urgencia === "normal" ? "success" : "outline-success"}
-      style={{ marginLeft: 10 }}
-      onClick={() => setUrgencia("normal")}
-    >
-      🟢 Normal
-    </Button>
+      {/* URGENCIA */}
+      {tipo === "necesidad" && (
+        <div style={{ marginBottom: "10px" }}>
+          <strong>Urgencia:</strong>
 
-    <Button
-      variant={urgencia === "alta" ? "warning" : "outline-warning"}
-      style={{ marginLeft: 10 }}
-      onClick={() => setUrgencia("alta")}
-    >
-      🟠 Alta
-    </Button>
+          <Button
+            variant={
+              urgencia === "normal"
+                ? "success"
+                : "outline-success"
+            }
+            //style={{ marginLeft: 10 }}
 
-    <Button
-      variant={urgencia === "critica" ? "danger" : "outline-danger"}
-      style={{ marginLeft: 10 }}
-      onClick={() => setUrgencia("critica")}
-    >
-      🔴 Crítica
-    </Button>
-  </div>
-  )}
-      {/* VISIBILIDAD */}
-      <div style={{ marginBottom: "10px" }}>
-        <strong>Visibilidad:</strong>
+            style={{
+             marginLeft: 10,
+             ...getActiveStyle(urgencia === "normal")
+             }}
 
-        <Button
-          variant={visibilidad === "global" ? "dark" : "outline-dark"}
-          style={{ marginLeft: 10, ...getActiveStyle(visibilidad === "global") }}
-          onClick={() => setVisibilidad("global")}
-        >
-          🌍 Global
-        </Button>
+            onClick={() => setUrgencia("normal")}
+          >
+            🟢 Normal
+          </Button>
 
-        <Button
-          variant={visibilidad === "comunidad" ? "secondary" : "outline-secondary"}
-          style={{ marginLeft: 10, ...getActiveStyle(visibilidad === "comunidad") }}
-          onClick={() => setVisibilidad("comunidad")}
-        >
-          🏘️ Comunidad
-        </Button>
-      </div>
-      
+          <Button
+            variant={
+              urgencia === "alta"
+                ? "warning"
+                : "outline-warning"
+            }
+           // style={{ marginLeft: 10 }}
+           style={{
+            marginLeft: 10,
+           ...getActiveStyle(urgencia === "alta")
+           }}
+
+            onClick={() => setUrgencia("alta")}
+          >
+            🟠 Alta
+          </Button>
+
+          <Button
+            variant={
+              urgencia === "critica"
+                ? "danger"
+                : "outline-danger"
+            }
+            //style={{ marginLeft: 10 }}
+               style={{
+                marginLeft: 10,
+                ...getActiveStyle(urgencia === "critica")
+               }}
+
+            onClick={() => setUrgencia("critica")}
+          >
+            🔴 Crítica
+          </Button>
+        </div>
+      )}
 
       {/* CATEGORIA */}
       <div style={{ marginBottom: "10px" }}>
         <strong>Categoría:</strong>
 
         <Button
-          variant={categoria === "servicio" ? "warning" : "outline-warning"}
-          style={{ marginLeft: 10, ...getActiveStyle(categoria === "servicio") }}
+          variant={
+            categoria === "servicio"
+              ? "warning"
+              : "outline-warning"
+          }
+          style={{
+            marginLeft: 10,
+            ...getActiveStyle(categoria === "servicio")
+          }}
           onClick={() => setCategoria("servicio")}
         >
           🛠️ Servicio
         </Button>
 
         <Button
-          variant={categoria === "producto" ? "info" : "outline-info"}
-          style={{ marginLeft: 10, ...getActiveStyle(categoria === "producto") }}
+          variant={
+            categoria === "producto"
+              ? "info"
+              : "outline-info"
+          }
+          style={{
+            marginLeft: 10,
+            ...getActiveStyle(categoria === "producto")
+          }}
           onClick={() => setCategoria("producto")}
         >
           📦 Producto
+        </Button>
+      </div>
+
+      {/* VISIBILIDAD */}
+      <div style={{ marginBottom: "10px" }}>
+        <strong>Visibilidad:</strong>
+
+        <Button
+          variant={
+            visibilidad === "global"
+              ? "dark"
+              : "outline-dark"
+          }
+          style={{
+            marginLeft: 10,
+            ...getActiveStyle(visibilidad === "global")
+          }}
+          onClick={() => setVisibilidad("global")}
+        >
+          🌍 Global
+        </Button>
+
+        <Button
+          variant={
+            visibilidad === "comunidad"
+              ? "secondary"
+              : "outline-secondary"
+          }
+          style={{
+            marginLeft: 10,
+            ...getActiveStyle(
+              visibilidad === "comunidad"
+            )
+          }}
+          onClick={() => setVisibilidad("comunidad")}
+        >
+          🏘️ Comunidad
         </Button>
       </div>
 
@@ -259,51 +344,140 @@ export default function Interacciones() {
         onChange={(e) => setTexto(e.target.value)}
       />
 
-      <Button onClick={publicar} style={{ marginTop: "10px" }}>
+      {/* BOTON */}
+      <Button
+        onClick={publicar}
+        style={{ marginTop: "10px" }}
+      >
         Publicar
       </Button>
 
-      {/* LISTA */}
+      {/* ========================= */}
+      {/* 🔍 FILTROS */}
+      {/* ========================= */}
+
+      <div style={{ marginTop: "30px", marginBottom: "15px" }}>
+        <h5>Explorar</h5>
+
+        <strong>Filtrar:</strong>
+
+        <Button
+          onClick={() => setFiltroTipo("todos")}
+          style={{ marginLeft: 5 }}
+        >
+          Todos
+        </Button>
+
+        <Button
+          onClick={() => setFiltroTipo("necesidad")}
+          style={{ marginLeft: 5 }}
+        >
+          Necesidades
+        </Button>
+
+        <Button
+          onClick={() => setFiltroTipo("ayuda")}
+          style={{ marginLeft: 5 }}
+        >
+          Ayuda
+        </Button>
+
+        <Button
+          onClick={() => setFiltroCategoria("servicio")}
+          style={{ marginLeft: 10 }}
+        >
+          Servicios
+        </Button>
+
+        <Button
+          onClick={() => setFiltroCategoria("producto")}
+          style={{ marginLeft: 5 }}
+        >
+          Productos
+        </Button>
+      </div>
+
+      {/* ========================= */}
+      {/* 📋 LISTA */}
+      {/* ========================= */}
+
       {listaFiltrada.map((item) => (
+
         <Card
           key={item.id}
           style={{
             marginTop: "15px",
-            backgroundColor: getCardColor(item.tipo)
+            backgroundColor: getCardColor(item.tipo),
+
+            // 🔥 borde urgencia crítica
+            border:
+              item.urgencia === "critica"
+                ? "2px solid red"
+                : "1px solid #ddd"
           }}
         >
           <Card.Body>
 
-            {/* HEADER */}
+            {/* ALERTAS */}
             <div>
-             {item.urgencia === "critica" && (
-              <span style={{ color: "red" }}>🚨 URGENTE</span>
-             )}
-             {item.urgencia === "alta" && (
-              <span style={{ color: "orange" }}>⚠️ Alta prioridad</span>
-             )}
+
+              {item.urgencia === "critica" && (
+                <span style={{
+                  color: "red",
+                  fontWeight: "bold"
+                }}>
+                  🚨 URGENTE
+                </span>
+              )}
+
+              {item.urgencia === "alta" && (
+                <span style={{
+                  color: "orange",
+                  fontWeight: "bold"
+                }}>
+                  ⚠️ Alta prioridad
+                </span>
+              )}
+
             </div>
+
+            {/* HEADER */}
             <strong>
-              {item.tipo?.toUpperCase()} | {item.categoria?.toUpperCase()}
+              {item.tipo?.toUpperCase()}
+              {" | "}
+              {item.categoria?.toUpperCase()}
             </strong>
 
             {/* USUARIO */}
-            <div style={{ fontSize: "13px", color: "#555" }}>
-              👤 {item.usuario?.username} - 🏘️ {item.comunidad?.nombre_comunidad}
+            <div
+              style={{
+                fontSize: "13px",
+                color: "#555"
+              }}
+            >
+              👤 {item.usuario?.username}
+              {" - "}
+              🏘️ {item.comunidad?.nombre_comunidad}
             </div>
 
             {/* ESTADO SOCIAL */}
             <div>
+
               {item.respuestas?.length === 0 && (
-                <span style={{ color: "red" }}>🆘 Sin respuestas</span>
+                <span style={{ color: "red" }}>
+                  🆘 Sin respuestas
+                </span>
               )}
+
               {item.respuestas?.length > 0 && (
-                <span style={{ color: "green" }}>🤝 Con ayuda</span>
+                <span style={{ color: "green" }}>
+                  🤝 Con ayuda
+                </span>
               )}
+
             </div>
 
             {/* VISIBILIDAD */}
-
             <div>
               <small style={{ color: "gray" }}>
                 {item.visibilidad === "global"
@@ -312,26 +486,45 @@ export default function Interacciones() {
               </small>
             </div>
 
-             <div>
-            <small style={{
-              color:
-                item.urgencia === "critica"
-                ? "red"
-                : item.urgencia === "alta"
-                ? "orange"
-                : "green"
-               }}>
-               ⚡ {item.urgencia?.toUpperCase() || "NORMAL"}
-            </small>
+            {/* URGENCIA TEXTO */}
+            <div>
+              <small
+                style={{
+                  color:
+                    item.urgencia === "critica"
+                      ? "red"
+                      : item.urgencia === "alta"
+                      ? "orange"
+                      : "green"
+                }}
+              >
+                ⚡{" "}
+                {item.urgencia?.toUpperCase()
+                  || "NORMAL"}
+              </small>
             </div>
 
             {/* TEXTO */}
-            <p>{item.descripcion}</p>
+            <p style={{ marginTop: "10px" }}>
+              {item.descripcion}
+            </p>
 
             {/* RESPUESTAS */}
             {item.respuestas?.map((r) => (
-              <p key={r.id} style={{ fontSize: "14px", color: "gray" }}>
-                ↳ <strong>{r.usuario?.username}:</strong> {r.mensaje}
+              <p
+                key={r.id}
+                style={{
+                  fontSize: "14px",
+                  color: "gray"
+                }}
+              >
+                ↳
+                {" "}
+                <strong>
+                  {r.usuario?.username}:
+                </strong>
+                {" "}
+                {r.mensaje}
               </p>
             ))}
 
@@ -339,8 +532,14 @@ export default function Interacciones() {
             <Form.Control
               placeholder="Responder..."
               onKeyDown={(e) => {
+
                 if (e.key === "Enter") {
-                  responder(item.id, e.target.value);
+
+                  responder(
+                    item.id,
+                    e.target.value
+                  );
+
                   e.target.value = "";
                 }
               }}
@@ -348,7 +547,9 @@ export default function Interacciones() {
 
           </Card.Body>
         </Card>
+
       ))}
+
     </Container>
   );
 }
