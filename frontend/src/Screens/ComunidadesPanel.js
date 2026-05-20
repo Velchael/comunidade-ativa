@@ -36,10 +36,18 @@ const ComunidadesPanel = () => {
   const decoded = jwtDecode(token);
   setUserRole(decoded.rol);
 
-  if (decoded.rol !== 'admin_total') {
-    setMessage({ type: 'danger', text: 'Acceso denegado' });
-    return;
-  }
+  //if (decoded.rol !== 'admin_total') {
+   // setMessage({ type: 'danger', text: 'Acceso denegado' });
+   // return;
+  //}
+
+  if (
+  decoded.rol !== 'admin_total' &&
+  decoded.rol !== 'admin_basic'
+) {
+  setMessage({ type: 'danger', text: 'Acceso denegado' });
+  return;
+}
 
   axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   fetchComunidades();
@@ -60,11 +68,11 @@ const ComunidadesPanel = () => {
     setEditingComunidad(comunidad);
     setFormData(
       comunidad || {
-        nombre: '',
+        nombre_comunidad: '',
         descripcion: '',
         direccion: '',
         telefono: '',
-        administrador: '',
+        nombre_administrador: '',
       }
     );
     setModalShow(true);
@@ -225,7 +233,7 @@ const ComunidadesPanel = () => {
          <Button
           variant="primary"
           onClick={handleSubmit}
-          disabled={userRole !== 'admin_total'}
+          disabled={userRole !== 'admin_total' && userRole !== 'admin_basic'}
          >
           {editingComunidad ? 'Guardar Cambios' : 'Crear Comunidad'}
          </Button>

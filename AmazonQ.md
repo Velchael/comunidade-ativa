@@ -57,10 +57,36 @@ O foco base dele é fornecer uma estrutura educacional em que o aluno possa evol
 │    ├── src/
 │         ├── config/
 │         ├── controllers/
+          authController.js
+          comunidadesController.js
+          gruposController.js
+          interaccionesController.js
+          reportesController.js
+          respuestasController.js
+          taskController.js
+          usersController.js
 │         ├── db/
 │         ├──  middleware/      
 │         ├──  models/ 
+          Comunidad.js
+          GrupoActivo.js.js
+          index.js
+          Interaccion.js
+          Reporte.js
+          Respuestas.js
+          task.js
+          users.js
 │         ├── routes/
+          authRoutes.js
+          comunidades.js
+          gruposReportesRoutes.js
+          grupos.js
+          index.js
+          interacciones.js
+          reportesRoutes.js
+          respuestas.js
+          task.js
+          users.js
 │         ├── utils/
 │   compose.yml         # Docker Compose 
 |   Dockerfile.dev          # Container da aplicação

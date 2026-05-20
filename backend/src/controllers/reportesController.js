@@ -13,11 +13,12 @@ exports.crearReporte = async (req, res) => {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
 
-    // 🔐 Reglas: el usuario debe ser líder de este grupo
+    // 🔐 Reglas: admins pueden crear en cualquier grupo; miembros solo si son líderes
     console.log('👤 Usuario autenticado:', req.user);
     console.log('🆔 grupoId recibido:', req.params.grupoId);
-    if (grupo.lider_id !== req.user.id) {
-     return res.status(403).json({ error: 'No autorizado para crear reportes en este grupo' });
+    const esAdmin = req.user.rol === 'admin_total' || req.user.rol === 'admin_basic';
+    if (!esAdmin && grupo.lider_id !== req.user.id) {
+      return res.status(403).json({ error: 'No autorizado para crear reportes en este grupo' });
     }
     const asistenciaNum = asistencia === '' || asistencia === null || asistencia === undefined
       ? null

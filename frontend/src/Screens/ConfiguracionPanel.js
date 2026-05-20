@@ -187,7 +187,7 @@ const ConfiguracionPanel = () => {
               onChange={(e) => setNewRol(e.target.value)}
             >
               <option value="miembro">Miembro</option>
-              <option value="admin_basic">Admin Básico</option>
+              <option value="admin_basic">Líder Comunitario</option>
               <option value="admin_total">Admin Total</option>
             </Form.Select>
           </Form.Group>
