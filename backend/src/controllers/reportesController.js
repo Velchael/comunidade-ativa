@@ -119,25 +119,40 @@ exports.editarReporte = async (req, res) => {
 };
 
 // ✅ Eliminar reporte (solo admins, o el creador si decides permitirlo)
+
 exports.eliminarReporte = async (req, res) => {
   try {
     const { reporteId } = req.params;
 
     const reporte = await Reporte.findByPk(reporteId);
+
     if (!reporte) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
+      return res.status(404).json({
+        error: 'Reporte no encontrado'
+      });
     }
 
-    // 🔐 Solo admin o creador pueden eliminar (puedes ajustar según tu lógica)
-    if (reporte.creador_id !== req.user.id && req.user.rol !== 'admin') {
-      return res.status(403).json({ error: 'No autorizado para eliminar este reporte' });
+    // 🔐 Solo admin_total, admin_basic o el creador pueden eliminar
+    const esAdmin = ['admin_total', 'admin_basic'].includes(req.user.rol);
+    const esCreador = reporte.creador_id === req.user.id;
+
+    if (!esAdmin && !esCreador) {
+      return res.status(403).json({
+        error: 'No autorizado para eliminar este reporte'
+      });
     }
 
     await reporte.destroy();
 
-    res.json({ mensaje: 'Reporte eliminado correctamente' });
+    return res.json({
+      mensaje: 'Reporte eliminado correctamente'
+    });
+
   } catch (error) {
     console.error('❌ Error en eliminarReporte:', error);
-    res.status(500).json({ error: 'No se pudo eliminar el reporte' });
+
+    return res.status(500).json({
+      error: 'No se pudo eliminar el reporte'
+    });
   }
 };

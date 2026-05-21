@@ -13,7 +13,7 @@ exports.permisoSoloAdmins = async (req, res, next) => {
 
     // Si es admin_basic → debe pertenecer a la misma comunidad del grupo
     if (rol === 'admin_basic') {
-      const grupo = await db.Grupo.findByPk(req.params.id);
+      const grupo = await db.GrupoActivo.findByPk(req.params.id);
       if (!grupo) {
         return res.status(404).json({ message: 'Grupo no encontrado' });
       }

@@ -1,7 +1,6 @@
 # Regras para Dockerfile - Projeto Comunidad
 
 ## Filosofia de Desenvolvimento
-- **Público-alvo:** Alunos em aprendizado
 - **Abordagem:** Simplicidade acima de complexidade
 - **Objetivo:** Facilitar compreensão de quem que está na etapa inicial da jornada
 

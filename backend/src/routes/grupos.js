@@ -18,12 +18,6 @@ router.get('/:id', verificarToken, gruposController.obtenerGrupo);
 // Crear un grupo (cualquier usuario logado puede crear según sus reglas)
 router.post('/', verificarToken, gruposController.crearGrupo);
 
-// Actualizar grupo (solo admin_basic de su comunidad o admin_total)
-router.put('/:id', verificarToken, permisoSoloAdmins, gruposController.actualizarGrupo);
-
-// Eliminar grupo (solo admin_basic de su comunidad o admin_total)
-router.delete('/:id', verificarToken, permisoSoloAdmins, gruposController.eliminarGrupo);
-
 router.put('/:id', verificarToken, permisoEditarEliminar, gruposController.actualizarGrupo);
 router.delete('/:id', verificarToken, permisoEditarEliminar, gruposController.eliminarGrupo);
 
