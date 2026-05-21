@@ -23,6 +23,16 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    owner_user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'owner_user_id'
+    },
+    objetivo: { type: DataTypes.TEXT, allowNull: true },
+    tipo: { type: DataTypes.STRING, allowNull: true },
+    visibilidad: { type: DataTypes.STRING, allowNull: true, defaultValue: 'publica' },
+    ciudad: { type: DataTypes.STRING, allowNull: true },
+    pais: { type: DataTypes.STRING, allowNull: true },
   }, {
     tableName: 'comunidades',
     timestamps: true,

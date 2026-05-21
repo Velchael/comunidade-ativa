@@ -11,6 +11,15 @@ module.exports = (sequelize, DataTypes) => {
     mensaje: {
       type: DataTypes.TEXT,
       allowNull: false
+    },
+    imagen_url: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    estado: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'activa'
     }
   }, {
     tableName: "respuestas",

@@ -100,7 +100,7 @@ const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
 
-    Object.assign(task, { title, description, frequency, dueDate, status, priority });
+    Object.assign(task, { title, description, frequency, due_date: dueDate, status, priority });
 
     await task.save();
     res.json(task);

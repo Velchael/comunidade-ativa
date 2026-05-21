@@ -31,6 +31,10 @@ module.exports = (sequelize, DataTypes) => {
     urgencia: {
       type: DataTypes.STRING,
       defaultValue: "normal"
+    },
+    imagen_url: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: "interacciones",

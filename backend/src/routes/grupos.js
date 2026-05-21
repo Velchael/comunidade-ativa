@@ -22,4 +22,3 @@ router.put('/:id', verificarToken, permisoEditarEliminar, gruposController.actua
 router.delete('/:id', verificarToken, permisoEditarEliminar, gruposController.eliminarGrupo);
 
 module.exports = router;
-
