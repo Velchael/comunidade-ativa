@@ -43,7 +43,7 @@ export default function Interacciones() {
 
     const interval = setInterval(() => {
       cargarInteracciones();
-    }, 5000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, [user, cargarInteracciones]);
@@ -352,50 +352,117 @@ export default function Interacciones() {
         Publicar
       </Button>
 
-      {/* ========================= */}
-      {/* 🔍 FILTROS */}
-      {/* ========================= */}
+     
+ 
+{/* ========================= */}
+{/* 🔍 FILTROS */}
+{/* ========================= */}
 
-      <div style={{ marginTop: "30px", marginBottom: "15px" }}>
-        <h5>Explorar</h5>
+<div style={{ marginTop: "30px", marginBottom: "15px" }}>
+  
+  <h5>Explorar</h5>
 
-        <strong>Filtrar:</strong>
+  {/* 🔵 FILTRO TIPO */}
+  <div style={{ marginBottom: "10px" }}>
+    
+    <strong>Tipo:</strong>
 
-        <Button
-          onClick={() => setFiltroTipo("todos")}
-          style={{ marginLeft: 5 }}
-        >
-          Todos
-        </Button>
+    <Button
+      variant={
+        filtroTipo === "todos"
+          ? "primary"
+          : "outline-primary"
+      }
+      style={{
+        marginLeft: 5,
+        ...getActiveStyle(filtroTipo === "todos")
+      }}
+      onClick={() => {
+        setFiltroTipo("todos");
+        setFiltroCategoria("todos");
+      }}
+    >
+      Todos
+    </Button>
 
-        <Button
-          onClick={() => setFiltroTipo("necesidad")}
-          style={{ marginLeft: 5 }}
-        >
-          Necesidades
-        </Button>
+    <Button
+      variant={
+        filtroTipo === "necesidad"
+          ? "primary"
+          : "outline-primary"
+      }
+      style={{
+        marginLeft: 5,
+        ...getActiveStyle(
+          filtroTipo === "necesidad"
+        )
+      }}
+      onClick={() => setFiltroTipo("necesidad")}
+    >
+      Necesidades
+    </Button>
 
-        <Button
-          onClick={() => setFiltroTipo("ayuda")}
-          style={{ marginLeft: 5 }}
-        >
-          Ayuda
-        </Button>
+    <Button
+      variant={
+        filtroTipo === "ayuda"
+          ? "success"
+          : "outline-success"
+      }
+      style={{
+        marginLeft: 5,
+        ...getActiveStyle(
+          filtroTipo === "ayuda"
+        )
+      }}
+      onClick={() => setFiltroTipo("ayuda")}
+    >
+      Ayuda
+    </Button>
 
-        <Button
-          onClick={() => setFiltroCategoria("servicio")}
-          style={{ marginLeft: 10 }}
-        >
-          Servicios
-        </Button>
+  </div>
 
-        <Button
-          onClick={() => setFiltroCategoria("producto")}
-          style={{ marginLeft: 5 }}
-        >
-          Productos
-        </Button>
-      </div>
+  {/* 🟠 FILTRO CATEGORIA */}
+  <div>
+
+    <strong>Categoría:</strong>
+
+    <Button
+      variant={
+        filtroCategoria === "servicio"
+          ? "warning"
+          : "outline-warning"
+      }
+      style={{
+        marginLeft: 10,
+        ...getActiveStyle(
+          filtroCategoria === "servicio"
+        )
+      }}
+      onClick={() => setFiltroCategoria("servicio")}
+    >
+      Servicios
+    </Button>
+
+    <Button
+      variant={
+        filtroCategoria === "producto"
+          ? "info"
+          : "outline-info"
+      }
+      style={{
+        marginLeft: 5,
+        ...getActiveStyle(
+          filtroCategoria === "producto"
+        )
+      }}
+      onClick={() => setFiltroCategoria("producto")}
+    >
+      Productos
+    </Button>
+
+  </div>
+
+</div>
 
       {/* ========================= */}
       {/* 📋 LISTA */}
