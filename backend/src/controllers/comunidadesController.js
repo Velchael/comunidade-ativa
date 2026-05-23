@@ -30,6 +30,7 @@ exports.crearComunidad = async (req, res) => {
     const comunidad = await Comunidad.create({
       nombre_comunidad: nombre,
       nombre_administrador: administrador,
+      owner_user_id: req.user.id,
       ...resto
     });
 
