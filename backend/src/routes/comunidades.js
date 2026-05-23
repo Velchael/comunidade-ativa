@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/comunidadesController');
 const comunidadController = require('../controllers/comunidadesController');
-//const { authenticateToken } = require('../middleware/auth');
 const { verificarToken } = require('../middleware/authMiddleware');
 
 const { onlyAdminTotal } = require('../middleware/roles');

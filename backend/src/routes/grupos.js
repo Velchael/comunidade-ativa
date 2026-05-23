@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { verificarToken } = require('../middleware/authMiddleware');
 const gruposController = require('../controllers/gruposController');
-const permisoSoloAdmins = require('../middleware/permisoSoloAdmins'); // ✅ import correcto
 const permisoEditarEliminar = require('../middleware/permisoEditarEliminar');
 // 📍 Rutas para grupos
 

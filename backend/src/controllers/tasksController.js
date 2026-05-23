@@ -5,11 +5,9 @@ const { Task, User } = require('../models');
 const getAllTasks = async (req, res) => {
   try {
     const { frecuencia } = req.query;
-    const user = await User.findByPk(req.user.id);
-
     const where = {
       ...(frecuencia && { frequency: frecuencia }),
-      comunidad_id: user.comunidad_id  // 🔥 Filtrar por comunidad del usuario logueado
+      comunidad_id: req.user.comunidad_id
     };
 
     const tasks = await Task.findAll({
@@ -32,12 +30,10 @@ const getAllTasks = async (req, res) => {
 const getTaskById = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findByPk(req.user.id);
-
     const task = await Task.findOne({
       where: {
         id,
-        comunidad_id: user.comunidad_id
+        comunidad_id: req.user.comunidad_id
       },
       include: {
         model: User,
@@ -61,8 +57,6 @@ const createTask = async (req, res) => {
 
   try {
     const { title, description, frequency, dueDate, status, priority } = req.body;
-    const user = await User.findByPk(req.user.id);
-    console.log("Payload recibido para crear tarea:", req.body);
     const task = await Task.create({
       title,
       description,
@@ -70,8 +64,8 @@ const createTask = async (req, res) => {
       due_date: dueDate,
       status,
       priority,
-      created_by: user.id,
-      comunidad_id: user.comunidad_id  // 🔥 Relación directa
+      created_by: req.user.id,
+      comunidad_id: req.user.comunidad_id
     });
 
     res.status(201).json(task);
@@ -89,12 +83,11 @@ const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, frequency, dueDate, status, priority } = req.body;
-    const user = await User.findByPk(req.user.id);
 
     const task = await Task.findOne({
       where: {
         id,
-        comunidad_id: user.comunidad_id
+        comunidad_id: req.user.comunidad_id
       }
     });
 
@@ -117,12 +110,11 @@ const deleteTask = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const user = await User.findByPk(req.user.id);
 
     const task = await Task.findOne({
       where: {
         id,
-        comunidad_id: user.comunidad_id
+        comunidad_id: req.user.comunidad_id
       }
     });
 
