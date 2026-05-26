@@ -17,6 +17,7 @@ import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 import ComunidadesPanel from './Screens/ComunidadesPanel';
 import GruposActivos from './Screens/GruposActivos';
 import Interacciones from './Screens/Interacciones';
+import CrearComunidad from './Screens/CrearComunidad';
 
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
@@ -257,6 +258,11 @@ export default function App() {
                     <Route
                       path="/Seinscrever"
                       element={<Seinscrever />}
+                    />
+
+                    <Route
+                      path="/crear-comunidad"
+                      element={<CrearComunidad />}
                     />
 
                     <Route

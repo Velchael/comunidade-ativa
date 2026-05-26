@@ -2,17 +2,63 @@ const { User, Comunidad } = require('../models');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+const pickAllowedFields = (source, allowedFields) => {
+  return allowedFields.reduce((result, field) => {
+    if (Object.prototype.hasOwnProperty.call(source, field)) {
+      result[field] = source[field];
+    }
+    return result;
+  }, {});
+};
+
+const PUBLIC_USER_FIELDS = [
+  'username',
+  'apellido',
+  'fecha_nacimiento',
+  'telefono',
+  'direccion',
+  'nivel_liderazgo',
+  'grupo_familiar_id',
+  'estado',
+  'foto_perfil',
+];
+
+const GOOGLE_PROFILE_FIELDS = [
+  'username',
+  'apellido',
+  'fecha_nacimiento',
+  'telefono',
+  'direccion',
+  'nivel_liderazgo',
+  'grupo_familiar_id',
+  'estado',
+  'foto_perfil',
+];
+
+const SELF_UPDATE_FIELDS = [
+  'username',
+  'apellido',
+  'fecha_nacimiento',
+  'telefono',
+  'direccion',
+  'nivel_liderazgo',
+  'grupo_familiar_id',
+  'estado',
+  'foto_perfil',
+];
+
 // Crear usuario
 const createUser = async (req, res) => {
   try {
-    const { email, googleId, ...rest } = req.body;
+    const { email } = req.body;
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(409).json({ message: 'El correo electrónico ya está registrado' });
     }
 
-    const newUser = await User.create({ email, googleId, ...rest });
+    const safeData = pickAllowedFields(req.body, PUBLIC_USER_FIELDS);
+    const newUser = await User.create({ email, ...safeData });
     res.status(201).json(newUser);
   } catch (error) {
     console.error("❌ Error al registrar usuario:", error.message);
@@ -43,7 +89,8 @@ const getUserByEmail = async (req, res) => {
 
 // Completar perfil Google
 const completeGoogleProfile = async (req, res) => {
-  const { email, googleId, username, ...data } = req.body;
+  const { email, googleId } = req.body;
+  const data = pickAllowedFields(req.body, GOOGLE_PROFILE_FIELDS);
 
   try {
     const user = await User.findOne({ where: { email } });
@@ -56,10 +103,11 @@ const completeGoogleProfile = async (req, res) => {
       return res.status(403).json({ message: 'Google ID no coincide' });
     }
 
-    if (user.username && user.username !== username) {
+    if (data.username && user.username && user.username !== data.username) {
       console.log('⚠️ Intento de sobrescribir username ignorado');
+      delete data.username;
     } else {
-      data.username = username;
+      data.username = data.username || user.username;
     }
 
     if (user.apellido && user.fecha_nacimiento) {
@@ -97,20 +145,15 @@ const getAllUsers = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;   // usuario que será editado
-    const data = req.body;
+    const data = pickAllowedFields(req.body, SELF_UPDATE_FIELDS);
     const loggedUser = req.user; // viene del middleware verificarToken
 
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    // ⚠️ Si se intenta cambiar comunidad_id, solo admin_total puede hacerlo
-    if (data.hasOwnProperty('comunidad_id') && loggedUser.rol !== 'admin_total') {
-      return res.status(403).json({ message: 'Solo admin_total puede cambiar comunidad' });
-    }
-
-    // ⚠️ Si se intenta cambiar rol, solo admin_total puede hacerlo
-    if (data.hasOwnProperty('rol') && loggedUser.rol !== 'admin_total') {
-      return res.status(403).json({ message: 'Solo admin_total puede cambiar roles' });
+    if (loggedUser.rol === 'admin_total') {
+      const adminOnlyData = pickAllowedFields(req.body, ['comunidad_id', 'rol']);
+      Object.assign(data, adminOnlyData);
     }
 
     // ⚠️ Si el usuario intenta editar otro usuario y NO es admin_total
@@ -184,4 +227,3 @@ module.exports = {
   updateUserRole,
   deleteUser
 };
-
