@@ -6,12 +6,11 @@ import { UserContext } from '../UserContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
-const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) => {
+const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
   const { user } = useContext(UserContext);
 
   const [formData, setFormData] = useState({
     comunidad_id: '',
-    lider_id: '',
     colider_nombre: '',
     anfitrion_nombre: '',
     direccion_grupo: ''
@@ -25,7 +24,6 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
       // ---- MODO EDICIÓN ----
       setFormData({
         comunidad_id: grupo.comunidad_id || user?.comunidad_id || '',
-        lider_id: grupo.lider_id || '',
         colider_nombre: grupo.colider_nombre || '',
         anfitrion_nombre: grupo.anfitrion_nombre || '',
         direccion_grupo: grupo.direccion_grupo || ''
@@ -34,13 +32,12 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
       // ---- MODO CREACIÓN ----
       setFormData({
         comunidad_id: user?.comunidad_id || '',
-        lider_id: initialLiderId || user?.id || '',
         colider_nombre: '',
         anfitrion_nombre: '',
         direccion_grupo: ''
       });
     }
-  }, [grupo, user, initialLiderId]);
+  }, [grupo, user]);
 
   const handleChange = (e) => {
     setFormData({
@@ -59,10 +56,12 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
 
       if (grupo) {
         // -------- PUT: EDITAR GRUPO --------
-        await axios.put(`${API_BASE}/api/grupos/${grupo.id}`, formData, { headers });
+        const { comunidad_id, ...editData } = formData;
+        await axios.put(`${API_BASE}/api/grupos/${grupo.id}`, editData, { headers });
       } else {
         // -------- POST: CREAR GRUPO --------
-        await axios.post(`${API_BASE}/api/grupos`, formData, { headers });
+        const { comunidad_id, ...createData } = formData;
+        await axios.post(`${API_BASE}/api/grupos`, createData, { headers });
       }
 
       onSave();
@@ -87,21 +86,6 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo, initialLiderId }) =>
 
         <Form onSubmit={handleSubmit}>
           <Form.Control type="hidden" name="comunidad_id" value={formData.comunidad_id} />
-
-          <Form.Group className="mb-3">
-            <Form.Label>ID del Líder</Form.Label>
-            <Form.Control
-              type="text"
-              name="lider_id"
-              value={formData.lider_id}
-              onChange={handleChange}
-              required
-            />
-            <Form.Text className="text-muted">
-              Si eres admin_total puedes asignar otro líder (ingresa su id).
-              Si no, se usa automáticamente tu id.
-            </Form.Text>
-          </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Nombre del Co-Líder</Form.Label>

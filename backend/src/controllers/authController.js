@@ -5,6 +5,8 @@ const { User, Comunidad } = require('../models'); // Ajusta según index.js de m
 const createToken = require('../utils/createToken');
 require('dotenv').config();
 
+const MAX_REFRESH_AGE_SECONDS = 7 * 24 * 60 * 60;
+
 // LOGIN por email + password (POST /auth/login)
 const login = async (req, res) => {
   try {
@@ -122,6 +124,15 @@ const refreshToken = async (req, res) => {
 
     if (!payload?.id) return res.status(400).json({ message: 'Payload inválido en token' });
 
+    if (!payload.iat) {
+      return res.status(401).json({ message: 'Token inválido para refresh' });
+    }
+
+    const tokenAgeSeconds = Math.floor(Date.now() / 1000) - payload.iat;
+    if (tokenAgeSeconds > MAX_REFRESH_AGE_SECONDS) {
+      return res.status(401).json({ message: 'Token expirado para refresh' });
+    }
+
     // Obtener usuario actual desde DB (para reflejar cambios de rol/comunidad)
     const user = await User.findByPk(payload.id, {
       attributes: ['id', 'email', 'rol', 'username', 'apellido', 'comunidad_id'],
@@ -164,7 +175,6 @@ module.exports = {
   getMe,
   refreshToken
 };
-
 
 
 
