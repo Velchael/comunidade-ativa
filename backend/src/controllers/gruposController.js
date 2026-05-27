@@ -67,6 +67,20 @@ exports.obtenerGrupo = async (req, res) => {
       ]
     });
     if (!grupo) return res.status(404).json({ message: 'Grupo no encontrado' });
+
+    if (req.user.rol === 'admin_total') {
+      return res.json(grupo);
+    }
+
+    if (req.user.rol === 'admin_basic') {
+      if (grupo.comunidad_id === req.user.comunidad_id) return res.json(grupo);
+      return res.status(403).json({ message: 'No puedes ver grupos de otra comunidad' });
+    }
+
+    if (grupo.lider_id !== req.user.id) {
+      return res.status(403).json({ message: 'No tienes permiso para ver este grupo' });
+    }
+
     res.json(grupo);
   } catch (error) {
     console.error('❌ Error al obtener grupo:', error);
