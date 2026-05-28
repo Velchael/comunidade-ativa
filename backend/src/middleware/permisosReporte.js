@@ -1,4 +1,5 @@
 const { Reporte, GrupoActivo } = require('../models');
+const { tieneRolComunidad } = require('../utils/comunidadRoles');
 
 const obtenerGrupoDesdeParams = async (params) => {
   const { grupoId, reporteId } = params;
@@ -16,6 +17,15 @@ const obtenerGrupoDesdeParams = async (params) => {
   return null;
 };
 
+const esAdminComunidad = async (user, comunidadId) => {
+  if (user.rol === 'admin_total') {
+    return true;
+  }
+
+  const resultado = await tieneRolComunidad(user, comunidadId, ['admin_total', 'admin_basic']);
+  return resultado.permitido;
+};
+
 module.exports = {
   // ✅ Ver reportes
   puedeVer: async (req, res, next) => {
@@ -27,13 +37,8 @@ module.exports = {
         return res.status(404).json({ error: 'Grupo no encontrado' });
       }
 
-      if (user.rol === 'admin_total') {
+      if (await esAdminComunidad(user, grupo.comunidad_id)) {
         return next();
-      }
-
-      if (user.rol === 'admin_basic') {
-        if (grupo.comunidad_id === user.comunidad_id) return next();
-        return res.status(403).json({ error: 'No puedes ver reportes de otra comunidad' });
       }
 
       if (grupo.lider_id !== user.id) {
@@ -57,17 +62,12 @@ module.exports = {
         return res.status(404).json({ error: 'Grupo no encontrado' });
       }
 
-      if (user.rol === 'admin_total') {
+      if (await esAdminComunidad(user, grupo.comunidad_id)) {
         return next();
       }
 
-      if (user.rol === 'admin_basic') {
-        if (grupo.comunidad_id === user.comunidad_id) return next();
-        return res.status(403).json({ error: 'No puedes crear/editar reportes de otra comunidad' });
-      }
-
       // Solo el líder de ese grupo puede crear reportes
-      if (user.rol === 'miembro' && grupo.lider_id === user.id) {
+      if (grupo.lider_id === user.id) {
         return next();
       }
 
