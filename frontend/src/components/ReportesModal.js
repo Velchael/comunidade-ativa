@@ -58,7 +58,12 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
       setNuevoReporte({ semana: '', asistencia: '', tema: '', observaciones: '' });
     } catch (err) {
       console.error('❌ Error al crear reporte:', err);
-      setMessage({ type: 'danger', text: 'Usuario não autorizado por encuanto' });
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'No se pudo crear el reporte';
+
+      setMessage({ type: 'danger', text: errorMessage });
     }
   };
 
