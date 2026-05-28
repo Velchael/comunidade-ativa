@@ -109,6 +109,18 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'comunidad_id',
       as: 'comunidad'
     });
+
+    User.hasMany(models.ComunidadMiembro, {
+      foreignKey: 'user_id',
+      as: 'membresias'
+    });
+
+    User.belongsToMany(models.Comunidad, {
+      through: models.ComunidadMiembro,
+      foreignKey: 'user_id',
+      otherKey: 'comunidad_id',
+      as: 'comunidades_miembro'
+    });
   };
 
   return User; // ✅ ahora sí existe

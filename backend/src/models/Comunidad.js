@@ -45,8 +45,19 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'comunidad_id',
       as: 'usuarios'
     });
+
+    Comunidad.hasMany(models.ComunidadMiembro, {
+      foreignKey: 'comunidad_id',
+      as: 'miembros'
+    });
+
+    Comunidad.belongsToMany(models.User, {
+      through: models.ComunidadMiembro,
+      foreignKey: 'comunidad_id',
+      otherKey: 'user_id',
+      as: 'usuarios_miembros'
+    });
   };
 
   return Comunidad;
 };
-
