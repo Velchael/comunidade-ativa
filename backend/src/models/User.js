@@ -32,6 +32,15 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('admin_total', 'admin_basic', 'miembro'),
       defaultValue: 'miembro'
     },
+    rol_global: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'miembro',
+      validate: {
+        isIn: [['admin_total', 'admin_basic', 'miembro']]
+      },
+      field: 'rol_global'
+    },
     fecha_nacimiento: {
       type: DataTypes.DATEONLY,
       allowNull: true,
@@ -79,7 +88,19 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'users',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    hooks: {
+      beforeValidate: (user) => {
+        if (!user.rol_global && user.rol) {
+          user.rol_global = user.rol;
+        }
+      },
+      beforeSave: (user) => {
+        if (user.changed('rol') && !user.changed('rol_global')) {
+          user.rol_global = user.rol;
+        }
+      }
+    }
   });
 
   // 🔗 RELACIONES
@@ -92,4 +113,3 @@ module.exports = (sequelize, DataTypes) => {
 
   return User; // ✅ ahora sí existe
 };
-

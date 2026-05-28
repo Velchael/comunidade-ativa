@@ -29,6 +29,7 @@ const login = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      rol_global: user.rol_global || user.rol,
       username: user.username,
       googleId: user.googleId || null,
       comunidad_id: user.comunidad_id || null
@@ -41,6 +42,7 @@ const login = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      rol_global: user.rol_global || user.rol,
       username: user.username,
       comunidad_id: user.comunidad_id,
       comunidadNombre: user.comunidad ? user.comunidad.nombre_comunidad : null,
@@ -64,6 +66,7 @@ const googleCallback = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      rol_global: user.rol_global || user.rol,
       username: user.username,
       googleId: user.googleId,
       comunidad_id: user.comunidad_id || null
@@ -85,7 +88,7 @@ const getMe = async (req, res) => {
     if (!userId) return res.status(401).json({ message: 'No autenticado' });
 
     const user = await User.findByPk(userId, {
-      attributes: ['id', 'email', 'rol', 'username', 'apellido', 'comunidad_id'],
+      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
     });
 
@@ -95,6 +98,7 @@ const getMe = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      rol_global: user.rol_global || user.rol,
       username: user.username,
       apellido: user.apellido || null,
       comunidad_id: user.comunidad_id,
@@ -135,7 +139,7 @@ const refreshToken = async (req, res) => {
 
     // Obtener usuario actual desde DB (para reflejar cambios de rol/comunidad)
     const user = await User.findByPk(payload.id, {
-      attributes: ['id', 'email', 'rol', 'username', 'apellido', 'comunidad_id'],
+      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
     });
 
@@ -145,6 +149,7 @@ const refreshToken = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      rol_global: user.rol_global || user.rol,
       username: user.username,
       googleId: user.googleId || null,
       comunidad_id: user.comunidad_id || null
@@ -156,6 +161,7 @@ const refreshToken = async (req, res) => {
       id: user.id,
       email: user.email,
       rol: user.rol,
+      rol_global: user.rol_global || user.rol,
       username: user.username,
       apellido: user.apellido || null,
       comunidad_id: user.comunidad_id,
@@ -175,6 +181,5 @@ module.exports = {
   getMe,
   refreshToken
 };
-
 
 
