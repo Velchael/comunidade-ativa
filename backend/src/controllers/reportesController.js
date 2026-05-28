@@ -44,6 +44,17 @@ exports.crearReporte = async (req, res) => {
     res.status(201).json(nuevo);
   } catch (error) {
     console.error('❌ Error en crearReporte:', error);
+
+    if (
+      error.name === 'SequelizeUniqueConstraintError' ||
+      error?.parent?.constraint === 'unique_reporte_semana' ||
+      error?.original?.constraint === 'unique_reporte_semana'
+    ) {
+      return res.status(409).json({
+        error: 'Ya existe un reporte para este grupo en esa semana.'
+      });
+    }
+
     res.status(400).json({ error: 'No se pudo crear el reporte' });
   }
 };
