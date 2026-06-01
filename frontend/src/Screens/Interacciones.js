@@ -4,6 +4,8 @@ import axios from "axios";
 import { UserContext } from "../UserContext";
 
 export default function Interacciones() {
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+
   const { user } = useContext(UserContext);
 
   const [tipo, setTipo] = useState("necesidad");
@@ -24,14 +26,14 @@ export default function Interacciones() {
 
     try {
       const res = await axios.get(
-        `http://localhost:3000/api/interacciones/${comunidadId}`
+        `${API_BASE}/api/interacciones/${comunidadId}`
       );
 
       setLista(res.data);
     } catch (error) {
       console.error("Error cargando interacciones", error);
     }
-  }, [user]);
+  }, [user, API_BASE]);
 
   useEffect(() => {
     if (user) cargarInteracciones();
@@ -81,15 +83,25 @@ export default function Interacciones() {
     setLista(prev => [nueva, ...prev]);
 
     try {
-      await axios.post("http://localhost:3000/api/interacciones", {
-        user_id: user.id,
-        comunidad_id: comunidadId,
-        tipo,
-        categoria,
-        descripcion: texto,
-        visibilidad,
-        urgencia: urgenciaFinal
-      });
+      const token = localStorage.getItem("token");
+
+      await axios.post(
+        `${API_BASE}/api/interacciones`,
+        {
+          user_id: user.id,
+          comunidad_id: comunidadId,
+          tipo,
+          categoria,
+          descripcion: texto,
+          visibilidad,
+          urgencia: urgenciaFinal
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
       setTexto("");
 
@@ -100,6 +112,9 @@ export default function Interacciones() {
 
     } catch (error) {
       console.error("Error publicando", error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        alert(error.response?.data?.message || error.response?.data?.error || "No autorizado");
+      }
     }
   };
 
@@ -108,16 +123,29 @@ export default function Interacciones() {
     if (!mensaje || !user) return;
 
     try {
-      await axios.post("http://localhost:3000/api/respuestas", {
-        interaccion_id: id,
-        user_id: user.id,
-        mensaje
-      });
+      const token = localStorage.getItem("token");
+
+      await axios.post(
+        `${API_BASE}/api/respuestas`,
+        {
+          interaccion_id: id,
+          user_id: user.id,
+          mensaje
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
       cargarInteracciones();
 
     } catch (error) {
       console.error("Error respondiendo", error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        alert(error.response?.data?.message || error.response?.data?.error || "No autorizado");
+      }
     }
   };
 

@@ -18,6 +18,7 @@ import ComunidadesPanel from './Screens/ComunidadesPanel';
 import GruposActivos from './Screens/GruposActivos';
 import Interacciones from './Screens/Interacciones';
 import CrearComunidad from './Screens/CrearComunidad';
+import SeleccionarComunidad from './Screens/SeleccionarComunidad';
 
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
@@ -263,6 +264,11 @@ export default function App() {
                     <Route
                       path="/crear-comunidad"
                       element={<CrearComunidad />}
+                    />
+
+                    <Route
+                      path="/seleccionar-comunidad"
+                      element={<SeleccionarComunidad />}
                     />
 
                     <Route

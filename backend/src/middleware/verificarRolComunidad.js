@@ -19,7 +19,7 @@ const verificarRolComunidad = ({
         return next();
       }
 
-      const comunidadId = getComunidadId(req);
+      const comunidadId = await getComunidadId(req);
       if (!comunidadId) {
         return res.status(400).json({ message: 'comunidad_id requerido para verificar permisos' });
       }

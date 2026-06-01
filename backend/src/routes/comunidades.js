@@ -10,6 +10,7 @@ const ownershipComunidad = require('../middleware/ownershipComunidad');
 router.get('/', controller.listarComunidades); // Público
 router.get('/:id', comunidadController.obtenerComunidadPorId);
 router.post('/onboarding', verificarToken, controller.crearComunidadOnboarding);
+router.post('/:id/unirse', verificarToken, controller.unirseComunidad);
 router.post('/', verificarToken, onlyAdminTotal, controller.crearComunidad);
 
 router.put('/:id', verificarToken, ownershipComunidad, controller.actualizarComunidad);

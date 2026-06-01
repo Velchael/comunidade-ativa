@@ -1,4 +1,4 @@
-const { Comunidad, User, sequelize } = require('../models');
+const { Comunidad, User, ComunidadMiembro, sequelize } = require('../models');
 const createToken = require('../utils/createToken');
 
 // ✅ Listar comunidades con alias para frontend
@@ -101,6 +101,31 @@ exports.crearComunidadOnboarding = async (req, res) => {
       rol: 'admin_basic'
     }, { transaction });
 
+    const [membresia] = await ComunidadMiembro.findOrCreate({
+      where: {
+        user_id: user.id,
+        comunidad_id: comunidad.id
+      },
+      defaults: {
+        rol_comunidad: 'admin_basic',
+        estado: 'activo',
+        es_principal: true
+      },
+      transaction
+    });
+
+    if (
+      membresia.rol_comunidad !== 'admin_basic' ||
+      membresia.estado !== 'activo' ||
+      membresia.es_principal !== true
+    ) {
+      await membresia.update({
+        rol_comunidad: 'admin_basic',
+        estado: 'activo',
+        es_principal: true
+      }, { transaction });
+    }
+
     await transaction.commit();
 
     const updatedUser = await User.findByPk(user.id, {
@@ -128,6 +153,114 @@ exports.crearComunidadOnboarding = async (req, res) => {
     }, '120m');
 
     return res.status(201).json({
+      token,
+      user: userResponse,
+      comunidad
+    });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+// Unirse a una comunidad existente desde onboarding social
+exports.unirseComunidad = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const userId = req.user?.id;
+    const comunidadId = Number(req.params.id);
+
+    if (!userId) {
+      await transaction.rollback();
+      return res.status(401).json({ message: 'No autenticado' });
+    }
+
+    if (!Number.isInteger(comunidadId)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Comunidad inválida' });
+    }
+
+    const comunidad = await Comunidad.findByPk(comunidadId, { transaction });
+    if (!comunidad || comunidad.activa === false) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Comunidad no encontrada' });
+    }
+
+    const user = await User.findByPk(userId, { transaction });
+    if (!user) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (user.comunidad_id && user.comunidad_id !== comunidad.id) {
+      await transaction.rollback();
+      return res.status(409).json({ message: 'El usuario ya pertenece a otra comunidad.' });
+    }
+
+    const rol = user.rol === 'admin_total' ? user.rol : 'miembro';
+
+    await user.update({
+      comunidad_id: comunidad.id,
+      rol
+    }, { transaction });
+
+    const [membresia] = await ComunidadMiembro.findOrCreate({
+      where: {
+        user_id: user.id,
+        comunidad_id: comunidad.id
+      },
+      defaults: {
+        rol_comunidad: 'miembro',
+        estado: 'activo',
+        es_principal: true
+      },
+      transaction
+    });
+
+    if (
+      membresia.rol_comunidad !== 'miembro' ||
+      membresia.estado !== 'activo' ||
+      membresia.es_principal !== true
+    ) {
+      await membresia.update({
+        rol_comunidad: 'miembro',
+        estado: 'activo',
+        es_principal: true
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    const updatedUser = await User.findByPk(user.id, {
+      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+    });
+
+    const userResponse = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      rol: updatedUser.rol,
+      rol_global: updatedUser.rol_global || updatedUser.rol,
+      username: updatedUser.username,
+      apellido: updatedUser.apellido || null,
+      comunidad_id: updatedUser.comunidad_id,
+      comunidadNombre: updatedUser.comunidad ? updatedUser.comunidad.nombre_comunidad : null
+    };
+
+    const token = createToken({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      rol: updatedUser.rol,
+      rol_global: updatedUser.rol_global || updatedUser.rol,
+      username: updatedUser.username,
+      googleId: updatedUser.googleId || null,
+      comunidad_id: updatedUser.comunidad_id || null
+    }, '120m');
+
+    return res.json({
       token,
       user: userResponse,
       comunidad
