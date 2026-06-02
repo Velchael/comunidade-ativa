@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import {
   Container,
   Table,
@@ -10,11 +9,21 @@ import {
   Form,
   Modal
 } from 'react-bootstrap';
+import { UserContext } from '../UserContext';
 
 const API_URL = `${process.env.REACT_APP_API_URL}/api/comunidades`;
 
+const normalizeComunidad = (comunidad = {}) => ({
+  ...comunidad,
+  nombre: comunidad.nombre || comunidad.nombre_comunidad || '',
+  administrador: comunidad.administrador || comunidad.nombre_administrador || '',
+  descripcion: comunidad.descripcion || '',
+  direccion: comunidad.direccion || '',
+  telefono: comunidad.telefono || '',
+});
+
 const ComunidadesPanel = () => {
-  const [userRole, setUserRole] = useState(null);
+  const { user } = useContext(UserContext);
   const [comunidades, setComunidades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -27,36 +36,59 @@ const ComunidadesPanel = () => {
     telefono: '',
     administrador: '',
   });
+  const storedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  })();
+  const sessionUser = user || storedUser;
+
+  const isAdminTotal =
+    sessionUser?.rol_global === 'admin_total' ||
+    sessionUser?.rol === 'admin_total';
+  const canManageCommunity = sessionUser?.can_manage_comunidad === true;
+  const comunidadId = sessionUser?.comunidadId || sessionUser?.comunidad_id;
 
   useEffect(() => {
-  const token = localStorage.getItem('token'); // ✅
+    const token = localStorage.getItem('token');
 
-  if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
-  const decoded = jwtDecode(token);
-  setUserRole(decoded.rol);
+    if (!sessionUser) {
+      return;
+    }
 
-  //if (decoded.rol !== 'admin_total') {
-   // setMessage({ type: 'danger', text: 'Acceso denegado' });
-   // return;
-  //}
+    if (!isAdminTotal && !canManageCommunity) {
+      setMessage({ type: 'danger', text: 'Acceso denegado' });
+      setLoading(false);
+      return;
+    }
 
-  if (
-  decoded.rol !== 'admin_total' &&
-  decoded.rol !== 'admin_basic'
-) {
-  setMessage({ type: 'danger', text: 'Acceso denegado' });
-  return;
-}
+    if (!isAdminTotal && !comunidadId) {
+      setMessage({ type: 'danger', text: 'No tienes comunidad asignada' });
+      setLoading(false);
+      return;
+    }
 
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  fetchComunidades();
-  }, []);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    if (isAdminTotal) {
+      fetchComunidades();
+      return;
+    }
+
+    fetchComunidadLocal(comunidadId);
+  }, [sessionUser, isAdminTotal, canManageCommunity, comunidadId]);
 
   const fetchComunidades = async () => {
     try {
       const res = await axios.get(API_URL);
-      setComunidades(res.data);
+      setComunidades(res.data.map(normalizeComunidad));
     } catch (err) {
       setMessage({ type: 'danger', text: 'Error al cargar comunidades' });
     } finally {
@@ -64,16 +96,39 @@ const ComunidadesPanel = () => {
     }
   };
 
+  const fetchComunidadLocal = async (id) => {
+    try {
+      const res = await axios.get(`${API_URL}/${id}`);
+      setComunidades([normalizeComunidad(res.data)]);
+    } catch (err) {
+      setMessage({
+        type: 'danger',
+        text: err.response?.data?.message || 'Error al cargar tu comunidad'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openModal = (comunidad = null) => {
+    const normalizedComunidad = normalizeComunidad(comunidad || {});
     setEditingComunidad(comunidad);
     setFormData(
-      comunidad || {
-        nombre_comunidad: '',
-        descripcion: '',
-        direccion: '',
-        telefono: '',
-        nombre_administrador: '',
-      }
+      comunidad
+        ? {
+            nombre: normalizedComunidad.nombre,
+            descripcion: normalizedComunidad.descripcion,
+            direccion: normalizedComunidad.direccion,
+            telefono: normalizedComunidad.telefono,
+            administrador: normalizedComunidad.administrador,
+          }
+        : {
+            nombre: '',
+            descripcion: '',
+            direccion: '',
+            telefono: '',
+            administrador: '',
+          }
     );
     setModalShow(true);
   };
@@ -94,7 +149,13 @@ const ComunidadesPanel = () => {
         await axios.post(API_URL, formData);
         setMessage({ type: 'success', text: 'Comunidad creada' });
       }
-      fetchComunidades();
+
+      if (isAdminTotal) {
+        await fetchComunidades();
+      } else {
+        await fetchComunidadLocal(comunidadId);
+      }
+
       setModalShow(false);
     } catch (err) {
       setMessage({
@@ -109,9 +170,17 @@ const ComunidadesPanel = () => {
     try {
       await axios.delete(`${API_URL}/${id}`);
       setMessage({ type: 'success', text: 'Comunidad eliminada' });
-      fetchComunidades();
-    } catch {
-      setMessage({ type: 'danger', text: 'Error al eliminar comunidad' });
+
+      if (isAdminTotal) {
+        await fetchComunidades();
+      } else {
+        await fetchComunidadLocal(comunidadId);
+      }
+    } catch (err) {
+      setMessage({
+        type: 'danger',
+        text: err.response?.data?.message || 'Error al eliminar comunidad'
+      });
     }
   };
 
@@ -121,7 +190,7 @@ const ComunidadesPanel = () => {
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
 
-     {userRole === 'admin_total' && (
+     {isAdminTotal && (
        <Button variant="primary" className="mb-3" onClick={() => openModal()}>
         ➕ Crear nueva comunidad
        </Button>
@@ -233,7 +302,7 @@ const ComunidadesPanel = () => {
          <Button
           variant="primary"
           onClick={handleSubmit}
-          disabled={userRole !== 'admin_total' && userRole !== 'admin_basic'}
+          disabled={!isAdminTotal && !canManageCommunity}
          >
           {editingComunidad ? 'Guardar Cambios' : 'Crear Comunidad'}
          </Button>
@@ -245,4 +314,3 @@ const ComunidadesPanel = () => {
 };
 
 export default ComunidadesPanel;
-

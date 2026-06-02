@@ -21,7 +21,10 @@ export const UserProvider = ({ children }) => {
     // 🔥 NORMALIZACIÓN CLAVE
     const normalizedUser = {
       ...baseUser,
-      comunidadId: baseUser.comunidadId || baseUser.comunidad_id
+      comunidadId: baseUser.comunidadId || baseUser.comunidad_id,
+      rol_comunidad: baseUser.rol_comunidad || null,
+      is_owner: baseUser.is_owner === true,
+      can_manage_comunidad: baseUser.can_manage_comunidad === true
     };
 
     setUser(normalizedUser);
@@ -87,7 +90,10 @@ export const UserProvider = ({ children }) => {
 
        setUser({
         ...parsed,
-        comunidadId: parsed.comunidadId || parsed.comunidad_id
+        comunidadId: parsed.comunidadId || parsed.comunidad_id,
+        rol_comunidad: parsed.rol_comunidad || null,
+        is_owner: parsed.is_owner === true,
+        can_manage_comunidad: parsed.can_manage_comunidad === true
        });
 
       } catch {

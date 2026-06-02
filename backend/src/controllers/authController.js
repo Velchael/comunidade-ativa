@@ -1,11 +1,55 @@
 // backend/controllers/authController.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { User, Comunidad } = require('../models'); // Ajusta según index.js de models
+const { User, Comunidad } = require('../models');
 const createToken = require('../utils/createToken');
+const { ROLES, resolveRolComunidadHibrido } = require('../utils/comunidadRoles');
 require('dotenv').config();
 
 const MAX_REFRESH_AGE_SECONDS = 7 * 24 * 60 * 60;
+
+const buildLocalCommunityContext = async (user) => {
+  const comunidadId = user?.comunidad_id || null;
+
+  if (!comunidadId) {
+    return {
+      rol_comunidad: null,
+      is_owner: false,
+      can_manage_comunidad: false
+    };
+  }
+
+  const resolved = await resolveRolComunidadHibrido(user, comunidadId);
+  const isOwner = Number(user?.comunidad?.owner_user_id) === Number(user?.id);
+  const canManageComunidad =
+    isOwner ||
+    resolved.rol === ROLES.ADMIN_BASIC ||
+    resolved.rol === ROLES.ADMIN_TOTAL;
+
+  return {
+    rol_comunidad: resolved.rol || null,
+    is_owner: isOwner,
+    can_manage_comunidad: canManageComunidad
+  };
+};
+
+const buildUserResponse = async (user) => {
+  const localContext = await buildLocalCommunityContext(user);
+
+  return {
+    id: user.id,
+    email: user.email,
+    rol: user.rol,
+    rol_global: user.rol_global || user.rol,
+    username: user.username,
+    comunidad_id: user.comunidad_id,
+    comunidadNombre: user.comunidad ? user.comunidad.nombre_comunidad : null,
+    apellido: user.apellido || null,
+    rol_comunidad: localContext.rol_comunidad,
+    is_owner: localContext.is_owner,
+    can_manage_comunidad: localContext.can_manage_comunidad
+  };
+};
 
 // LOGIN por email + password (POST /auth/login)
 const login = async (req, res) => {
@@ -15,7 +59,7 @@ const login = async (req, res) => {
 
     const user = await User.findOne({
       where: { email },
-      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
     if (!user) return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
@@ -37,17 +81,7 @@ const login = async (req, res) => {
 
     const token = createToken(payload, '120m');
 
-    // devolver user enriquecido
-    const userResponse = {
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      rol_global: user.rol_global || user.rol,
-      username: user.username,
-      comunidad_id: user.comunidad_id,
-      comunidadNombre: user.comunidad ? user.comunidad.nombre_comunidad : null,
-      apellido: user.apellido || null
-    };
+    const userResponse = await buildUserResponse(user);
 
     return res.json({ token, user: userResponse });
   } catch (err) {
@@ -89,21 +123,12 @@ const getMe = async (req, res) => {
 
     const user = await User.findByPk(userId, {
       attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
-      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    return res.json({
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      rol_global: user.rol_global || user.rol,
-      username: user.username,
-      apellido: user.apellido || null,
-      comunidad_id: user.comunidad_id,
-      comunidadNombre: user.comunidad ? user.comunidad.nombre_comunidad : null
-    });
+    return res.json(await buildUserResponse(user));
   } catch (err) {
     console.error('❌ authController.getMe error:', err);
     return res.status(500).json({ message: 'Error obteniendo usuario' });
@@ -140,7 +165,7 @@ const refreshToken = async (req, res) => {
     // Obtener usuario actual desde DB (para reflejar cambios de rol/comunidad)
     const user = await User.findByPk(payload.id, {
       attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
-      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado para refresh' });
@@ -157,16 +182,7 @@ const refreshToken = async (req, res) => {
 
     const newToken = createToken(newPayload, '120m');
 
-    const userResponse = {
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      rol_global: user.rol_global || user.rol,
-      username: user.username,
-      apellido: user.apellido || null,
-      comunidad_id: user.comunidad_id,
-      comunidadNombre: user.comunidad ? user.comunidad.nombre_comunidad : null
-    };
+    const userResponse = await buildUserResponse(user);
 
     return res.json({ token: newToken, user: userResponse });
   } catch (err) {
@@ -181,5 +197,4 @@ module.exports = {
   getMe,
   refreshToken
 };
-
 

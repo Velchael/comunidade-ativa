@@ -39,9 +39,11 @@ function Header({ toggleSidebar }) {
     navigate("/");
   };
 
-  const isAdmin =
-    user?.rol === "admin_total" ||
-    user?.rol === "admin_basic";
+  const isGlobalAdmin =
+    user?.rol_global === "admin_total" ||
+    user?.rol === "admin_total";
+
+  const canManageCommunity = user?.can_manage_comunidad === true;
 
   return (
     <header>
@@ -81,22 +83,26 @@ function Header({ toggleSidebar }) {
             >
               {user.comunidadNombre} - Olá: {user.username}
 
-              {isAdmin && (
+              {(isGlobalAdmin || canManageCommunity) && (
                 <NavDropdown title="⚙️" id="config-dropdown">
 
-                  <NavDropdown.Item
-                    as={NavLink}
-                    to="/configuracion/panel"
-                  >
-                    Usuários
-                  </NavDropdown.Item>
+                  {isGlobalAdmin && (
+                    <NavDropdown.Item
+                      as={NavLink}
+                      to="/configuracion/panel"
+                    >
+                      Usuários
+                    </NavDropdown.Item>
+                  )}
 
-                  <NavDropdown.Item
-                    as={NavLink}
-                    to="/configuracion/comunidades"
-                  >
-                    Comunidade
-                  </NavDropdown.Item>
+                  {canManageCommunity && (
+                    <NavDropdown.Item
+                      as={NavLink}
+                      to="/configuracion/comunidades"
+                    >
+                      Comunidade
+                    </NavDropdown.Item>
+                  )}
 
                 </NavDropdown>
               )}
