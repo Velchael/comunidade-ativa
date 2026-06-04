@@ -1,4 +1,4 @@
-const { Comunidad, User, sequelize } = require('../models');
+const { Comunidad, User, ComunidadMiembro, sequelize } = require('../models');
 const createToken = require('../utils/createToken');
 const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
 
@@ -282,5 +282,61 @@ exports.obtenerComunidadPorId = async (req, res) => {
     res.json(comunidad);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener comunidad', error: error.message });
+  }
+};
+
+// ✅ Listar miembros de una comunidad
+exports.listarMiembrosComunidad = async (req, res) => {
+  try {
+    const comunidadId = Number(req.params.id);
+
+    if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
+      return res.status(400).json({ message: 'Comunidad inválida' });
+    }
+
+    const comunidad = await Comunidad.findByPk(comunidadId, {
+      attributes: ['id']
+    });
+
+    if (!comunidad) {
+      return res.status(404).json({ message: 'Comunidad no encontrada' });
+    }
+
+    const membresias = await ComunidadMiembro.findAll({
+      where: { comunidad_id: comunidadId },
+      attributes: ['user_id', 'rol_comunidad', 'estado', 'es_principal'],
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['id', 'username', 'email'],
+        required: true
+      }],
+      order: [
+        ['es_principal', 'DESC'],
+        ['rol_comunidad', 'ASC'],
+        [{ model: User, as: 'user' }, 'username', 'ASC'],
+        ['user_id', 'ASC']
+      ]
+    });
+
+    const miembros = membresias.map((membresia) => ({
+      user_id: membresia.user_id,
+      username: membresia.user?.username || null,
+      email: membresia.user?.email || null,
+      rol_comunidad: membresia.rol_comunidad,
+      estado: membresia.estado,
+      es_principal: membresia.es_principal
+    }));
+
+    return res.json({
+      comunidad_id: comunidadId,
+      total: miembros.length,
+      miembros
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al listar miembros de la comunidad',
+      error: error.message
+    });
   }
 };
