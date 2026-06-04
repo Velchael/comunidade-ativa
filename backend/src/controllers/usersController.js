@@ -1,4 +1,5 @@
-const { User, Comunidad } = require('../models');
+const { User, Comunidad, sequelize } = require('../models');
+const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -143,13 +144,18 @@ const getAllUsers = async (req, res) => {
 
 // ✅ NUEVA FUNCIÓN: Actualizar usuario completo
 const updateUser = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { id } = req.params;   // usuario que será editado
     const data = pickAllowedFields(req.body, SELF_UPDATE_FIELDS);
     const loggedUser = req.user; // viene del middleware verificarToken
 
-    const user = await User.findByPk(id);
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    const user = await User.findByPk(id, { transaction });
+    if (!user) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
 
     if (loggedUser.rol === 'admin_total') {
       const adminOnlyData = pickAllowedFields(req.body, ['comunidad_id', 'rol']);
@@ -158,10 +164,38 @@ const updateUser = async (req, res) => {
 
     // ⚠️ Si el usuario intenta editar otro usuario y NO es admin_total
     if (loggedUser.rol !== 'admin_total' && loggedUser.id !== user.id) {
+      await transaction.rollback();
       return res.status(403).json({ message: 'No tienes permiso para editar otros usuarios' });
     }
 
-    await user.update(data);
+    const updatesMembershipState =
+      Object.prototype.hasOwnProperty.call(data, 'rol') ||
+      Object.prototype.hasOwnProperty.call(data, 'comunidad_id');
+
+    if (updatesMembershipState) {
+      await syncUserAndPrimaryMembershipTx({
+        user,
+        nextRol: Object.prototype.hasOwnProperty.call(data, 'rol') ? data.rol : undefined,
+        nextComunidadId: Object.prototype.hasOwnProperty.call(data, 'comunidad_id') ? data.comunidad_id : undefined,
+        transaction,
+        preserveExistingLocalRole: true,
+        forceRoleSync: false,
+        syncRoleFromUser: false,
+        upsertMembership: true
+      });
+
+      const profileOnlyData = { ...data };
+      delete profileOnlyData.rol;
+      delete profileOnlyData.comunidad_id;
+
+      if (Object.keys(profileOnlyData).length > 0) {
+        await user.update(profileOnlyData, { transaction });
+      }
+    } else {
+      await user.update(data, { transaction });
+    }
+
+    await transaction.commit();
 
     const updated = await User.findByPk(id, {
       attributes: { exclude: ['password'] },
@@ -170,6 +204,9 @@ const updateUser = async (req, res) => {
 
     return res.json(updated);
   } catch (err) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
     console.error('❌ Error al actualizar usuario:', err);
     return res.status(500).json({ message: 'Error actualizando usuario' });
   }
@@ -179,6 +216,7 @@ const updateUser = async (req, res) => {
 const updateUserRole = async (req, res) => {
   const { id } = req.params;
   const { rol } = req.body;
+  const transaction = await sequelize.transaction();
 
   const validRoles = ['miembro', 'admin_basic', 'admin_total'];
   if (!validRoles.includes(rol)) {
@@ -186,16 +224,30 @@ const updateUserRole = async (req, res) => {
   }
 
   try {
-    const user = await User.findByPk(id);
+    const user = await User.findByPk(id, { transaction });
     if (!user) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    user.rol = rol;
-    await user.save();
+    await syncUserAndPrimaryMembershipTx({
+      user,
+      nextRol: rol,
+      nextComunidadId: user.comunidad_id,
+      transaction,
+      preserveExistingLocalRole: true,
+      forceRoleSync: false,
+      syncRoleFromUser: false,
+      upsertMembership: true
+    });
+
+    await transaction.commit();
 
     res.status(200).json({ message: 'Rol actualizado con éxito' });
   } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
     console.error('❌ Error al actualizar rol:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }

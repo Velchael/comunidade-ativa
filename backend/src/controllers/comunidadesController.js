@@ -1,5 +1,6 @@
-const { Comunidad, User, ComunidadMiembro, sequelize } = require('../models');
+const { Comunidad, User, sequelize } = require('../models');
 const createToken = require('../utils/createToken');
+const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
 
 // ✅ Listar comunidades con alias para frontend
 exports.listarComunidades = async (req, res) => {
@@ -96,35 +97,16 @@ exports.crearComunidadOnboarding = async (req, res) => {
       activa: true
     }, { transaction });
 
-    await user.update({
-      comunidad_id: comunidad.id,
-      rol: 'admin_basic'
-    }, { transaction });
-
-    const [membresia] = await ComunidadMiembro.findOrCreate({
-      where: {
-        user_id: user.id,
-        comunidad_id: comunidad.id
-      },
-      defaults: {
-        rol_comunidad: 'admin_basic',
-        estado: 'activo',
-        es_principal: true
-      },
-      transaction
+    await syncUserAndPrimaryMembershipTx({
+      user,
+      nextRol: 'admin_basic',
+      nextComunidadId: comunidad.id,
+      transaction,
+      preserveExistingLocalRole: true,
+      forceRoleSync: true,
+      syncRoleFromUser: true,
+      upsertMembership: true
     });
-
-    if (
-      membresia.rol_comunidad !== 'admin_basic' ||
-      membresia.estado !== 'activo' ||
-      membresia.es_principal !== true
-    ) {
-      await membresia.update({
-        rol_comunidad: 'admin_basic',
-        estado: 'activo',
-        es_principal: true
-      }, { transaction });
-    }
 
     await transaction.commit();
 
@@ -202,35 +184,16 @@ exports.unirseComunidad = async (req, res) => {
 
     const rol = user.rol === 'admin_total' ? user.rol : 'miembro';
 
-    await user.update({
-      comunidad_id: comunidad.id,
-      rol
-    }, { transaction });
-
-    const [membresia] = await ComunidadMiembro.findOrCreate({
-      where: {
-        user_id: user.id,
-        comunidad_id: comunidad.id
-      },
-      defaults: {
-        rol_comunidad: 'miembro',
-        estado: 'activo',
-        es_principal: true
-      },
-      transaction
+    await syncUserAndPrimaryMembershipTx({
+      user,
+      nextRol: rol,
+      nextComunidadId: comunidad.id,
+      transaction,
+      preserveExistingLocalRole: true,
+      forceRoleSync: true,
+      syncRoleFromUser: true,
+      upsertMembership: true
     });
-
-    if (
-      membresia.rol_comunidad !== 'miembro' ||
-      membresia.estado !== 'activo' ||
-      membresia.es_principal !== true
-    ) {
-      await membresia.update({
-        rol_comunidad: 'miembro',
-        estado: 'activo',
-        es_principal: true
-      }, { transaction });
-    }
 
     await transaction.commit();
 

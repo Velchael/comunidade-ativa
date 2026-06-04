@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { ComunidadMiembro } = require('../models');
 
 const ROLES = {
@@ -21,6 +22,68 @@ const normalizeRoles = (rolesPermitidos = []) => {
   if (typeof rolesPermitidos === 'string') return [rolesPermitidos];
   if (Array.isArray(rolesPermitidos)) return rolesPermitidos;
   return [];
+};
+
+const getMembershipTx = async ({ userId, comunidadId, transaction, lock }) => {
+  const normalizedUserId = normalizeId(userId);
+  const normalizedComunidadId = normalizeId(comunidadId);
+
+  if (!normalizedUserId || !normalizedComunidadId) {
+    return null;
+  }
+
+  return ComunidadMiembro.findOne({
+    where: {
+      user_id: normalizedUserId,
+      comunidad_id: normalizedComunidadId
+    },
+    transaction,
+    lock
+  });
+};
+
+const createMembershipTx = async ({
+  userId,
+  comunidadId,
+  rolComunidad = ROLES.MIEMBRO,
+  transaction
+}) => {
+  return ComunidadMiembro.create({
+    user_id: userId,
+    comunidad_id: comunidadId,
+    rol_comunidad: rolComunidad,
+    estado: ESTADOS.ACTIVO,
+    es_principal: true
+  }, { transaction });
+};
+
+const deactivateOtherPrimaryMembershipsTx = async ({
+  userId,
+  keepComunidadId,
+  transaction
+}) => {
+  const normalizedUserId = normalizeId(userId);
+  const normalizedKeepComunidadId = normalizeId(keepComunidadId);
+
+  if (!normalizedUserId) {
+    return;
+  }
+
+  const where = {
+    user_id: normalizedUserId,
+    es_principal: true
+  };
+
+  if (normalizedKeepComunidadId) {
+    where.comunidad_id = {
+      [Op.ne]: normalizedKeepComunidadId
+    };
+  }
+
+  await ComunidadMiembro.update(
+    { es_principal: false },
+    { where, transaction }
+  );
 };
 
 const getMembresiaActiva = async (userId, comunidadId) => {
@@ -127,11 +190,164 @@ const ensureComunidadMiembroFromLegacy = async (user) => {
   return membresia;
 };
 
+const syncUserAndPrimaryMembershipTx = async ({
+  user,
+  nextRol,
+  nextComunidadId,
+  transaction,
+  forceRoleSync = false,
+  preserveExistingLocalRole = true,
+  syncRoleFromUser = false,
+  upsertMembership = true,
+  deactivatePreviousPrimary = true
+}) => {
+  if (!user?.id) {
+    throw new Error('syncUserAndPrimaryMembershipTx requiere un usuario valido');
+  }
+
+  if (!transaction) {
+    throw new Error('syncUserAndPrimaryMembershipTx requiere transaction');
+  }
+
+  const previousComunidadId = normalizeId(user.comunidad_id);
+  const finalComunidadId = normalizeId(
+    nextComunidadId !== undefined ? nextComunidadId : user.comunidad_id
+  );
+  const finalRol = nextRol !== undefined ? nextRol : user.rol;
+
+  const userUpdates = {};
+  if (nextRol !== undefined && user.rol !== finalRol) {
+    userUpdates.rol = finalRol;
+  }
+  if (nextComunidadId !== undefined && user.comunidad_id !== finalComunidadId) {
+    userUpdates.comunidad_id = finalComunidadId;
+  }
+
+  if (Object.keys(userUpdates).length > 0) {
+    await user.update(userUpdates, { transaction });
+  }
+
+  let previousMembership = null;
+  let targetMembership = null;
+  let membershipCreated = false;
+  let roleSyncApplied = false;
+
+  if (previousComunidadId) {
+    previousMembership = await getMembershipTx({
+      userId: user.id,
+      comunidadId: previousComunidadId,
+      transaction
+    });
+  }
+
+  if (!finalComunidadId) {
+    if (previousMembership && previousMembership.es_principal) {
+      await previousMembership.update({ es_principal: false }, { transaction });
+    }
+
+    await deactivateOtherPrimaryMembershipsTx({
+      userId: user.id,
+      keepComunidadId: null,
+      transaction
+    });
+
+    return {
+      user,
+      previousComunidadId,
+      finalComunidadId,
+      finalRol,
+      targetMembership: null,
+      previousMembership,
+      roleSyncApplied,
+      membershipCreated
+    };
+  }
+
+  targetMembership = await getMembershipTx({
+    userId: user.id,
+    comunidadId: finalComunidadId,
+    transaction
+  });
+
+  if (!targetMembership && upsertMembership) {
+    const initialRolComunidad = syncRoleFromUser ? finalRol : ROLES.MIEMBRO;
+
+    targetMembership = await createMembershipTx({
+      userId: user.id,
+      comunidadId: finalComunidadId,
+      rolComunidad: initialRolComunidad,
+      transaction
+    });
+
+    membershipCreated = true;
+    roleSyncApplied = syncRoleFromUser;
+  }
+
+  if (targetMembership) {
+    const membershipUpdates = {};
+
+    if (targetMembership.estado !== ESTADOS.ACTIVO) {
+      membershipUpdates.estado = ESTADOS.ACTIVO;
+    }
+
+    if (targetMembership.es_principal !== true) {
+      membershipUpdates.es_principal = true;
+    }
+
+    const shouldSyncRole =
+      forceRoleSync ||
+      (
+        syncRoleFromUser &&
+        (
+          !targetMembership.rol_comunidad ||
+          !preserveExistingLocalRole ||
+          targetMembership.rol_comunidad === user.rol
+        )
+      );
+
+    if (shouldSyncRole && targetMembership.rol_comunidad !== finalRol) {
+      membershipUpdates.rol_comunidad = finalRol;
+      roleSyncApplied = true;
+    }
+
+    if (Object.keys(membershipUpdates).length > 0) {
+      await targetMembership.update(membershipUpdates, { transaction });
+    }
+  }
+
+  if (
+    deactivatePreviousPrimary &&
+    previousComunidadId &&
+    previousComunidadId !== finalComunidadId &&
+    previousMembership
+  ) {
+    await previousMembership.update({ es_principal: false }, { transaction });
+  }
+
+  await deactivateOtherPrimaryMembershipsTx({
+    userId: user.id,
+    keepComunidadId: finalComunidadId,
+    transaction
+  });
+
+  return {
+    user,
+    previousComunidadId,
+    finalComunidadId,
+    finalRol,
+    targetMembership,
+    previousMembership,
+    roleSyncApplied,
+    membershipCreated
+  };
+};
+
 module.exports = {
   ROLES,
   ESTADOS,
   getMembresiaActiva,
   resolveRolComunidadHibrido,
   tieneRolComunidad,
-  ensureComunidadMiembroFromLegacy
+  ensureComunidadMiembroFromLegacy,
+  syncUserAndPrimaryMembershipTx
 };
