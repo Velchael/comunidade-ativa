@@ -15,6 +15,7 @@ import Seinscrever from './Screens/Seinscrever';
 import TaskList from './Screens/TaskList';
 import ConfiguracionPanel from './Screens/ConfiguracionPanel';
 import ComunidadesPanel from './Screens/ComunidadesPanel';
+import MiembrosComunidadPanel from './Screens/MiembrosComunidadPanel';
 import GruposActivos from './Screens/GruposActivos';
 import Interacciones from './Screens/Interacciones';
 import CrearComunidad from './Screens/CrearComunidad';
@@ -292,6 +293,11 @@ export default function App() {
                       <Route
                         path="comunidades"
                         element={<ComunidadesPanel />}
+                      />
+
+                      <Route
+                        path="comunidades/:id/miembros"
+                        element={<MiembrosComunidadPanel />}
                       />
 
                     </Route>

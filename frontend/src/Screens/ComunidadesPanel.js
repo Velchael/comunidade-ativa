@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Table,
@@ -24,6 +25,7 @@ const normalizeComunidad = (comunidad = {}) => ({
 
 const ComunidadesPanel = () => {
   const { user } = useContext(UserContext);
+  const navigate = useNavigate();
   const [comunidades, setComunidades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -50,6 +52,20 @@ const ComunidadesPanel = () => {
     sessionUser?.rol === 'admin_total';
   const canManageCommunity = sessionUser?.can_manage_comunidad === true;
   const comunidadId = sessionUser?.comunidadId || sessionUser?.comunidad_id;
+
+  const canViewMembers = (comunidad) => {
+    if (isAdminTotal) return true;
+    if (!canManageCommunity) return false;
+    return Number(comunidad?.id) === Number(comunidadId);
+  };
+
+  const handleViewMembers = (comunidad) => {
+    navigate(`/configuracion/comunidades/${comunidad.id}/miembros`, {
+      state: {
+        comunidadNombre: comunidad.nombre || `Comunidad #${comunidad.id}`
+      }
+    });
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -222,6 +238,16 @@ const ComunidadesPanel = () => {
                 <td>{com.telefono}</td>
                 <td>{com.direccion}</td>
                 <td>
+                  {canViewMembers(com) && (
+                    <Button
+                      size="sm"
+                      variant="info"
+                      className="me-2"
+                      onClick={() => handleViewMembers(com)}
+                    >
+                      Ver miembros
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="warning"
