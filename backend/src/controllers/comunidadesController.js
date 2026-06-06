@@ -295,7 +295,7 @@ exports.listarMiembrosComunidad = async (req, res) => {
     }
 
     const comunidad = await Comunidad.findByPk(comunidadId, {
-      attributes: ['id']
+      attributes: ['id', 'owner_user_id']
     });
 
     if (!comunidad) {
@@ -308,7 +308,7 @@ exports.listarMiembrosComunidad = async (req, res) => {
       include: [{
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'email'],
+        attributes: ['id', 'username', 'email', 'rol', 'rol_global'],
         required: true
       }],
       order: [
@@ -319,14 +319,24 @@ exports.listarMiembrosComunidad = async (req, res) => {
       ]
     });
 
-    const miembros = membresias.map((membresia) => ({
-      user_id: membresia.user_id,
-      username: membresia.user?.username || null,
-      email: membresia.user?.email || null,
-      rol_comunidad: membresia.rol_comunidad,
-      estado: membresia.estado,
-      es_principal: membresia.es_principal
-    }));
+    const miembros = membresias.map((membresia) => {
+      const isOwner = Number(comunidad.owner_user_id) === Number(membresia.user_id);
+      const rolGlobal = membresia.user?.rol_global || membresia.user?.rol || 'miembro';
+      const isAdminTotalGlobal = rolGlobal === 'admin_total';
+
+      return {
+        user_id: membresia.user_id,
+        username: membresia.user?.username || null,
+        email: membresia.user?.email || null,
+        rol_comunidad: membresia.rol_comunidad,
+        rol_global: rolGlobal,
+        is_admin_total_global: isAdminTotalGlobal,
+        estado: membresia.estado,
+        es_principal: membresia.es_principal,
+        is_owner: isOwner,
+        can_edit_local_role: !isOwner && !isAdminTotalGlobal
+      };
+    });
 
     return res.json({
       comunidad_id: comunidadId,
@@ -336,6 +346,97 @@ exports.listarMiembrosComunidad = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: 'Error al listar miembros de la comunidad',
+      error: error.message
+    });
+  }
+};
+
+exports.actualizarRolMiembroComunidad = async (req, res) => {
+  try {
+    const comunidadId = Number(req.params.id);
+    const targetUserId = Number(req.params.userId);
+    const { rol_comunidad } = req.body || {};
+    const actor = req.user;
+    const comunidad = req.comunidad;
+    const actorRoleScope = req.actorRoleScope;
+
+    if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
+      return res.status(400).json({ message: 'Comunidad inválida' });
+    }
+
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+      return res.status(400).json({ message: 'Usuario inválido' });
+    }
+
+    if (!['admin_basic', 'miembro'].includes(rol_comunidad)) {
+      return res.status(400).json({
+        message: 'rol_comunidad inválido. Solo se permite admin_basic o miembro'
+      });
+    }
+
+    if (Number(actor?.id) === Number(targetUserId)) {
+      return res.status(403).json({
+        message: 'No puedes cambiar tu propio rol local en esta fase'
+      });
+    }
+
+    const targetUser = await User.findByPk(targetUserId, {
+      attributes: ['id', 'username', 'email', 'rol', 'rol_global']
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (Number(comunidad.owner_user_id) === Number(targetUserId)) {
+      return res.status(403).json({
+        message: 'No se puede modificar el rol local del owner de la comunidad'
+      });
+    }
+
+    const targetMembership = await ComunidadMiembro.findOne({
+      where: {
+        user_id: targetUserId,
+        comunidad_id: comunidadId
+      },
+      attributes: ['user_id', 'comunidad_id', 'rol_comunidad', 'estado', 'es_principal']
+    });
+
+    if (!targetMembership) {
+      return res.status(404).json({
+        message: 'Membresía no encontrada para esa comunidad'
+      });
+    }
+
+    if (
+      targetUser.rol === 'admin_total' ||
+      targetUser.rol_global === 'admin_total'
+    ) {
+      return res.status(403).json({
+        message: 'No puedes modificar el rol local de un admin_total'
+      });
+    }
+
+    if (targetMembership.rol_comunidad !== rol_comunidad) {
+      await targetMembership.update({ rol_comunidad });
+    }
+
+    return res.json({
+      message: 'Rol comunitario actualizado',
+      comunidad_id: comunidadId,
+      miembro: {
+        user_id: targetMembership.user_id,
+        username: targetUser.username || null,
+        email: targetUser.email || null,
+        rol_comunidad,
+        estado: targetMembership.estado,
+        es_principal: targetMembership.es_principal,
+        is_owner: false
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al actualizar rol comunitario',
       error: error.message
     });
   }
