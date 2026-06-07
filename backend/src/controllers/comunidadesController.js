@@ -358,7 +358,6 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
     const { rol_comunidad } = req.body || {};
     const actor = req.user;
     const comunidad = req.comunidad;
-    const actorRoleScope = req.actorRoleScope;
 
     if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
       return res.status(400).json({ message: 'Comunidad inválida' });
@@ -368,9 +367,9 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
       return res.status(400).json({ message: 'Usuario inválido' });
     }
 
-    if (!['admin_basic', 'miembro'].includes(rol_comunidad)) {
+    if (!['admin_basic', 'moderador', 'miembro'].includes(rol_comunidad)) {
       return res.status(400).json({
-        message: 'rol_comunidad inválido. Solo se permite admin_basic o miembro'
+        message: 'rol_comunidad inválido. Solo se permite admin_basic, moderador o miembro'
       });
     }
 

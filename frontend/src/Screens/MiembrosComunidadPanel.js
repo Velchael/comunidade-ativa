@@ -100,6 +100,8 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
           ? 'Admin total'
           : miembro.rol_comunidad === 'admin_basic'
             ? 'Admin local'
+            : miembro.rol_comunidad === 'moderador'
+              ? 'Moderador'
             : 'Miembro';
 
       return (
@@ -124,6 +126,10 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       );
     }
 
+    if (miembro?.rol_comunidad === 'moderador') {
+      return <Badge bg="info">Moderador</Badge>;
+    }
+
     return <Badge bg="secondary">Miembro</Badge>;
   };
 
@@ -144,7 +150,33 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     if (miembro.is_owner === true) return false;
     if (miembro.can_edit_local_role === false) return false;
     if (miembro.is_admin_total_global === true) return false;
-    return miembro.rol_comunidad === 'miembro' || miembro.rol_comunidad === 'admin_basic';
+    return ['miembro', 'moderador', 'admin_basic'].includes(miembro.rol_comunidad);
+  };
+
+  const getRoleActions = (miembro) => {
+    if (!canEditMember(miembro)) return [];
+
+    if (miembro.rol_comunidad === 'miembro') {
+      return [
+        { label: 'Hacer moderador', nextRole: 'moderador', variant: 'info' },
+        { label: 'Hacer admin local', nextRole: 'admin_basic', variant: 'success' }
+      ];
+    }
+
+    if (miembro.rol_comunidad === 'moderador') {
+      return [
+        { label: 'Quitar moderación', nextRole: 'miembro', variant: 'outline-secondary' },
+        { label: 'Hacer admin local', nextRole: 'admin_basic', variant: 'success' }
+      ];
+    }
+
+    if (miembro.rol_comunidad === 'admin_basic') {
+      return [
+        { label: 'Bajar a moderador', nextRole: 'moderador', variant: 'outline-warning' }
+      ];
+    }
+
+    return [];
   };
 
   const handleChangeRole = async (miembro, nextRole) => {
@@ -259,26 +291,20 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
                     )}
                   </td>
                   <td>
-                    {canEditMember(miembro) ? (
-                      miembro.rol_comunidad === 'miembro' ? (
-                        <Button
-                          size="sm"
-                          variant="success"
-                          disabled={updatingUserId === miembro.user_id}
-                          onClick={() => handleChangeRole(miembro, 'admin_basic')}
-                        >
-                          {updatingUserId === miembro.user_id ? 'Actualizando...' : 'Promover'}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline-warning"
-                          disabled={updatingUserId === miembro.user_id}
-                          onClick={() => handleChangeRole(miembro, 'miembro')}
-                        >
-                          {updatingUserId === miembro.user_id ? 'Actualizando...' : 'Quitar admin'}
-                        </Button>
-                      )
+                    {getRoleActions(miembro).length > 0 ? (
+                      <div className="d-flex flex-wrap gap-2">
+                        {getRoleActions(miembro).map((action) => (
+                          <Button
+                            key={`${miembro.user_id}-${action.nextRole}`}
+                            size="sm"
+                            variant={action.variant}
+                            disabled={updatingUserId === miembro.user_id}
+                            onClick={() => handleChangeRole(miembro, action.nextRole)}
+                          >
+                            {updatingUserId === miembro.user_id ? 'Actualizando...' : action.label}
+                          </Button>
+                        ))}
+                      </div>
                     ) : (
                       <span className="text-muted">Sin acciones</span>
                     )}

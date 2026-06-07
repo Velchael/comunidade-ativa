@@ -4,6 +4,7 @@ const { ComunidadMiembro } = require('../models');
 const ROLES = {
   ADMIN_TOTAL: 'admin_total',
   ADMIN_BASIC: 'admin_basic',
+  MODERADOR: 'moderador',
   MIEMBRO: 'miembro'
 };
 

@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'miembro',
       validate: {
-        isIn: [['admin_total', 'admin_basic', 'miembro']]
+        isIn: [['admin_total', 'admin_basic', 'moderador', 'miembro']]
       },
       field: 'rol_comunidad'
     },
