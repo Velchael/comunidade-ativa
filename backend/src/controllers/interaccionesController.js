@@ -1,10 +1,10 @@
-
 const { Interaccion, Respuesta, User, Comunidad } = require("../models");
 const { Op, Sequelize } = require("sequelize");
+const ESTADOS_PERMITIDOS = ["abierto", "cerrado", "en_proceso", "oculto"];
 
 exports.crear = async (req, res) => {
   try {
-    let { urgencia = "normal", tipo, descripcion } = req.body;
+    let { urgencia = "normal", tipo, descripcion, categoria, visibilidad, imagen_url } = req.body;
 
     if (tipo !== "necesidad") {
       urgencia = "normal";
@@ -20,12 +20,21 @@ exports.crear = async (req, res) => {
       urgencia = "critica";
     }
 
+    const comunidad_id = Number(req.comunidadAuth?.comunidad_id);
+
     const data = await Interaccion.create({
-      ...req.body,
+      user_id: req.user.id,
+      comunidad_id,
+      tipo,
+      descripcion,
+      categoria,
+      visibilidad,
+      imagen_url,
+      estado: "abierto",
       urgencia
     });
 
-    res.json(data);
+    return res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json(err);
@@ -34,15 +43,24 @@ exports.crear = async (req, res) => {
 
 exports.listar = async (req, res) => {
   try {
-    const comunidad_id = Number(req.params.comunidad_id);
+    const comunidad_id = Number(req.comunidadAuth?.comunidad_id || req.params.comunidad_id);
+    const rol = req.comunidadAuth?.rol_comunidad;
+    const puedeModerar = ["admin_total", "admin_basic", "moderador"].includes(rol);
+    const where = {
+      [Op.or]: [
+        { visibilidad: "global" },
+        { comunidad_id }
+      ]
+    };
+
+    if (!puedeModerar) {
+      where.estado = {
+        [Op.ne]: "oculto"
+      };
+    }
 
     const data = await Interaccion.findAll({
-      where: {
-        [Op.or]: [
-          { visibilidad: "global" },
-          { comunidad_id }
-        ]
-      },
+      where,
       include: [
         {
           model: User,
@@ -82,10 +100,42 @@ exports.listar = async (req, res) => {
       ]
     });
 
-    res.json(data);
+    return res.json(data);
 
   } catch (err) {
     console.error(err);
     res.status(500).json(err);
+  }
+};
+
+exports.actualizarEstado = async (req, res) => {
+  try {
+    const estado = String(req.body?.estado || "").trim().toLowerCase();
+
+    if (!ESTADOS_PERMITIDOS.includes(estado)) {
+      return res.status(400).json({
+        message: "estado inválido. Solo se permite abierto, cerrado, en_proceso u oculto"
+      });
+    }
+
+    const interaccion = req.interaccionTarget;
+
+    if (!interaccion) {
+      return res.status(404).json({ message: "Interacción no encontrada" });
+    }
+
+    await interaccion.update({ estado });
+
+    return res.json({
+      message: "Estado actualizado",
+      data: {
+        id: interaccion.id,
+        comunidad_id: interaccion.comunidad_id,
+        estado: interaccion.estado
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json(err);
   }
 };

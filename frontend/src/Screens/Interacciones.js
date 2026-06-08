@@ -25,8 +25,15 @@ export default function Interacciones() {
     if (!user || !comunidadId) return;
 
     try {
+      const token = localStorage.getItem("token");
+
       const res = await axios.get(
-        `${API_BASE}/api/interacciones/${comunidadId}`
+        `${API_BASE}/api/interacciones/${comunidadId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
 
       setLista(res.data);

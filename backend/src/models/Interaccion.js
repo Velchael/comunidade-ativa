@@ -22,7 +22,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     estado: {
       type: DataTypes.STRING,
-      defaultValue: "abierto"
+      defaultValue: "abierto",
+      validate: {
+        isIn: [["abierto", "cerrado", "en_proceso", "oculto"]]
+      }
     },
     categoria: {
       type: DataTypes.STRING,
