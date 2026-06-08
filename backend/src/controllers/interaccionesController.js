@@ -44,8 +44,13 @@ exports.crear = async (req, res) => {
 exports.listar = async (req, res) => {
   try {
     const comunidad_id = Number(req.comunidadAuth?.comunidad_id || req.params.comunidad_id);
-    const rol = req.comunidadAuth?.rol_comunidad;
-    const puedeModerar = ["admin_total", "admin_basic", "moderador"].includes(rol);
+    const rol = req.comunidadAuth?.rol_comunidad || null;
+    const isAdminTotalGlobal =
+      req.user?.rol === "admin_total" ||
+      req.user?.rol_global === "admin_total";
+    const puedeModerar =
+      isAdminTotalGlobal ||
+      ["admin_total", "admin_basic", "moderador"].includes(rol);
     const where = {
       [Op.or]: [
         { visibilidad: "global" },
@@ -100,7 +105,18 @@ exports.listar = async (req, res) => {
       ]
     });
 
-    return res.json(data);
+    return res.json({
+      items: data,
+      auth: {
+        comunidad_id,
+        rol_comunidad: rol,
+        can_moderate_interacciones: puedeModerar,
+        is_admin_total_global: isAdminTotalGlobal,
+        source:
+          req.comunidadAuth?.source ||
+          (isAdminTotalGlobal ? "global_admin" : null)
+      }
+    });
 
   } catch (err) {
     console.error(err);

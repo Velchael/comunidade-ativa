@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { Container, Button, Form, Card } from "react-bootstrap";
+import { Container, Button, Form, Card, Alert } from "react-bootstrap";
 import axios from "axios";
 import { UserContext } from "../UserContext";
 
@@ -14,9 +14,16 @@ export default function Interacciones() {
   const [visibilidad, setVisibilidad] = useState("global");
   const [lista, setLista] = useState([]);
   const [urgencia, setUrgencia] = useState("normal");
+  const [estadoErrorGeneral, setEstadoErrorGeneral] = useState("");
+  const [estadoErroresPorId, setEstadoErroresPorId] = useState({});
+  const [accionEstadoId, setAccionEstadoId] = useState(null);
+  const [interaccionesAuth, setInteraccionesAuth] = useState(null);
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
+
+  const puedeModerar =
+    interaccionesAuth?.can_moderate_interacciones === true;
 
   // 🔄 CARGAR INTERACCIONES
   const cargarInteracciones = useCallback(async () => {
@@ -36,9 +43,18 @@ export default function Interacciones() {
         }
       );
 
-      setLista(res.data);
+      if (Array.isArray(res.data)) {
+        setLista(res.data);
+        setInteraccionesAuth(null);
+      } else {
+        setLista(res.data?.items || []);
+        setInteraccionesAuth(res.data?.auth || null);
+      }
     } catch (error) {
       console.error("Error cargando interacciones", error);
+      setEstadoErrorGeneral(
+        "No se pudieron cargar las interacciones."
+      );
     }
   }, [user, API_BASE]);
 
@@ -180,6 +196,122 @@ export default function Interacciones() {
     if (tipo === "ayuda") return "#f0fff4";
 
     return "#fff";
+  };
+
+  const getEstadoLabel = (estado) => {
+    if (estado === "cerrado") return "Cerrado";
+    if (estado === "oculto") return "Oculto";
+    if (estado === "en_proceso") return "En proceso";
+
+    return "Abierto";
+  };
+
+  const getModerationActions = (estado) => {
+    if (estado === "cerrado") {
+      return [
+        {
+          label: "Reabrir",
+          nextEstado: "abierto",
+          variant: "outline-success"
+        },
+        {
+          label: "Ocultar",
+          nextEstado: "oculto",
+          variant: "outline-secondary"
+        }
+      ];
+    }
+
+    if (estado === "oculto") {
+      return [
+        {
+          label: "Reabrir",
+          nextEstado: "abierto",
+          variant: "outline-success"
+        }
+      ];
+    }
+
+    if (estado === "abierto") {
+      return [
+        {
+          label: "Cerrar",
+          nextEstado: "cerrado",
+          variant: "outline-warning"
+        },
+        {
+          label: "Ocultar",
+          nextEstado: "oculto",
+          variant: "outline-secondary"
+        }
+      ];
+    }
+
+    return [];
+  };
+
+  const cambiarEstadoInteraccion = async (
+    interaccionId,
+    nuevoEstado
+  ) => {
+    try {
+      setEstadoErrorGeneral("");
+      setEstadoErroresPorId((prev) => ({
+        ...prev,
+        [interaccionId]: ""
+      }));
+      setAccionEstadoId(interaccionId);
+
+      const token = localStorage.getItem("token");
+
+      await axios.patch(
+        `${API_BASE}/api/interacciones/${interaccionId}/estado`,
+        { estado: nuevoEstado },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      await cargarInteracciones();
+    } catch (error) {
+      console.error("Error cambiando estado", error);
+
+      const status = error.response?.status;
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error;
+
+      if (status === 401) {
+        setEstadoErroresPorId((prev) => ({
+          ...prev,
+          [interaccionId]:
+            backendMessage ||
+            "No autorizado para cambiar el estado."
+        }));
+      } else if (status === 403) {
+        setEstadoErroresPorId((prev) => ({
+          ...prev,
+          [interaccionId]:
+            backendMessage ||
+            "No tienes permisos para moderar esta interacción."
+        }));
+      } else if (status === 400) {
+        setEstadoErroresPorId((prev) => ({
+          ...prev,
+          [interaccionId]:
+            backendMessage ||
+            "Estado inválido para esta interacción."
+        }));
+      } else {
+        setEstadoErrorGeneral(
+          "No se pudo actualizar el estado de la interacción."
+        );
+      }
+    } finally {
+      setAccionEstadoId(null);
+    }
   };
 
   // 🔍 FILTROS
@@ -503,6 +635,15 @@ export default function Interacciones() {
       {/* 📋 LISTA */}
       {/* ========================= */}
 
+      {estadoErrorGeneral && (
+        <Alert
+          variant="danger"
+          style={{ marginTop: "15px" }}
+        >
+          {estadoErrorGeneral}
+        </Alert>
+      )}
+
       {listaFiltrada.map((item) => (
 
         <Card
@@ -588,6 +729,17 @@ export default function Interacciones() {
               </small>
             </div>
 
+            <div>
+              <small
+                style={{
+                  color: "#555",
+                  fontWeight: "bold"
+                }}
+              >
+                Estado: {getEstadoLabel(item.estado)}
+              </small>
+            </div>
+
             {/* URGENCIA TEXTO */}
             <div>
               <small
@@ -610,6 +762,46 @@ export default function Interacciones() {
             <p style={{ marginTop: "10px" }}>
               {item.descripcion}
             </p>
+
+            {puedeModerar &&
+              getModerationActions(item.estado).length > 0 && (
+                <div style={{ marginBottom: "10px" }}>
+                  {getModerationActions(item.estado).map(
+                    (action) => (
+                      <Button
+                        key={`${item.id}-${action.nextEstado}`}
+                        size="sm"
+                        variant={action.variant}
+                        style={{
+                          marginRight: "8px",
+                          marginBottom: "8px"
+                        }}
+                        disabled={accionEstadoId === item.id}
+                        onClick={() =>
+                          cambiarEstadoInteraccion(
+                            item.id,
+                            action.nextEstado
+                          )
+                        }
+                      >
+                        {action.label}
+                      </Button>
+                    )
+                  )}
+                </div>
+              )}
+
+            {estadoErroresPorId[item.id] && (
+              <div
+                style={{
+                  color: "#b02a37",
+                  fontSize: "14px",
+                  marginBottom: "10px"
+                }}
+              >
+                {estadoErroresPorId[item.id]}
+              </div>
+            )}
 
             {/* RESPUESTAS */}
             {item.respuestas?.map((r) => (
