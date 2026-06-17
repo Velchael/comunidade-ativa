@@ -26,25 +26,26 @@ import SocialMediaButtons from './components/SocialMediaButtons';
 
 // Context
 import { UserProvider, UserContext } from './UserContext';
+import {
+  canManageCommunity,
+  canViewCommunityMembers,
+  isAdminTotalGlobal
+} from './utils/permissions';
 
 function Header({ toggleSidebar }) {
-  const { user, setUser } = useContext(UserContext);
+  const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
 
   const handleLogin = () => navigate("/Seinscrever");
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
+    logout?.();
     navigate("/");
   };
-
-  const isGlobalAdmin =
-    user?.rol_global === "admin_total" ||
-    user?.rol === "admin_total";
-
-  const canManageCommunity = user?.can_manage_comunidad === true;
+  const isGlobalAdmin = isAdminTotalGlobal(user);
+  const canManageLocalCommunity = canManageCommunity(user);
+  const canAccessMembersPanel = canViewCommunityMembers(user);
+  const userCommunityName = user?.comunidadNombre || 'Sin comunidad';
 
   return (
     <header>
@@ -82,9 +83,9 @@ function Header({ toggleSidebar }) {
                 fontWeight: "bold"
               }}
             >
-              {user.comunidadNombre} - Olá: {user.username}
+              {userCommunityName} - Olá: {user.username}
 
-              {(isGlobalAdmin || canManageCommunity) && (
+              {(isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel) && (
                 <NavDropdown title="⚙️" id="config-dropdown">
 
                   {isGlobalAdmin && (
@@ -96,12 +97,21 @@ function Header({ toggleSidebar }) {
                     </NavDropdown.Item>
                   )}
 
-                  {canManageCommunity && (
+                  {canManageLocalCommunity && (
                     <NavDropdown.Item
                       as={NavLink}
                       to="/configuracion/comunidades"
                     >
                       Comunidade
+                    </NavDropdown.Item>
+                  )}
+
+                  {canAccessMembersPanel && (user?.comunidadId || user?.comunidad_id) && (
+                    <NavDropdown.Item
+                      as={NavLink}
+                      to={`/configuracion/comunidades/${user?.comunidadId || user?.comunidad_id}/miembros`}
+                    >
+                      Miembros
                     </NavDropdown.Item>
                   )}
 

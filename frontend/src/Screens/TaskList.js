@@ -1,7 +1,6 @@
 // src/Screens/TaskList.js
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import {
   Container,
   Table,
@@ -22,6 +21,11 @@ import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
 import es from 'date-fns/locale/es';
 import parseISO from 'date-fns/parseISO';
+import { UserContext } from '../UserContext';
+import {
+  canManageCommunity,
+  isAdminTotalGlobal
+} from '../utils/permissions';
 
 const locales = { es };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -30,7 +34,6 @@ const API_URL = `${process.env.REACT_APP_API_URL || ''}/api/tasks`;
 
 const TaskList = () => {
   const [tasks, setTasks] = useState([]);
-  const [userRole, setUserRole] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalShow, setModalShow] = useState(false);
   const [form, setForm] = useState({
@@ -47,13 +50,20 @@ const TaskList = () => {
 
   // viewMode: 'table' (default) or 'month'
   const [viewMode, setViewMode] = useState('table');
+  const { user } = useContext(UserContext);
+  const canCreateOrEditTasks = useMemo(
+    () => isAdminTotalGlobal(user) || canManageCommunity(user),
+    [user]
+  );
+  const canDeleteTasks = useMemo(
+    () => isAdminTotalGlobal(user),
+    [user]
+  );
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    const decoded = jwtDecode(token);
-    setUserRole((decoded.rol || '').toLowerCase());
     fetchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frecuenciaFiltro]);
@@ -190,7 +200,7 @@ const TaskList = () => {
             <Button variant={viewMode === 'month' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('month')}>Mes</Button>
           </ButtonGroup>
 
-          {(userRole === 'admin_total' || userRole === 'admin_basic') && (
+          {canCreateOrEditTasks && (
             <Button onClick={() => openModal()} variant="primary">Nueva tarea</Button>
           )}
         </Col>
@@ -233,7 +243,7 @@ const TaskList = () => {
                   <th>Estado</th>
                   <th>Creado</th>
                   <th>Autor</th>
-                  {(userRole === 'admin_total' || userRole === 'admin_basic') && <th>Acciones</th>}
+                  {canCreateOrEditTasks && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -252,10 +262,10 @@ const TaskList = () => {
                       <td>{task.status}</td>
                       <td>{createdStr}</td>
                       <td>{task.creator?.username || '-'}</td>
-                      {(userRole === 'admin_total' || userRole === 'admin_basic') && (
+                      {canCreateOrEditTasks && (
                         <td>
                           <Button size="sm" variant="warning" onClick={() => openModal(task)} className="me-2">Editar</Button>
-                          {userRole === 'admin_total' && <Button size="sm" variant="danger" onClick={() => handleDelete(task.id)}>Eliminar</Button>}
+                          {canDeleteTasks && <Button size="sm" variant="danger" onClick={() => handleDelete(task.id)}>Eliminar</Button>}
                         </td>
                       )}
                     </tr>
@@ -331,4 +341,3 @@ const TaskList = () => {
 };
 
 export default TaskList;
-

@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import {
   Container,
   Table,
@@ -10,10 +9,13 @@ import {
   Form,
   Modal
 } from 'react-bootstrap';
+import { UserContext } from '../UserContext';
+import { isAdminTotalGlobal } from '../utils/permissions';
 
 const API_URL = `${process.env.REACT_APP_API_URL}/api/users`;
 
 const ConfiguracionPanel = () => {
+  const { user, isHydrating, logout } = useContext(UserContext);
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -24,17 +26,27 @@ const ConfiguracionPanel = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    const isAdminTotal = isAdminTotalGlobal(user);
 
-    const decoded = jwtDecode(token);
-    if (decoded.rol !== 'admin_total') {
+    if (isHydrating) {
+      return;
+    }
+
+    if (!token || !user) {
+      setLoading(false);
+      setMessage({ type: 'danger', text: 'Debes iniciar sesión como admin_total.' });
+      return;
+    }
+
+    if (!isAdminTotal) {
+      setLoading(false);
       setMessage({ type: 'danger', text: 'Acceso denegado' });
       return;
     }
 
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     fetchUsuarios();
-  }, []);
+  }, [user, isHydrating]);
 
   const fetchUsuarios = async () => {
     try {
@@ -49,7 +61,7 @@ const ConfiguracionPanel = () => {
 
   const openEditModal = (user) => {
     setSelectedUser(user);
-    setNewRol(user.rol);
+    setNewRol(user.rol_global || user.rol);
     setModalShow(true);
   };
 
@@ -64,31 +76,29 @@ const ConfiguracionPanel = () => {
   try {
     const token = localStorage.getItem('token');
 
-    // ✅ Actualizar el rol
     await axios.put(
       `${API_URL}/${selectedUser.id}/rol`,
       { rol: newRol },
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    // ✅ Obtener un nuevo token actualizado desde el backend
     const refreshRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/refresh`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    console.log('🔁 Nuevo token recibido:', refreshRes.data.token);
-    
-    // ✅ Reemplazar token en localStorage
     localStorage.setItem('token', refreshRes.data.token);
-    console.log('📦 Token  Reemplazado y guardado en localStorage:', localStorage.getItem('token'));
-    const decoded = jwtDecode(refreshRes.data.token);
+    if (refreshRes.data.user) {
+      localStorage.setItem('user', JSON.stringify(refreshRes.data.user));
+    }
 
     setMessage({ type: 'success', text: 'Rol actualizado correctamente' });
 
-    // Si ya no es admin_total, cerrar sesión
-    if (decoded.rol !== 'admin_total') {
+    if (
+      refreshRes.data.user?.rol_global !== 'admin_total' &&
+      refreshRes.data.user?.rol !== 'admin_total'
+    ) {
       alert('Rol actualizado. Debes iniciar sesión nuevamente.');
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      logout?.();
+      window.location.href = '/Seinscrever';
     } else {
       fetchUsuarios();
       setModalShow(false);
@@ -119,7 +129,10 @@ const ConfiguracionPanel = () => {
 
   return (
     <Container className="mt-4">
-      <h2 className="mb-3">⚙️ Panel de Configuración de Usuarios</h2>
+      <h2 className="mb-1">Panel Global de Usuarios</h2>
+      <p className="text-muted">
+        Gestión global/legacy. Los roles locales de comunidad se administran desde Miembros de la comunidad.
+      </p>
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
 
@@ -135,7 +148,7 @@ const ConfiguracionPanel = () => {
               <th>ID</th>
               <th>Usuario</th>
               <th>Email</th>
-              <th>Rol</th>
+              <th>Rol global</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -145,7 +158,7 @@ const ConfiguracionPanel = () => {
                 <td>{user.id}</td>
                 <td>{user.username}</td>
                 <td>{user.email}</td>
-                <td>{user.rol}</td>
+                <td>{user.rol_global || user.rol}</td>
                 <td>
                   <Button
                     size="sm"
@@ -181,7 +194,7 @@ const ConfiguracionPanel = () => {
             </p>
           )}
           <Form.Group>
-            <Form.Label>Rol</Form.Label>
+            <Form.Label>Rol global</Form.Label>
             <Form.Select
               value={newRol}
               onChange={(e) => setNewRol(e.target.value)}

@@ -3,6 +3,11 @@ import axios from 'axios';
 import { Alert, Badge, Button, Container, Spinner, Table } from 'react-bootstrap';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../UserContext';
+import {
+  canManageCommunity,
+  canViewCommunityMembers,
+  isAdminTotalGlobal
+} from '../utils/permissions';
 
 const API_URL = `${process.env.REACT_APP_API_URL}/api/comunidades`;
 
@@ -25,19 +30,18 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   const [miembros, setMiembros] = useState([]);
   const [total, setTotal] = useState(0);
 
-  const isAdminTotal =
-    user?.rol_global === 'admin_total' ||
-    user?.rol === 'admin_total';
-  const canManageCommunity = user?.can_manage_comunidad === true;
+  const isAdminTotal = isAdminTotalGlobal(user);
+  const canManageLocalCommunity = canManageCommunity(user);
+  const canAccessMembersPanel = canViewCommunityMembers(user);
   const userComunidadId = Number(user?.comunidadId || user?.comunidad_id);
   const currentUserId = Number(user?.id);
 
   const canRequest = useMemo(() => {
     if (!user) return false;
     if (isAdminTotal) return true;
-    if (!canManageCommunity) return false;
+    if (!canAccessMembersPanel) return false;
     return userComunidadId === comunidadId;
-  }, [user, isAdminTotal, canManageCommunity, userComunidadId, comunidadId]);
+  }, [user, isAdminTotal, canAccessMembersPanel, userComunidadId, comunidadId]);
 
   useEffect(() => {
     const fetchMiembros = async () => {
@@ -141,7 +145,12 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     return <Badge bg="secondary">{estado || 'Sin estado'}</Badge>;
   };
 
-  const canManageRoles = canRequest;
+  const canManageRoles = useMemo(() => {
+    if (!user) return false;
+    if (isAdminTotal) return true;
+    if (!canManageLocalCommunity) return false;
+    return userComunidadId === comunidadId;
+  }, [user, isAdminTotal, canManageLocalCommunity, userComunidadId, comunidadId]);
 
   const canEditMember = (miembro) => {
     if (!canManageRoles) return false;

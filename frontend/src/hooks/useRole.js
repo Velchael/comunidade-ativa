@@ -1,12 +1,16 @@
 import { useContext } from 'react';
 import { UserContext } from '../UserContext';
+import {
+  canManageCommunity,
+  isAdminTotalGlobal
+} from '../utils/permissions';
 
 const useRole = () => {
   const { user } = useContext(UserContext);
 
-  const isAdminTotal = () => user?.rol === 'admin_total';
-  const isAdminBasic = () => user?.rol === 'admin_basic';
-  const isMiembro = () => user?.rol === 'miembro';
+  const isAdminTotal = () => isAdminTotalGlobal(user);
+  const isAdminBasic = () => canManageCommunity(user) && !isAdminTotalGlobal(user);
+  const isMiembro = () => !isAdminTotal() && !isAdminBasic();
 
   return { isAdminTotal, isAdminBasic, isMiembro };
 };

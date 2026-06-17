@@ -19,7 +19,10 @@ module.exports = (sequelize, DataTypes) => {
     estado: {
       type: DataTypes.STRING,
       allowNull: true,
-      defaultValue: 'activa'
+      defaultValue: 'activa',
+      validate: {
+        isIn: [["activa", "oculta"]]
+      }
     }
   }, {
     tableName: "respuestas",

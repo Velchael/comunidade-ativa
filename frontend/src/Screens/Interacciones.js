@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
+import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
 import { Container, Button, Form, Card, Alert } from "react-bootstrap";
 import axios from "axios";
 import { UserContext } from "../UserContext";
 
 export default function Interacciones() {
   const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const pollingIntervalRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   const { user } = useContext(UserContext);
+  const userId = user?.id || null;
+  const comunidadId = user?.comunidadId || user?.comunidad_id || null;
 
   const [tipo, setTipo] = useState("necesidad");
   const [categoria, setCategoria] = useState("servicio");
@@ -16,6 +20,8 @@ export default function Interacciones() {
   const [urgencia, setUrgencia] = useState("normal");
   const [estadoErrorGeneral, setEstadoErrorGeneral] = useState("");
   const [estadoErroresPorId, setEstadoErroresPorId] = useState({});
+  const [estadoErroresRespuestaPorId, setEstadoErroresRespuestaPorId] = useState({});
+  const [accionEstadoRespuestaId, setAccionEstadoRespuestaId] = useState(null);
   const [accionEstadoId, setAccionEstadoId] = useState(null);
   const [interaccionesAuth, setInteraccionesAuth] = useState(null);
 
@@ -24,14 +30,31 @@ export default function Interacciones() {
 
   const puedeModerar =
     interaccionesAuth?.can_moderate_interacciones === true;
+  const esAdminTotalGlobal =
+    interaccionesAuth?.is_admin_total_global === true;
+  const rolComunidadAuth =
+    interaccionesAuth?.rol_comunidad || null;
+  const comunidadAuthId = Number(interaccionesAuth?.comunidad_id || 0);
+  const tieneRolModeradorLocal =
+    ["admin_total", "admin_basic", "moderador"].includes(rolComunidadAuth);
+
+  const puedeModerarInteraccion = (item) => {
+    if (!puedeModerar) return false;
+    if (esAdminTotalGlobal) return true;
+
+    return (
+      tieneRolModeradorLocal &&
+      Number(item?.comunidad?.id || item?.comunidad_id || 0) === comunidadAuthId
+    );
+  };
 
   // 🔄 CARGAR INTERACCIONES
   const cargarInteracciones = useCallback(async () => {
-    const comunidadId = user?.comunidadId || user?.comunidad_id;
-
-    if (!user || !comunidadId) return;
+    if (!userId || !comunidadId) return;
+    if (isFetchingRef.current) return;
 
     try {
+      isFetchingRef.current = true;
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
@@ -50,28 +73,71 @@ export default function Interacciones() {
         setLista(res.data?.items || []);
         setInteraccionesAuth(res.data?.auth || null);
       }
+      setEstadoErrorGeneral("");
     } catch (error) {
       console.error("Error cargando interacciones", error);
       setEstadoErrorGeneral(
         "No se pudieron cargar las interacciones."
       );
+    } finally {
+      isFetchingRef.current = false;
     }
-  }, [user, API_BASE]);
+  }, [API_BASE, comunidadId, userId]);
 
   useEffect(() => {
-    if (user) cargarInteracciones();
-  }, [user, cargarInteracciones]);
-
-  // 🔁 AUTO REFRESH
-  useEffect(() => {
-    if (!user) return;
-
-    const interval = setInterval(() => {
+    if (userId && comunidadId) {
       cargarInteracciones();
-    }, 4000);
+    }
+  }, [cargarInteracciones, comunidadId, userId]);
 
-    return () => clearInterval(interval);
-  }, [user, cargarInteracciones]);
+  useEffect(() => {
+    if (!userId || !comunidadId) return undefined;
+
+    const stopPolling = () => {
+      if (pollingIntervalRef.current !== null) {
+        window.clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+
+    const startPolling = () => {
+      if (document.visibilityState !== "visible" || pollingIntervalRef.current !== null) {
+        return;
+      }
+
+      pollingIntervalRef.current = window.setInterval(() => {
+        cargarInteracciones();
+      }, 10000);
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        cargarInteracciones();
+        startPolling();
+        return;
+      }
+
+      stopPolling();
+    };
+
+    const handleWindowFocus = () => {
+      if (document.visibilityState === "visible") {
+        cargarInteracciones();
+        startPolling();
+      }
+    };
+
+    startPolling();
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      stopPolling();
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [cargarInteracciones, comunidadId, userId]);
 
   // 🔥 PUBLICAR
   const publicar = async () => {
@@ -311,6 +377,56 @@ export default function Interacciones() {
       }
     } finally {
       setAccionEstadoId(null);
+    }
+  };
+
+  const cambiarEstadoRespuesta = async (
+    respuestaId,
+    nuevoEstado
+  ) => {
+    try {
+      setEstadoErrorGeneral("");
+      setEstadoErroresRespuestaPorId((prev) => ({
+        ...prev,
+        [respuestaId]: ""
+      }));
+      setAccionEstadoRespuestaId(respuestaId);
+
+      const token = localStorage.getItem("token");
+
+      await axios.patch(
+        `${API_BASE}/api/respuestas/${respuestaId}/estado`,
+        { estado: nuevoEstado },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      await cargarInteracciones();
+    } catch (error) {
+      console.error("Error cambiando estado de respuesta", error);
+
+      const status = error.response?.status;
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error;
+
+      if ([400, 401, 403, 404].includes(status)) {
+        setEstadoErroresRespuestaPorId((prev) => ({
+          ...prev,
+          [respuestaId]:
+            backendMessage ||
+            "No se pudo actualizar el estado de la respuesta."
+        }));
+      } else {
+        setEstadoErrorGeneral(
+          "No se pudo actualizar el estado de la respuesta."
+        );
+      }
+    } finally {
+      setAccionEstadoRespuestaId(null);
     }
   };
 
@@ -763,7 +879,7 @@ export default function Interacciones() {
               {item.descripcion}
             </p>
 
-            {puedeModerar &&
+            {puedeModerarInteraccion(item) &&
               getModerationActions(item.estado).length > 0 && (
                 <div style={{ marginBottom: "10px" }}>
                   {getModerationActions(item.estado).map(
@@ -805,21 +921,53 @@ export default function Interacciones() {
 
             {/* RESPUESTAS */}
             {item.respuestas?.map((r) => (
-              <p
+              <div
                 key={r.id}
                 style={{
                   fontSize: "14px",
-                  color: "gray"
+                  color: "gray",
+                  marginBottom: "8px"
                 }}
               >
-                ↳
-                {" "}
-                <strong>
-                  {r.usuario?.username}:
-                </strong>
-                {" "}
-                {r.mensaje}
-              </p>
+                <p style={{ marginBottom: "4px" }}>
+                  ↳
+                  {" "}
+                  <strong>
+                    {r.usuario?.username}:
+                  </strong>
+                  {" "}
+                  {r.mensaje}
+                  {r.estado === "oculta" && (
+                    <small style={{ marginLeft: "8px", color: "#b02a37" }}>
+                      Oculta
+                    </small>
+                  )}
+                </p>
+
+                {puedeModerarInteraccion(item) && (
+                  <div style={{ marginBottom: "6px" }}>
+                    <Button
+                      size="sm"
+                      variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
+                      disabled={accionEstadoRespuestaId === r.id}
+                      onClick={() =>
+                        cambiarEstadoRespuesta(
+                          r.id,
+                          r.estado === "oculta" ? "activa" : "oculta"
+                        )
+                      }
+                    >
+                      {r.estado === "oculta" ? "Activar" : "Ocultar"}
+                    </Button>
+                  </div>
+                )}
+
+                {estadoErroresRespuestaPorId[r.id] && (
+                  <div style={{ color: "#b02a37", fontSize: "13px" }}>
+                    {estadoErroresRespuestaPorId[r.id]}
+                  </div>
+                )}
+              </div>
             ))}
 
             {/* INPUT RESPUESTA */}

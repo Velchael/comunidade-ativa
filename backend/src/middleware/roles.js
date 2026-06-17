@@ -2,7 +2,7 @@
 
 exports.onlyAdminTotal = (req, res, next) => {
   const user = req.user;
-  if (!user || user.rol !== 'admin_total') {
+  if (!user || (user.rol !== 'admin_total' && user.rol_global !== 'admin_total')) {
     return res.status(403).json({ message: 'Solo admin_total puede acceder' });
   }
   next();

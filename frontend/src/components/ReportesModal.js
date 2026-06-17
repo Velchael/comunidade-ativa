@@ -2,6 +2,10 @@ import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { Modal, Button, Table, Form, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
 import { UserContext } from '../UserContext';
+import {
+  canManageCommunity,
+  isAdminTotalGlobal
+} from '../utils/permissions';
 
 const ReportesModal = ({ show, handleClose, grupo }) => {
   const { user } = useContext(UserContext);
@@ -10,7 +14,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
 
-  const esAdmin = user?.rol === 'admin_basic' || user?.rol === 'admin_total';
+  const esAdmin = isAdminTotalGlobal(user) || canManageCommunity(user);
   const esLider = grupo?.lider_id === user?.id;
 
   // ✅ Base URL centralizada

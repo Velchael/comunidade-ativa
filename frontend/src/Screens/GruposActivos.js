@@ -5,6 +5,10 @@ import { Button, Container, Table, Alert, Form, Row, Col } from 'react-bootstrap
 import GrupoFormModal from '../components/GrupoFormModal';
 import ReportesModal from '../components/ReportesModal';
 import { UserContext } from '../UserContext';
+import {
+  canManageCommunity,
+  isAdminTotalGlobal
+} from '../utils/permissions';
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
@@ -19,9 +23,10 @@ const GruposActivos = () => {
   const { user } = useContext(UserContext);
   const [nuevoLiderId, setNuevoLiderId] = useState('');
   // Roles
-  const esAdminBasic = user?.rol === 'admin_basic';
-  const esAdminTotal = user?.rol === 'admin_total';
+  const esAdminTotal = isAdminTotalGlobal(user);
+  const esAdminBasic = canManageCommunity(user) && !esAdminTotal;
   const esAdmin = esAdminBasic || esAdminTotal;
+  const userComunidadId = user?.comunidadId || user?.comunidad_id;
 
   // filtros para admin_total
   const [filterComunidad, setFilterComunidad] = useState('');
@@ -30,8 +35,8 @@ const GruposActivos = () => {
   // función que decide si el usuario puede modificar/eliminar cada grupo
   const puedeModificar = (grupo) => {
     if (!user) return false;
-    if (user.rol === 'admin_total') return true;
-    if (user.rol === 'admin_basic') return grupo.comunidad_id === user.comunidad_id;
+    if (esAdminTotal) return true;
+    if (esAdminBasic) return grupo.comunidad_id === userComunidadId;
     // Si quieres permitir que el líder pueda editar su propio grupo:
     // if (grupo.lider_id === user.id) return true;
     return false;
@@ -206,4 +211,3 @@ const GruposActivos = () => {
 };
 
 export default GruposActivos;
-

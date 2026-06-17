@@ -55,78 +55,85 @@ export default function Seinscrever() {
   // =====================================================
 
   useEffect(() => {
+    const syncGoogleSession = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
 
-    const params = new URLSearchParams(window.location.search);
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-    const token = params.get('token');
-
-    if (token) {
-
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-      let decoded = {};
-
-      try {
-        decoded = jwtDecode(token);
-      } catch (err) {
-        console.warn('Token inválido', err);
-      }
-
-      const userData = {
-        id: decoded.id,
-        email: decoded.email,
-        rol: decoded.rol,
-        username:
-          decoded.username ||
-          (decoded.email
-            ? decoded.email.split('@')[0]
-            : ''),
-        googleId: decoded.googleId,
-        avatar: decoded.avatar || null
-      };
-
-      if (typeof setUser === 'function') {
-        setUser(userData);
-      }
-
-      setGoogleUser(userData);
-
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', token);
-
-      if (window.location.pathname !== '/Seinscrever') {
-        navigate('/Seinscrever', { replace: true });
-      }
-
-    } else {
-
-      // 🔹 RESTAURA LOGIN SI YA EXISTE
-
-      const savedUser = localStorage.getItem('user');
-      const savedToken = localStorage.getItem('token');
-
-      if (savedUser && savedToken) {
+        let decoded = {};
 
         try {
-
-          const parsedUser = JSON.parse(savedUser);
-
-          axios.defaults.headers.common['Authorization'] =
-            `Bearer ${savedToken}`;
-
-          if (typeof setUser === 'function') {
-            setUser(parsedUser);
-          }
-
-          setGoogleUser(parsedUser);
-
+          decoded = jwtDecode(token);
         } catch (err) {
-          console.warn('No se pudo restaurar sesión');
+          console.warn('Token inválido', err);
+        }
+
+        const fallbackUser = {
+          id: decoded.id,
+          email: decoded.email,
+          rol: decoded.rol,
+          rol_global: decoded.rol_global || decoded.rol,
+          username:
+            decoded.username ||
+            (decoded.email
+              ? decoded.email.split('@')[0]
+              : ''),
+          googleId: decoded.googleId,
+          avatar: decoded.avatar || null,
+          comunidad_id: decoded.comunidad_id || null
+        };
+
+        let sessionUser = fallbackUser;
+
+        if (typeof login === 'function') {
+          try {
+            const hydratedUser = await login(token, null);
+            if (hydratedUser) {
+              sessionUser = {
+                ...fallbackUser,
+                ...hydratedUser
+              };
+            }
+          } catch (err) {
+            console.warn('No se pudo hidratar sesión inicial con refresh');
+          }
+        } else if (typeof setUser === 'function') {
+          setUser(fallbackUser);
+        }
+
+        setGoogleUser(sessionUser);
+
+        if (window.location.pathname !== '/Seinscrever') {
+          navigate('/Seinscrever', { replace: true });
+        }
+      } else {
+        // 🔹 RESTAURA LOGIN SI YA EXISTE
+        const savedUser = localStorage.getItem('user');
+        const savedToken = localStorage.getItem('token');
+
+        if (savedUser && savedToken) {
+          try {
+            const parsedUser = JSON.parse(savedUser);
+
+            axios.defaults.headers.common['Authorization'] =
+              `Bearer ${savedToken}`;
+
+            if (typeof setUser === 'function') {
+              setUser(parsedUser);
+            }
+
+            setGoogleUser(parsedUser);
+          } catch (err) {
+            console.warn('No se pudo restaurar sesión');
+          }
         }
       }
-    }
+    };
 
-  }, [navigate, setUser]);
+    syncGoogleSession();
+  }, [login, navigate, setUser]);
 
   // =====================================================
   // 🔹 VERIFICAR PERFIL COMPLETADO
@@ -152,12 +159,6 @@ export default function Seinscrever() {
         // =================================================
 
         if (data && data.apellido) {
-
-          if (typeof setUser === 'function') {
-            setUser(data);
-          }
-
-          localStorage.setItem('user', JSON.stringify(data));
 
           // =============================================
           // 🔹 NUEVA LÓGICA SOCIAL
@@ -273,40 +274,31 @@ export default function Seinscrever() {
         payload
       );
 
-      const {
-        token: newToken,
-        user: savedUser
-      } = res.data || {};
+      const { token: newToken, user: savedUser } = res.data || {};
 
       // =================================================
       // 🔹 LOGIN CONTEXTO
       // =================================================
 
-      if (newToken) {
+      const sessionToken = newToken || localStorage.getItem('token');
 
-        if (typeof login === 'function') {
-
-          login(newToken);
-
-        } else {
-
-          localStorage.setItem('token', newToken);
-
-          axios.defaults.headers.common['Authorization'] =
-            `Bearer ${newToken}`;
-        }
+      if (sessionToken && typeof login === 'function') {
+        await login(sessionToken, savedUser || null);
+      } else if (newToken) {
+        localStorage.setItem('token', newToken);
+        axios.defaults.headers.common['Authorization'] =
+          `Bearer ${newToken}`;
       }
 
       if (savedUser) {
-
         if (typeof setUser === 'function') {
           setUser(savedUser);
         }
 
-        localStorage.setItem(
-          'user',
-          JSON.stringify(savedUser)
-        );
+        setGoogleUser((prev) => ({
+          ...(prev || {}),
+          ...savedUser
+        }));
       }
 
       // =================================================

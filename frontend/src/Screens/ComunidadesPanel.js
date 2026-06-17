@@ -11,6 +11,11 @@ import {
   Modal
 } from 'react-bootstrap';
 import { UserContext } from '../UserContext';
+import {
+  canManageCommunity,
+  canViewCommunityMembers,
+  isAdminTotalGlobal
+} from '../utils/permissions';
 
 const API_URL = `${process.env.REACT_APP_API_URL}/api/comunidades`;
 
@@ -38,24 +43,15 @@ const ComunidadesPanel = () => {
     telefono: '',
     administrador: '',
   });
-  const storedUser = (() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || 'null');
-    } catch {
-      return null;
-    }
-  })();
-  const sessionUser = user || storedUser;
-
-  const isAdminTotal =
-    sessionUser?.rol_global === 'admin_total' ||
-    sessionUser?.rol === 'admin_total';
-  const canManageCommunity = sessionUser?.can_manage_comunidad === true;
+  const sessionUser = user;
+  const isAdminTotal = isAdminTotalGlobal(sessionUser);
+  const canManageLocalCommunity = canManageCommunity(sessionUser);
+  const canAccessMembersPanel = canViewCommunityMembers(sessionUser);
   const comunidadId = sessionUser?.comunidadId || sessionUser?.comunidad_id;
 
   const canViewMembers = (comunidad) => {
     if (isAdminTotal) return true;
-    if (!canManageCommunity) return false;
+    if (!canAccessMembersPanel) return false;
     return Number(comunidad?.id) === Number(comunidadId);
   };
 
@@ -79,7 +75,7 @@ const ComunidadesPanel = () => {
       return;
     }
 
-    if (!isAdminTotal && !canManageCommunity) {
+    if (!isAdminTotal && !canManageLocalCommunity && !canAccessMembersPanel) {
       setMessage({ type: 'danger', text: 'Acceso denegado' });
       setLoading(false);
       return;
@@ -99,7 +95,7 @@ const ComunidadesPanel = () => {
     }
 
     fetchComunidadLocal(comunidadId);
-  }, [sessionUser, isAdminTotal, canManageCommunity, comunidadId]);
+  }, [sessionUser, isAdminTotal, canAccessMembersPanel, canManageLocalCommunity, comunidadId]);
 
   const fetchComunidades = async () => {
     try {
@@ -248,21 +244,28 @@ const ComunidadesPanel = () => {
                       Ver miembros
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="warning"
-                    className="me-2"
-                    onClick={() => openModal(com)}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleDelete(com.id)}
-                  >
-                    Eliminar
-                  </Button>
+                  {((isAdminTotal || canManageLocalCommunity) &&
+                    (isAdminTotal || Number(com.id) === Number(comunidadId))) && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="warning"
+                        className="me-2"
+                        onClick={() => openModal(com)}
+                      >
+                        Editar
+                      </Button>
+                      {isAdminTotal && (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(com.id)}
+                        >
+                          Eliminar
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

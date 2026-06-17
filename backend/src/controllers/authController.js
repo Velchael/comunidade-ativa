@@ -3,53 +3,10 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User, Comunidad } = require('../models');
 const createToken = require('../utils/createToken');
-const { ROLES, resolveRolComunidadHibrido } = require('../utils/comunidadRoles');
+const { buildAuthUserResponse } = require('../utils/buildAuthUserResponse');
 require('dotenv').config();
 
 const MAX_REFRESH_AGE_SECONDS = 7 * 24 * 60 * 60;
-
-const buildLocalCommunityContext = async (user) => {
-  const comunidadId = user?.comunidad_id || null;
-
-  if (!comunidadId) {
-    return {
-      rol_comunidad: null,
-      is_owner: false,
-      can_manage_comunidad: false
-    };
-  }
-
-  const resolved = await resolveRolComunidadHibrido(user, comunidadId);
-  const isOwner = Number(user?.comunidad?.owner_user_id) === Number(user?.id);
-  const canManageComunidad =
-    isOwner ||
-    resolved.rol === ROLES.ADMIN_BASIC ||
-    resolved.rol === ROLES.ADMIN_TOTAL;
-
-  return {
-    rol_comunidad: resolved.rol || null,
-    is_owner: isOwner,
-    can_manage_comunidad: canManageComunidad
-  };
-};
-
-const buildUserResponse = async (user) => {
-  const localContext = await buildLocalCommunityContext(user);
-
-  return {
-    id: user.id,
-    email: user.email,
-    rol: user.rol,
-    rol_global: user.rol_global || user.rol,
-    username: user.username,
-    comunidad_id: user.comunidad_id,
-    comunidadNombre: user.comunidad ? user.comunidad.nombre_comunidad : null,
-    apellido: user.apellido || null,
-    rol_comunidad: localContext.rol_comunidad,
-    is_owner: localContext.is_owner,
-    can_manage_comunidad: localContext.can_manage_comunidad
-  };
-};
 
 // LOGIN por email + password (POST /auth/login)
 const login = async (req, res) => {
@@ -81,7 +38,7 @@ const login = async (req, res) => {
 
     const token = createToken(payload, '120m');
 
-    const userResponse = await buildUserResponse(user);
+    const userResponse = await buildAuthUserResponse(user);
 
     return res.json({ token, user: userResponse });
   } catch (err) {
@@ -128,7 +85,7 @@ const getMe = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    return res.json(await buildUserResponse(user));
+    return res.json(await buildAuthUserResponse(user));
   } catch (err) {
     console.error('❌ authController.getMe error:', err);
     return res.status(500).json({ message: 'Error obteniendo usuario' });
@@ -182,7 +139,7 @@ const refreshToken = async (req, res) => {
 
     const newToken = createToken(newPayload, '120m');
 
-    const userResponse = await buildUserResponse(user);
+    const userResponse = await buildAuthUserResponse(user);
 
     return res.json({ token: newToken, user: userResponse });
   } catch (err) {
@@ -192,9 +149,9 @@ const refreshToken = async (req, res) => {
 };
 
 module.exports = {
+  buildUserResponse: buildAuthUserResponse,
   login,
   googleCallback,
   getMe,
   refreshToken
 };
-

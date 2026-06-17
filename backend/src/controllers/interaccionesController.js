@@ -105,8 +105,31 @@ exports.listar = async (req, res) => {
       ]
     });
 
+    const items = data.map((item) => {
+      const plain = item.toJSON();
+      const puedeVerRespuestasOcultas =
+        isAdminTotalGlobal ||
+        (
+          ["admin_total", "admin_basic", "moderador"].includes(rol) &&
+          Number(plain.comunidad_id) === Number(comunidad_id)
+        );
+
+      if (!Array.isArray(plain.respuestas)) {
+        plain.respuestas = [];
+        return plain;
+      }
+
+      plain.respuestas = puedeVerRespuestasOcultas
+        ? plain.respuestas
+        : plain.respuestas.filter(
+            (respuesta) => respuesta.estado !== "oculta"
+          );
+
+      return plain;
+    });
+
     return res.json({
-      items: data,
+      items,
       auth: {
         comunidad_id,
         rol_comunidad: rol,

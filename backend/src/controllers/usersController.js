@@ -1,5 +1,6 @@
 const { User, Comunidad, sequelize } = require('../models');
 const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
+const { buildAuthUserResponse } = require('../utils/buildAuthUserResponse');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -116,7 +117,16 @@ const completeGoogleProfile = async (req, res) => {
     }
 
     await user.update(data);
-    res.status(200).json({ message: 'Perfil actualizado correctamente' });
+
+    const updatedUser = await User.findByPk(user.id, {
+      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
+    });
+
+    res.status(200).json({
+      message: 'Perfil actualizado correctamente',
+      user: await buildAuthUserResponse(updatedUser)
+    });
 
   } catch (err) {
     console.error('❌ Error al completar perfil Google:', err);

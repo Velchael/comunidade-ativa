@@ -1,121 +1,252 @@
 // src/userContext.jsx
-import { createContext, useEffect, useState } from "react";
-import { jwtDecode } from "jwt-decode";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 export const UserContext = createContext();
 
 const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:3000") + "/api";
+const AUTH_USER_REQUIRED_KEYS = [
+  "id",
+  "username",
+  "email",
+  "rol",
+  "rol_global",
+  "comunidad_id",
+  "comunidadNombre",
+  "rol_comunidad",
+  "is_owner",
+  "can_manage_comunidad"
+];
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [isHydrating, setIsHydrating] = useState(Boolean(localStorage.getItem("token")));
+  const [needsInitialRefresh, setNeedsInitialRefresh] = useState(
+    Boolean(localStorage.getItem("token"))
+  );
+  const tokenRef = useRef(token);
+  const userRef = useRef(user);
+  const refreshInFlightRef = useRef(null);
+  const lastRefreshAtRef = useRef(0);
 
-  // Guarda token + user y sincroniza sesión (axios header + localStorage)
- const saveSession = (jwt, userObj = null) => {
-  try {
-    const decoded = jwtDecode(jwt);
+  const AUTH_REFRESH_THROTTLE_MS = 30000;
+  const AUTH_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
 
-    const baseUser = userObj || decoded;
+  const normalizeUser = useCallback((baseUser = {}) => ({
+    ...baseUser,
+    comunidadId: baseUser.comunidadId || baseUser.comunidad_id,
+    rol_global: baseUser.rol_global || baseUser.rol || null,
+    rol_comunidad: baseUser.rol_comunidad || null,
+    is_owner: baseUser.is_owner === true,
+    can_manage_comunidad: baseUser.can_manage_comunidad === true
+  }), []);
 
-    // 🔥 NORMALIZACIÓN CLAVE
-    const normalizedUser = {
-      ...baseUser,
-      comunidadId: baseUser.comunidadId || baseUser.comunidad_id,
-      rol_comunidad: baseUser.rol_comunidad || null,
-      is_owner: baseUser.is_owner === true,
-      can_manage_comunidad: baseUser.can_manage_comunidad === true
-    };
+  const hasCompleteAuthUser = useCallback((candidate) => {
+    if (!candidate || typeof candidate !== "object") {
+      return false;
+    }
+
+    return AUTH_USER_REQUIRED_KEYS.every((key) =>
+      Object.prototype.hasOwnProperty.call(candidate, key)
+    );
+  }, []);
+
+  const primeSessionToken = useCallback((jwt) => {
+    setToken(jwt);
+    tokenRef.current = jwt;
+    localStorage.setItem("token", jwt);
+    axios.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
+  }, []);
+
+  const persistSessionUser = useCallback((jwt, authUser) => {
+    const normalizedUser = normalizeUser(authUser);
 
     setUser(normalizedUser);
     setToken(jwt);
+    tokenRef.current = jwt;
 
     localStorage.setItem("token", jwt);
     localStorage.setItem("user", JSON.stringify(normalizedUser));
 
     axios.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
-  } catch (err) {
-    console.error("❌ Error al decodificar token:", err.message);
-    logout();
-  }
-};
+    setIsHydrating(false);
 
-  // Login desde token
-  const login = (jwt, userObj = null) => saveSession(jwt, userObj);
+    return normalizedUser;
+  }, [normalizeUser]);
 
-  // Logout global
-  const logout = () => {
+  const fetchAuthSnapshot = useCallback(async (jwt) => {
+    const res = await axios.get(`${API_BASE}/auth/refresh`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+
+    return res.data || {};
+  }, [API_BASE]);
+
+  // Guarda token + user y sincroniza sesión (axios header + localStorage)
+ const logout = useCallback(() => {
     delete axios.defaults.headers.common["Authorization"];
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
     setToken(null);
-  };
+    setNeedsInitialRefresh(false);
+    setIsHydrating(false);
+  }, []);
 
-  // Refresh token con axios (usa endpoint backend: /api/auth/refresh)
-  const refreshToken = async () => {
+ const saveSession = useCallback(async (jwt, userObj = null) => {
     try {
-      if (!token) return;
+      let sessionToken = jwt;
+      let authUser = userObj;
 
-      const res = await axios.get(`${API_BASE}/auth/refresh`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      primeSessionToken(jwt);
 
-      // esperamos { token, user }
-      const { token: newToken, user: refreshedUser } = res.data || {};
-      if (newToken) {
-        saveSession(newToken, refreshedUser || null);
-        console.log("🔁 Token renovado automáticamente");
-      } else {
-        throw new Error("Refresh no devolvió token");
+      if (!hasCompleteAuthUser(authUser)) {
+        const refreshed = await fetchAuthSnapshot(jwt);
+        sessionToken = refreshed.token || jwt;
+        authUser = refreshed.user || authUser;
+        primeSessionToken(sessionToken);
       }
+
+      if (!hasCompleteAuthUser(authUser)) {
+        throw new Error("No se pudo hidratar el usuario autenticado");
+      }
+
+      return persistSessionUser(sessionToken, authUser);
     } catch (err) {
-      console.warn("⚠️ Refresh falló:", err.response?.data?.message || err.message);
+      console.error("❌ Error al guardar sesión:", err.message);
       logout();
+      throw err;
     }
-  };
+  }, [fetchAuthSnapshot, hasCompleteAuthUser, logout, persistSessionUser, primeSessionToken]);
+
+  // Login desde token
+  const login = useCallback((jwt, userObj = null) => saveSession(jwt, userObj), [saveSession]);
+
+  const refreshAuthSession = useCallback(async ({ force = false } = {}) => {
+    const currentToken = tokenRef.current;
+    if (!currentToken) return null;
+
+    const now = Date.now();
+    if (!force && now - lastRefreshAtRef.current < AUTH_REFRESH_THROTTLE_MS) {
+      return refreshInFlightRef.current || userRef.current;
+    }
+
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/auth/refresh`, {
+          headers: { Authorization: `Bearer ${tokenRef.current}` },
+        });
+
+        const { token: newToken, user: refreshedUser } = res.data || {};
+        if (!newToken) {
+          throw new Error("Refresh no devolvió token");
+        }
+
+        lastRefreshAtRef.current = Date.now();
+        const nextUser = await saveSession(newToken, refreshedUser || null);
+        console.log("🔁 Sesión autenticada sincronizada");
+        return nextUser;
+      } catch (err) {
+        console.warn("⚠️ Refresh falló:", err.response?.data?.message || err.message);
+        logout();
+        throw err;
+      } finally {
+        refreshInFlightRef.current = null;
+        setIsHydrating(false);
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+    return refreshPromise;
+  }, [API_BASE, logout, saveSession]);
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Restaurar sesión desde localStorage al iniciar
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
 
-    if (savedToken && savedUser) {
+    if (savedToken) {
       // configurar axios header para peticiones inmediatas
       axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
       setToken(savedToken);
-      try {
-        //setUser(JSON.parse(savedUser));
-        const parsed = JSON.parse(savedUser);
 
-       setUser({
-        ...parsed,
-        comunidadId: parsed.comunidadId || parsed.comunidad_id,
-        rol_comunidad: parsed.rol_comunidad || null,
-        is_owner: parsed.is_owner === true,
-        can_manage_comunidad: parsed.can_manage_comunidad === true
-       });
-
-      } catch {
-        setUser(null);
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          setUser(normalizeUser(parsed));
+        } catch {
+          setUser(null);
+        }
       }
+    } else {
+      setNeedsInitialRefresh(false);
+      setIsHydrating(false);
     }
-  }, []);
+  }, [normalizeUser]);
 
-  // Ejecutar refresh al montar (si hay token) + cada 20 minutos
+  // Ejecutar refresh una vez al hidratar sesión persistida
   useEffect(() => {
-    if (!token) return;
+    if (!token || !needsInitialRefresh) {
+      if (!token) {
+        setNeedsInitialRefresh(false);
+      }
+      return;
+    }
 
-    // Intentar refresh al cargar (si el token está cercano a expirar o ya expirado)
-    refreshToken();
+    refreshAuthSession({ force: true });
+    setNeedsInitialRefresh(false);
+  }, [needsInitialRefresh, refreshAuthSession, token]);
 
-    const interval = setInterval(refreshToken, 20 * 60 * 1000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  // Mantener sesión sincronizada con source of truth sin refrescos agresivos
+  useEffect(() => {
+    if (!token) {
+      setIsHydrating(false);
+      return;
+    }
+
+    const handleWindowFocus = () => {
+      refreshAuthSession();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshAuthSession();
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshAuthSession();
+      }
+    }, AUTH_REFRESH_INTERVAL_MS);
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshAuthSession, token]);
 
   return (
-    <UserContext.Provider value={{ user, token, login, logout, setUser }}>
+    <UserContext.Provider
+      value={{ user, token, login, logout, setUser, isHydrating, refreshAuthSession }}
+    >
       {children}
     </UserContext.Provider>
   );

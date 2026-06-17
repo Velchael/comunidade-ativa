@@ -1,6 +1,7 @@
 const { Comunidad, User, ComunidadMiembro, sequelize } = require('../models');
 const createToken = require('../utils/createToken');
 const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
+const { buildAuthUserResponse } = require('../utils/buildAuthUserResponse');
 
 // ✅ Listar comunidades con alias para frontend
 exports.listarComunidades = async (req, res) => {
@@ -111,24 +112,17 @@ exports.crearComunidadOnboarding = async (req, res) => {
     await transaction.commit();
 
     const updatedUser = await User.findByPk(user.id, {
-      attributes: ['id', 'email', 'rol', 'username', 'apellido', 'googleId', 'comunidad_id'],
-      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
-    const userResponse = {
-      id: updatedUser.id,
-      email: updatedUser.email,
-      rol: updatedUser.rol,
-      username: updatedUser.username,
-      apellido: updatedUser.apellido || null,
-      comunidad_id: updatedUser.comunidad_id,
-      comunidadNombre: updatedUser.comunidad ? updatedUser.comunidad.nombre_comunidad : null
-    };
+    const userResponse = await buildAuthUserResponse(updatedUser);
 
     const token = createToken({
       id: updatedUser.id,
       email: updatedUser.email,
       rol: updatedUser.rol,
+      rol_global: updatedUser.rol_global || updatedUser.rol,
       username: updatedUser.username,
       googleId: updatedUser.googleId || null,
       comunidad_id: updatedUser.comunidad_id || null
@@ -199,19 +193,10 @@ exports.unirseComunidad = async (req, res) => {
 
     const updatedUser = await User.findByPk(user.id, {
       attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
-      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad'] }]
+      include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
-    const userResponse = {
-      id: updatedUser.id,
-      email: updatedUser.email,
-      rol: updatedUser.rol,
-      rol_global: updatedUser.rol_global || updatedUser.rol,
-      username: updatedUser.username,
-      apellido: updatedUser.apellido || null,
-      comunidad_id: updatedUser.comunidad_id,
-      comunidadNombre: updatedUser.comunidad ? updatedUser.comunidad.nombre_comunidad : null
-    };
+    const userResponse = await buildAuthUserResponse(updatedUser);
 
     const token = createToken({
       id: updatedUser.id,
