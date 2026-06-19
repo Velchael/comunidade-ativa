@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import { BrowserRouter, Route, Routes, NavLink, useNavigate } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
@@ -33,8 +33,13 @@ import {
 } from './utils/permissions';
 
 function Header({ toggleSidebar }) {
-  const { user, logout } = useContext(UserContext);
+  const { user, token, logout, isHydrating, refreshAuthSession } = useContext(UserContext);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!token) return;
+    refreshAuthSession();
+  }, [refreshAuthSession, token]);
 
   const handleLogin = () => navigate("/Seinscrever");
 
@@ -46,6 +51,9 @@ function Header({ toggleSidebar }) {
   const canManageLocalCommunity = canManageCommunity(user);
   const canAccessMembersPanel = canViewCommunityMembers(user);
   const userCommunityName = user?.comunidadNombre || 'Sin comunidad';
+  const shouldShowConfigMenu =
+    !isHydrating &&
+    (isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel);
 
   return (
     <header>
@@ -85,7 +93,7 @@ function Header({ toggleSidebar }) {
             >
               {userCommunityName} - Olá: {user.username}
 
-              {(isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel) && (
+              {shouldShowConfigMenu && (
                 <NavDropdown title="⚙️" id="config-dropdown">
 
                   {isGlobalAdmin && (

@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { ComunidadMiembro } = require('../models');
+const { Comunidad, ComunidadMiembro } = require('../models');
 
 const ROLES = {
   ADMIN_TOTAL: 'admin_total',
@@ -104,6 +104,18 @@ const getMembresiaActiva = async (userId, comunidadId) => {
   });
 };
 
+const getComunidadOwner = async (comunidadId) => {
+  const normalizedComunidadId = normalizeId(comunidadId);
+
+  if (!normalizedComunidadId) {
+    return null;
+  }
+
+  return Comunidad.findByPk(normalizedComunidadId, {
+    attributes: ['id', 'owner_user_id']
+  });
+};
+
 const resolveRolComunidadHibrido = async (user, comunidadId) => {
   if (!user?.id) {
     return {
@@ -115,6 +127,18 @@ const resolveRolComunidadHibrido = async (user, comunidadId) => {
 
   const normalizedComunidadId = normalizeId(comunidadId);
   const membresia = await getMembresiaActiva(user.id, normalizedComunidadId);
+  const comunidad = await getComunidadOwner(normalizedComunidadId);
+  const isOwner = Number(comunidad?.owner_user_id) === Number(user.id);
+
+  if (isOwner) {
+    return {
+      rol: membresia?.rol_comunidad === ROLES.ADMIN_TOTAL
+        ? ROLES.ADMIN_TOTAL
+        : ROLES.ADMIN_BASIC,
+      source: 'owner',
+      membresia
+    };
+  }
 
   if (membresia?.rol_comunidad) {
     return {

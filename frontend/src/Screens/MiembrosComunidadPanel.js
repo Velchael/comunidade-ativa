@@ -11,6 +11,23 @@ import {
 
 const API_URL = `${process.env.REACT_APP_API_URL}/api/comunidades`;
 
+const fetchMiembrosComunidad = async (comunidadId, token) => {
+  axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+  const res = await axios.get(`${API_URL}/${comunidadId}/miembros`);
+
+  return {
+    miembros: res.data?.miembros || [],
+    total: res.data?.total || 0
+  };
+};
+
+const getLocalRoleLabel = (rolComunidad) => {
+  if (rolComunidad === 'admin_total') return 'Admin total';
+  if (rolComunidad === 'admin_basic') return 'Admin local';
+  if (rolComunidad === 'moderador') return 'Moderador';
+  return 'Miembro';
+};
+
 const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre: comunidadNombreProp }) => {
   const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
@@ -65,12 +82,10 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         return;
       }
 
-      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-
       try {
-        const res = await axios.get(`${API_URL}/${comunidadId}/miembros`);
-        setMiembros(res.data?.miembros || []);
-        setTotal(res.data?.total || 0);
+        const data = await fetchMiembrosComunidad(comunidadId, token);
+        setMiembros(data.miembros);
+        setTotal(data.total);
         setActionError('');
       } catch (err) {
         const status = err.response?.status;
@@ -98,21 +113,23 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   }, [comunidadId, canRequest, logout, navigate]);
 
   const renderRol = (miembro) => {
-    if (miembro?.is_admin_total_global === true) {
-      const localLabel =
-        miembro.rol_comunidad === 'admin_total'
-          ? 'Admin total'
-          : miembro.rol_comunidad === 'admin_basic'
-            ? 'Admin local'
-            : miembro.rol_comunidad === 'moderador'
-              ? 'Moderador'
-            : 'Miembro';
+    if (miembro?.is_owner === true) {
+      return (
+        <>
+          <Badge bg="primary">Owner</Badge>
+          <div className="text-muted small mt-1">
+            Admin local efectivo
+          </div>
+        </>
+      );
+    }
 
+    if (miembro?.is_admin_total_global === true) {
       return (
         <>
           <Badge bg="danger">Admin total global</Badge>
           <div className="text-muted small mt-1">
-            Local: {localLabel}
+            Local: {getLocalRoleLabel(miembro?.rol_comunidad)}
           </div>
         </>
       );
@@ -193,26 +210,23 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     setUpdatingUserId(miembro.user_id);
 
     try {
-      const res = await axios.patch(
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        setActionError('Tu sesión expiró. Inicia sesión nuevamente.');
+        logout?.();
+        navigate('/Seinscrever');
+        return;
+      }
+
+      await axios.patch(
         `${API_URL}/${comunidadId}/miembros/${miembro.user_id}/rol`,
         { rol_comunidad: nextRole }
       );
 
-      const miembroActualizado = res.data?.miembro;
-
-      if (miembroActualizado) {
-        setMiembros((prev) =>
-          prev.map((item) =>
-            item.user_id === miembro.user_id
-              ? { ...item, ...miembroActualizado }
-              : item
-          )
-        );
-      } else {
-        const refreshed = await axios.get(`${API_URL}/${comunidadId}/miembros`);
-        setMiembros(refreshed.data?.miembros || []);
-        setTotal(refreshed.data?.total || 0);
-      }
+      const data = await fetchMiembrosComunidad(comunidadId, token);
+      setMiembros(data.miembros);
+      setTotal(data.total);
     } catch (err) {
       const status = err.response?.status;
 

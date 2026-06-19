@@ -30,8 +30,8 @@ export const UserProvider = ({ children }) => {
   const refreshInFlightRef = useRef(null);
   const lastRefreshAtRef = useRef(0);
 
-  const AUTH_REFRESH_THROTTLE_MS = 30000;
-  const AUTH_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
+  const AUTH_REFRESH_THROTTLE_MS = 20 * 1000;
+  const AUTH_REFRESH_INTERVAL_MS = 60 * 1000;
 
   const normalizeUser = useCallback((baseUser = {}) => ({
     ...baseUser,
@@ -135,6 +135,8 @@ export const UserProvider = ({ children }) => {
     if (refreshInFlightRef.current) {
       return refreshInFlightRef.current;
     }
+
+    setIsHydrating(true);
 
     const refreshPromise = (async () => {
       try {

@@ -27,6 +27,8 @@ exports.listarComunidades = async (req, res) => {
 
 // Crear comunidad
 exports.crearComunidad = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { nombre, administrador, ...resto } = req.body;
 
@@ -35,10 +37,43 @@ exports.crearComunidad = async (req, res) => {
       nombre_administrador: administrador,
       owner_user_id: req.user.id,
       ...resto
+    }, { transaction });
+
+    const ownerMembership = await ComunidadMiembro.findOne({
+      where: {
+        user_id: req.user.id,
+        comunidad_id: comunidad.id
+      },
+      transaction
     });
+
+    const esPrincipal =
+      req.user?.comunidad_id == null
+        ? true
+        : Number(req.user?.comunidad_id) === Number(comunidad.id);
+
+    if (!ownerMembership) {
+      await ComunidadMiembro.create({
+        user_id: req.user.id,
+        comunidad_id: comunidad.id,
+        rol_comunidad: 'admin_basic',
+        estado: 'activo',
+        es_principal: esPrincipal
+      }, { transaction });
+    } else {
+      await ownerMembership.update({
+        rol_comunidad: 'admin_basic',
+        estado: 'activo'
+      }, { transaction });
+    }
+
+    await transaction.commit();
 
     res.status(201).json(comunidad);
   } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
     res.status(400).json({ message: error.message });
   }
 };
@@ -314,6 +349,7 @@ exports.listarMiembrosComunidad = async (req, res) => {
         username: membresia.user?.username || null,
         email: membresia.user?.email || null,
         rol_comunidad: membresia.rol_comunidad,
+        rol_comunidad_effective: isOwner ? 'admin_basic' : membresia.rol_comunidad,
         rol_global: rolGlobal,
         is_admin_total_global: isAdminTotalGlobal,
         estado: membresia.estado,
