@@ -7,7 +7,7 @@ const verificarToken = (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
 
-  if (!token) return res.status(401).json({ message: 'Token no proporcionado' });
+  if (!token) return res.status(401).json({ message: 'Token não fornecido' });
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET); // respeta expiración
@@ -15,10 +15,9 @@ const verificarToken = (req, res, next) => {
     return next();
   } catch (err) {
     console.error('verificarToken error:', err.message);
-    return res.status(401).json({ message: 'Token inválido o expirado' });
+    return res.status(401).json({ message: 'Token inválido ou expirado' });
   }
 };
 
 module.exports = { verificarToken };
-
 

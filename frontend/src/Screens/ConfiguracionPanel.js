@@ -34,13 +34,13 @@ const ConfiguracionPanel = () => {
 
     if (!token || !user) {
       setLoading(false);
-      setMessage({ type: 'danger', text: 'Debes iniciar sesión como admin_total.' });
+      setMessage({ type: 'danger', text: 'Você precisa entrar como admin_total.' });
       return;
     }
 
     if (!isAdminTotal) {
       setLoading(false);
-      setMessage({ type: 'danger', text: 'Acceso denegado' });
+      setMessage({ type: 'danger', text: 'Acesso negado' });
       return;
     }
 
@@ -53,7 +53,7 @@ const ConfiguracionPanel = () => {
       const res = await axios.get(API_URL);
       setUsuarios(res.data);
     } catch (err) {
-      setMessage({ type: 'danger', text: 'Error al cargar usuarios' });
+      setMessage({ type: 'danger', text: 'Erro ao carregar usuários' });
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ const ConfiguracionPanel = () => {
  const handleRolUpdate = async () => {
   const validRoles = ['miembro', 'admin_basic', 'admin_total'];
   if (!validRoles.includes(newRol)) {
-    setMessage({ type: 'danger', text: 'Rol inválido seleccionado' });
+    setMessage({ type: 'danger', text: 'Papel inválido selecionado' });
     return;
   }
 
@@ -90,13 +90,13 @@ const ConfiguracionPanel = () => {
       localStorage.setItem('user', JSON.stringify(refreshRes.data.user));
     }
 
-    setMessage({ type: 'success', text: 'Rol actualizado correctamente' });
+    setMessage({ type: 'success', text: 'Papel atualizado com sucesso' });
 
     if (
       refreshRes.data.user?.rol_global !== 'admin_total' &&
       refreshRes.data.user?.rol !== 'admin_total'
     ) {
-      alert('Rol actualizado. Debes iniciar sesión nuevamente.');
+      alert('Papel atualizado. Você precisa entrar novamente.');
       logout?.();
       window.location.href = '/Seinscrever';
     } else {
@@ -107,7 +107,7 @@ const ConfiguracionPanel = () => {
     console.error('❌ Error al actualizar rol:', err.response?.data || err.message);
     setMessage({
       type: 'danger',
-      text: 'Error al actualizar rol: ' + (err.response?.data?.message || 'Error inesperado')
+      text: 'Erro ao atualizar papel: ' + (err.response?.data?.message || 'Erro inesperado')
     });
   } finally {
     setUpdatingRol(false);
@@ -117,21 +117,21 @@ const ConfiguracionPanel = () => {
 
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este usuario?')) return;
+    if (!window.confirm('Excluir este usuário?')) return;
     try {
       await axios.delete(`${API_URL}/${id}`);
-      setMessage({ type: 'success', text: 'Usuario eliminado correctamente' });
+      setMessage({ type: 'success', text: 'Usuário excluído com sucesso' });
       fetchUsuarios();
     } catch {
-      setMessage({ type: 'danger', text: 'Error al eliminar usuario' });
+      setMessage({ type: 'danger', text: 'Erro ao excluir usuário' });
     }
   };
 
   return (
     <Container className="mt-4">
-      <h2 className="mb-1">Panel Global de Usuarios</h2>
+      <h2 className="mb-1">Painel global de usuários</h2>
       <p className="text-muted">
-        Gestión global/legacy. Los roles locales de comunidad se administran desde Miembros de la comunidad.
+        Gestão global/legacy. Os papéis locais da comunidade são administrados em Membros da comunidade.
       </p>
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
@@ -139,17 +139,17 @@ const ConfiguracionPanel = () => {
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" variant="primary" />
-          <div>Cargando usuarios...</div>
+          <div>Carregando usuários...</div>
         </div>
       ) : (
         <Table responsive bordered hover>
           <thead className="table-light">
             <tr>
               <th>ID</th>
-              <th>Usuario</th>
+              <th>Usuário</th>
               <th>Email</th>
-              <th>Rol global</th>
-              <th>Acciones</th>
+              <th>Papel global</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -166,14 +166,14 @@ const ConfiguracionPanel = () => {
                     onClick={() => openEditModal(user)}
                     className="me-2"
                   >
-                    Cambiar rol
+                    Alterar papel
                   </Button>
                   <Button
                     size="sm"
                     variant="danger"
                     onClick={() => handleDelete(user.id)}
                   >
-                    Eliminar
+                    Excluir
                   </Button>
                 </td>
               </tr>
@@ -185,22 +185,22 @@ const ConfiguracionPanel = () => {
       {/* Modal para editar rol */}
       <Modal show={modalShow} onHide={() => setModalShow(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>Editar Rol</Modal.Title>
+          <Modal.Title>Editar papel</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedUser && (
             <p>
-              Editando usuario: <strong>{selectedUser.email}</strong>
+              Editando usuário: <strong>{selectedUser.email}</strong>
             </p>
           )}
           <Form.Group>
-            <Form.Label>Rol global</Form.Label>
+            <Form.Label>Papel global</Form.Label>
             <Form.Select
               value={newRol}
               onChange={(e) => setNewRol(e.target.value)}
             >
-              <option value="miembro">Miembro</option>
-              <option value="admin_basic">Líder Comunitario</option>
+              <option value="miembro">Membro</option>
+              <option value="admin_basic">Líder comunitário</option>
               <option value="admin_total">Admin Total</option>
             </Form.Select>
           </Form.Group>
@@ -214,7 +214,7 @@ const ConfiguracionPanel = () => {
             onClick={handleRolUpdate}
             disabled={updatingRol}
           >
-            {updatingRol ? 'Actualizando...' : 'Actualizar Rol'}
+            {updatingRol ? 'Atualizando...' : 'Atualizar papel'}
           </Button>
         </Modal.Footer>
       </Modal>

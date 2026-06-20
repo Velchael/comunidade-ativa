@@ -6,11 +6,11 @@ module.exports = async (req, res, next) => {
     const comunidadId = Number(req.params.id);
 
     if (!user?.id) {
-      return res.status(401).json({ message: 'No autenticado' });
+      return res.status(401).json({ message: 'Não autenticado' });
     }
 
     if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
-      return res.status(400).json({ message: 'Comunidad inválida' });
+      return res.status(400).json({ message: 'Comunidade inválida' });
     }
 
     if (user.rol === 'admin_total') {
@@ -22,7 +22,7 @@ module.exports = async (req, res, next) => {
     });
 
     if (!comunidad) {
-      return res.status(404).json({ message: 'Comunidad no encontrada' });
+      return res.status(404).json({ message: 'Comunidade não encontrada' });
     }
 
     if (Number(comunidad.owner_user_id) === Number(user.id)) {
@@ -40,13 +40,13 @@ module.exports = async (req, res, next) => {
     });
 
     if (!membresia) {
-      return res.status(403).json({ message: 'No tienes permisos para listar miembros de esta comunidad' });
+      return res.status(403).json({ message: 'Você não tem permissão para listar membros desta comunidade' });
     }
 
     return next();
   } catch (error) {
     return res.status(500).json({
-      message: 'Error verificando permisos para listar miembros',
+      message: 'Erro ao verificar permissões para listar membros',
       error: error.message
     });
   }

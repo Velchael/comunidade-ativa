@@ -8,14 +8,14 @@ module.exports = async (req, res, next) => {
 
   try {
     const comunidad = await Comunidad.findByPk(req.params.id);
-    if (!comunidad) return res.status(404).json({ message: 'Comunidad no encontrada' });
+    if (!comunidad) return res.status(404).json({ message: 'Comunidade não encontrada' });
 
     if (comunidad.owner_user_id !== user?.id) {
-      return res.status(403).json({ message: 'Solo el owner o admin_total puede realizar esta acción' });
+      return res.status(403).json({ message: 'Somente o owner ou admin_total pode realizar esta ação' });
     }
 
     next();
   } catch (err) {
-    res.status(500).json({ message: 'Error verificando ownership', error: err.message });
+    res.status(500).json({ message: 'Erro ao verificar ownership', error: err.message });
   }
 };

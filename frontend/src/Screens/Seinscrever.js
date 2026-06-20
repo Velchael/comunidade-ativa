@@ -97,7 +97,7 @@ export default function Seinscrever() {
               };
             }
           } catch (err) {
-            console.warn('No se pudo hidratar sesión inicial con refresh');
+          console.warn('Não foi possível hidratar a sessão inicial com refresh');
           }
         } else if (typeof setUser === 'function') {
           setUser(fallbackUser);
@@ -126,7 +126,7 @@ export default function Seinscrever() {
 
             setGoogleUser(parsedUser);
           } catch (err) {
-            console.warn('No se pudo restaurar sesión');
+            console.warn('Não foi possível restaurar a sessão');
           }
         }
       }
@@ -186,7 +186,7 @@ export default function Seinscrever() {
 
       } catch (error) {
 
-        console.warn('No se pudo verificar perfil');
+        console.warn('Não foi possível verificar o perfil');
 
         setShowProfileForm(true);
 
@@ -235,7 +235,7 @@ export default function Seinscrever() {
 
       setMessage({
         type: 'danger',
-        text: 'Por favor completa tu apellido.'
+        text: 'Por favor, preencha seu sobrenome.'
       });
 
       return;
@@ -307,7 +307,7 @@ export default function Seinscrever() {
 
       setMessage({
         type: 'success',
-        text: 'Perfil completado correctamente.'
+        text: 'Perfil concluído com sucesso.'
       });
 
       // 🔥 mostrar opciones comunidad
@@ -321,7 +321,7 @@ export default function Seinscrever() {
 
       const msg =
         error?.response?.data?.message ||
-        'Error guardando perfil';
+        'Erro ao salvar o perfil';
 
       setMessage({
         type: 'danger',
@@ -368,10 +368,10 @@ export default function Seinscrever() {
           <title>Login</title>
         </Helmet>
 
-        <h2>Entrar con Google</h2>
+        <h2>Entrar com Google</h2>
 
         <p>
-          COMUVA conecta personas y comunidades reales.
+          COMUVA conecta pessoas e comunidades reais.
         </p>
 
         <Button
@@ -381,7 +381,7 @@ export default function Seinscrever() {
               `${API_BASE}/api/auth/google`
           }
         >
-          Continuar con Google
+          Continuar com Google
         </Button>
 
       </Container>
@@ -402,15 +402,15 @@ export default function Seinscrever() {
       >
 
         <Helmet>
-          <title>Completar Perfil</title>
+          <title>Completar perfil</title>
         </Helmet>
 
         <h2 className="my-4">
-          👋 Bienvenido a COMUVA
+          👋 Bem-vindo ao COMUVA
         </h2>
 
         <p>
-          Completa tu perfil básico para continuar.
+          Complete seu perfil básico para continuar.
         </p>
 
         {message.text && (
@@ -426,7 +426,7 @@ export default function Seinscrever() {
           <Form.Group className="mb-3">
 
             <Form.Label>
-              Apellido
+              Sobrenome
             </Form.Label>
 
             <Form.Control
@@ -435,7 +435,7 @@ export default function Seinscrever() {
               name="apellido"
               value={formData.apellido}
               onChange={handleChange}
-              placeholder="Ingresa tu apellido"
+              placeholder="Digite seu sobrenome"
             />
 
           </Form.Group>
@@ -445,7 +445,7 @@ export default function Seinscrever() {
           <Form.Group className="mb-3">
 
             <Form.Label>
-              Teléfono (opcional)
+              Telefone (opcional)
             </Form.Label>
 
             <Form.Control
@@ -463,7 +463,7 @@ export default function Seinscrever() {
             disabled={submitting}
           >
             {submitting
-              ? 'Guardando...'
+              ? 'Salvando...'
               : 'Continuar'}
           </Button>
 
@@ -484,18 +484,18 @@ export default function Seinscrever() {
       <Container style={{ marginTop: '50px' }}>
 
         <Helmet>
-          <title>Bienvenido a COMUVA</title>
+          <title>Bem-vindo ao COMUVA</title>
         </Helmet>
 
         <div className="text-center mb-5">
 
           <h1>
-            🌍 Bienvenido a COMUVA
+            🌍 Bem-vindo ao COMUVA
           </h1>
 
           <p style={{ fontSize: '18px' }}>
-            Elige cómo deseas participar
-            en la comunidad.
+            Escolha como deseja participar
+            da comunidade.
           </p>
 
         </div>
@@ -520,13 +520,13 @@ export default function Seinscrever() {
             >
 
               <h2>
-                🏘️ Unirme a una comunidad
+                🏘️ Entrar em uma comunidade
               </h2>
 
               <p style={{ marginTop: '20px' }}>
-                Participa en una comunidad
-                existente y comienza a
-                ayudar o recibir ayuda.
+                Participe de uma comunidade
+                existente e comece a
+                ajudar ou receber ajuda.
               </p>
 
               <Button
@@ -561,13 +561,13 @@ export default function Seinscrever() {
             >
 
               <h2>
-                🌱 Crear nueva comunidad
+                🌱 Criar nova comunidade
               </h2>
 
               <p style={{ marginTop: '20px' }}>
-                Crea una nueva comunidad
-                y conviértete en líder
-                comunitario.
+                Crie uma nova comunidade
+                e torne-se líder
+                comunitário.
               </p>
 
               <div
@@ -580,18 +580,18 @@ export default function Seinscrever() {
                 🔒 IMPORTANTE:
                 <br /><br />
 
-                Crear una comunidad NO
-                otorga permisos globales.
+                Criar uma comunidade NÃO
+                concede permissões globais.
 
                 <br /><br />
 
-                El creador recibe rol:
+                O criador recebe o papel:
                 <strong> admin_basic</strong>
 
                 <br /><br />
 
-                Limitado únicamente
-                a su comunidad.
+                Limitado apenas
+                à sua comunidade.
               </div>
 
               <Button
@@ -601,7 +601,7 @@ export default function Seinscrever() {
                   navigate('/crear-comunidad')
                 }
               >
-                Crear comunidad
+                Criar comunidade
               </Button>
 
             </Card>

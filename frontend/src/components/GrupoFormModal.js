@@ -69,7 +69,7 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
 
     } catch (err) {
       console.error("❌ Error al guardar grupo:", err);
-      const msg = err?.response?.data?.message || "Error al guardar el grupo";
+      const msg = err?.response?.data?.message || "Erro ao salvar o grupo";
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -79,7 +79,7 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
   return (
     <Modal show={show} onHide={handleClose}>
       <Modal.Header closeButton>
-        <Modal.Title>{grupo ? "✏️ Editar Grupo" : "➕ Nuevo Grupo"}</Modal.Title>
+        <Modal.Title>{grupo ? "✏️ Editar grupo" : "➕ Novo grupo"}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
@@ -88,40 +88,40 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
           <Form.Control type="hidden" name="comunidad_id" value={formData.comunidad_id} />
 
           <Form.Group className="mb-3">
-            <Form.Label>Nombre del Co-Líder</Form.Label>
+            <Form.Label>Nome do co-líder</Form.Label>
             <Form.Control
               type="text"
               name="colider_nombre"
               value={formData.colider_nombre}
               onChange={handleChange}
-              placeholder="Nombre del co-líder"
+              placeholder="Nome do co-líder"
             />
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Nombre del Anfitrión</Form.Label>
+            <Form.Label>Nome do anfitrião</Form.Label>
             <Form.Control
               type="text"
               name="anfitrion_nombre"
               value={formData.anfitrion_nombre}
               onChange={handleChange}
-              placeholder="Nombre del anfitrión"
+              placeholder="Nome do anfitrião"
             />
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Dirección del Grupo</Form.Label>
+            <Form.Label>Endereço do grupo</Form.Label>
             <Form.Control
               type="text"
               name="direccion_grupo"
               value={formData.direccion_grupo}
               onChange={handleChange}
-              placeholder="Dirección del grupo"
+              placeholder="Endereço do grupo"
             />
           </Form.Group>
 
           <Button variant="primary" type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : (grupo ? "Guardar cambios" : "Crear grupo")}
+            {submitting ? "Salvando..." : (grupo ? "Salvar alterações" : "Criar grupo")}
           </Button>
         </Form>
       </Modal.Body>

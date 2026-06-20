@@ -12,7 +12,7 @@ const verificarRolComunidad = ({
       const user = req.user;
 
       if (!user?.id) {
-        return res.status(401).json({ message: 'No autenticado' });
+        return res.status(401).json({ message: 'Não autenticado' });
       }
 
       if (permitirAdminTotalGlobal && user.rol === ROLES.ADMIN_TOTAL) {
@@ -21,12 +21,12 @@ const verificarRolComunidad = ({
 
       const comunidadId = await getComunidadId(req);
       if (!comunidadId) {
-        return res.status(400).json({ message: 'comunidad_id requerido para verificar permisos' });
+        return res.status(400).json({ message: 'comunidad_id é obrigatório para verificar permissões' });
       }
 
       const resultado = await tieneRolComunidad(user, comunidadId, rolesPermitidos);
       if (!resultado.permitido) {
-        return res.status(403).json({ message: 'No tienes permisos para esta comunidad' });
+        return res.status(403).json({ message: 'Você não tem permissão para esta comunidade' });
       }
 
       req.comunidadAuth = {
@@ -39,7 +39,7 @@ const verificarRolComunidad = ({
       return next();
     } catch (error) {
       console.error('verificarRolComunidad error:', error.message);
-      return res.status(500).json({ message: 'Error verificando permisos de comunidad' });
+      return res.status(500).json({ message: 'Erro ao verificar permissões da comunidade' });
     }
   };
 };

@@ -23,14 +23,14 @@ const cargarInteraccion = async (req, res, next) => {
     });
 
     if (!interaccion) {
-      return res.status(404).json({ message: "Interacción no encontrada" });
+      return res.status(404).json({ message: "Interação não encontrada" });
     }
 
     req.interaccionTarget = interaccion;
     return next();
   } catch (error) {
     console.error("cargarInteraccion error:", error.message);
-    return res.status(500).json({ message: "Error cargando interacción" });
+    return res.status(500).json({ message: "Erro ao carregar interação" });
   }
 };
 

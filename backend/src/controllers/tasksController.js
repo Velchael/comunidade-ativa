@@ -42,7 +42,7 @@ const getTaskById = async (req, res) => {
       }
     });
 
-    if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
+    if (!task) return res.status(404).json({ message: 'Tarefa não encontrada' });
     res.json(task);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -52,7 +52,7 @@ const getTaskById = async (req, res) => {
 // ✅ Crear nueva tarea (asignar comunidad del usuario automáticamente)
 const createTask = async (req, res) => {
   if (!['admin_basic', 'admin_total'].includes(req.user.rol)) {
-    return res.status(403).json({ message: 'No tienes permisos para esta acción' });
+    return res.status(403).json({ message: 'Você não tem permissão para esta ação' });
   }
 
   try {
@@ -77,7 +77,7 @@ const createTask = async (req, res) => {
 // ✅ Actualizar una tarea (solo admins y si pertenece a su comunidad)
 const updateTask = async (req, res) => {
   if (!['admin_basic', 'admin_total'].includes(req.user.rol)) {
-    return res.status(403).json({ message: 'No tienes permisos para esta acción' });
+    return res.status(403).json({ message: 'Você não tem permissão para esta ação' });
   }
 
   try {
@@ -91,7 +91,7 @@ const updateTask = async (req, res) => {
       }
     });
 
-    if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
+    if (!task) return res.status(404).json({ message: 'Tarefa não encontrada' });
 
     Object.assign(task, { title, description, frequency, due_date: dueDate, status, priority });
 
@@ -105,7 +105,7 @@ const updateTask = async (req, res) => {
 // ✅ Eliminar una tarea (solo admin_total y si pertenece a su comunidad)
 const deleteTask = async (req, res) => {
   if (req.user.rol !== 'admin_total') {
-    return res.status(403).json({ message: 'Solo un administrador total puede eliminar tareas' });
+    return res.status(403).json({ message: 'Somente um administrador total pode excluir tarefas' });
   }
 
   try {
@@ -118,10 +118,10 @@ const deleteTask = async (req, res) => {
       }
     });
 
-    if (!task) return res.status(404).json({ message: 'Tarea no encontrada' });
+    if (!task) return res.status(404).json({ message: 'Tarefa não encontrada' });
 
     await task.destroy();
-    res.json({ message: 'Tarea eliminada correctamente' });
+    res.json({ message: 'Tarefa excluída com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -134,4 +134,3 @@ module.exports = {
   updateTask,
   deleteTask
 };
-

@@ -31,7 +31,7 @@ export default function CrearComunidad() {
     setMessage({ type: '', text: '' });
 
     if (!formData.nombre.trim()) {
-      setMessage({ type: 'danger', text: 'El nombre de la comunidad es obligatorio.' });
+      setMessage({ type: 'danger', text: 'O nome da comunidade é obrigatório.' });
       return;
     }
 
@@ -79,7 +79,7 @@ export default function CrearComunidad() {
     } catch (error) {
       setMessage({
         type: 'danger',
-        text: error.response?.data?.message || 'Error al crear comunidad'
+        text: error.response?.data?.message || 'Erro ao criar comunidade'
       });
     } finally {
       setSubmitting(false);
@@ -89,7 +89,7 @@ export default function CrearComunidad() {
   if (!user) {
     return (
       <Container className="small-container mt-5" style={{ maxWidth: '640px' }}>
-        <Alert variant="warning">Debes iniciar sesión para crear una comunidad.</Alert>
+        <Alert variant="warning">Você precisa entrar para criar uma comunidade.</Alert>
         <Button onClick={() => navigate('/Seinscrever')}>Entrar</Button>
       </Container>
     );
@@ -98,7 +98,7 @@ export default function CrearComunidad() {
   if (user.comunidad_id || user.comunidadId) {
     return (
       <Container className="small-container mt-5" style={{ maxWidth: '640px' }}>
-        <Alert variant="info">Tu usuario ya tiene una comunidad asignada.</Alert>
+        <Alert variant="info">Seu usuário já tem uma comunidade atribuída.</Alert>
         <Button onClick={() => navigate('/interacciones')}>Continuar</Button>
       </Container>
     );
@@ -106,13 +106,13 @@ export default function CrearComunidad() {
 
   return (
     <Container className="small-container mt-5" style={{ maxWidth: '640px' }}>
-      <h2 className="mb-4">Crear nueva comunidad</h2>
+      <h2 className="mb-4">Criar nova comunidade</h2>
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
 
       <Form onSubmit={handleSubmit}>
         <Form.Group className="mb-3">
-          <Form.Label>Nombre de la comunidad</Form.Label>
+          <Form.Label>Nome da comunidade</Form.Label>
           <Form.Control
             name="nombre"
             value={formData.nombre}
@@ -122,7 +122,7 @@ export default function CrearComunidad() {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>Descripción</Form.Label>
+          <Form.Label>Descrição</Form.Label>
           <Form.Control
             as="textarea"
             name="descripcion"
@@ -132,7 +132,7 @@ export default function CrearComunidad() {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>Dirección</Form.Label>
+          <Form.Label>Endereço</Form.Label>
           <Form.Control
             name="direccion"
             value={formData.direccion}
@@ -141,7 +141,7 @@ export default function CrearComunidad() {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>Teléfono</Form.Label>
+          <Form.Label>Telefone</Form.Label>
           <Form.Control
             name="telefono"
             value={formData.telefono}
@@ -159,7 +159,7 @@ export default function CrearComunidad() {
         </Form.Group>
 
         <Button type="submit" disabled={submitting}>
-          {submitting ? 'Creando...' : 'Crear comunidad'}
+          {submitting ? 'Criando...' : 'Criar comunidade'}
         </Button>
       </Form>
     </Container>

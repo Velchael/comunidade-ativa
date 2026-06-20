@@ -25,7 +25,7 @@ const getLocalRoleLabel = (rolComunidad) => {
   if (rolComunidad === 'admin_total') return 'Admin total';
   if (rolComunidad === 'admin_basic') return 'Admin local';
   if (rolComunidad === 'moderador') return 'Moderador';
-  return 'Miembro';
+  return 'Membro';
 };
 
 const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre: comunidadNombreProp }) => {
@@ -65,19 +65,19 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       const token = localStorage.getItem('token');
 
       if (!token) {
-        setError('Tu sesión expiró. Inicia sesión nuevamente.');
+        setError('Sua sessão expirou. Entre novamente.');
         setLoading(false);
         return;
       }
 
       if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
-        setError('Comunidad inválida');
+        setError('Comunidade inválida');
         setLoading(false);
         return;
       }
 
       if (!canRequest) {
-        setError('No tienes permisos para ver los miembros de esta comunidad');
+        setError('Você não tem permissão para ver os membros desta comunidade');
         setLoading(false);
         return;
       }
@@ -91,18 +91,18 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         const status = err.response?.status;
 
         if (status === 401) {
-          setError('Tu sesión expiró. Inicia sesión nuevamente.');
+          setError('Sua sessão expirou. Entre novamente.');
           logout?.();
           navigate('/Seinscrever');
           return;
         }
 
         if (status === 403) {
-          setError('No tienes permisos para ver los miembros de esta comunidad');
+          setError('Você não tem permissão para ver os membros desta comunidade');
         } else if (status === 404) {
-          setError('Comunidad no encontrada');
+          setError('Comunidade não encontrada');
         } else {
-          setError(err.response?.data?.message || 'Error al cargar miembros');
+          setError(err.response?.data?.message || 'Erro ao carregar membros');
         }
       } finally {
         setLoading(false);
@@ -118,7 +118,7 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         <>
           <Badge bg="primary">Owner</Badge>
           <div className="text-muted small mt-1">
-            Admin local efectivo
+            Admin local efetivo
           </div>
         </>
       );
@@ -151,15 +151,15 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       return <Badge bg="info">Moderador</Badge>;
     }
 
-    return <Badge bg="secondary">Miembro</Badge>;
+      return <Badge bg="secondary">Membro</Badge>;
   };
 
   const renderEstado = (estado) => {
     if (estado === 'activo') {
-      return <Badge bg="success">Activo</Badge>;
+      return <Badge bg="success">Ativo</Badge>;
     }
 
-    return <Badge bg="secondary">{estado || 'Sin estado'}</Badge>;
+    return <Badge bg="secondary">{estado || 'Sem estado'}</Badge>;
   };
 
   const canManageRoles = useMemo(() => {
@@ -184,21 +184,21 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
 
     if (miembro.rol_comunidad === 'miembro') {
       return [
-        { label: 'Hacer moderador', nextRole: 'moderador', variant: 'info' },
-        { label: 'Hacer admin local', nextRole: 'admin_basic', variant: 'success' }
+        { label: 'Tornar moderador', nextRole: 'moderador', variant: 'info' },
+        { label: 'Tornar admin local', nextRole: 'admin_basic', variant: 'success' }
       ];
     }
 
     if (miembro.rol_comunidad === 'moderador') {
       return [
-        { label: 'Quitar moderación', nextRole: 'miembro', variant: 'outline-secondary' },
-        { label: 'Hacer admin local', nextRole: 'admin_basic', variant: 'success' }
+        { label: 'Remover moderação', nextRole: 'miembro', variant: 'outline-secondary' },
+        { label: 'Tornar admin local', nextRole: 'admin_basic', variant: 'success' }
       ];
     }
 
     if (miembro.rol_comunidad === 'admin_basic') {
       return [
-        { label: 'Bajar a moderador', nextRole: 'moderador', variant: 'outline-warning' }
+        { label: 'Rebaixar para moderador', nextRole: 'moderador', variant: 'outline-warning' }
       ];
     }
 
@@ -213,7 +213,7 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       const token = localStorage.getItem('token');
 
       if (!token) {
-        setActionError('Tu sesión expiró. Inicia sesión nuevamente.');
+        setActionError('Sua sessão expirou. Entre novamente.');
         logout?.();
         navigate('/Seinscrever');
         return;
@@ -231,7 +231,7 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       const status = err.response?.status;
 
       if (status === 401) {
-        setActionError('Tu sesión expiró. Inicia sesión nuevamente.');
+        setActionError('Sua sessão expirou. Entre novamente.');
         logout?.();
         navigate('/Seinscrever');
         return;
@@ -239,19 +239,19 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
 
       if (status === 403) {
         setActionError(
-          err.response?.data?.message || 'No tienes permisos para cambiar este rol'
+          err.response?.data?.message || 'Você não tem permissão para alterar este papel'
         );
       } else if (status === 404) {
         setActionError(
-          err.response?.data?.message || 'Miembro o comunidad no encontrada'
+          err.response?.data?.message || 'Membro ou comunidade não encontrada'
         );
       } else if (status === 400) {
         setActionError(
-          err.response?.data?.message || 'Solicitud inválida para actualizar rol'
+          err.response?.data?.message || 'Solicitação inválida para atualizar papel'
         );
       } else {
         setActionError(
-          err.response?.data?.message || 'Error al actualizar rol comunitario'
+          err.response?.data?.message || 'Erro ao atualizar papel comunitário'
         );
       }
     } finally {
@@ -263,14 +263,14 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     <Container className="mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h2 className="mb-1">Miembros de la comunidad</h2>
+          <h2 className="mb-1">Membros da comunidade</h2>
           <div className="text-muted">{comunidadNombre}</div>
         </div>
         <Button
           variant="outline-secondary"
           onClick={() => navigate('/configuracion/comunidades')}
         >
-          Volver
+          Voltar
         </Button>
       </div>
 
@@ -279,12 +279,12 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" variant="primary" />
-          <div>Cargando miembros...</div>
+          <div>Carregando membros...</div>
         </div>
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : miembros.length === 0 ? (
-        <Alert variant="info">No hay miembros registrados en esta comunidad.</Alert>
+        <Alert variant="info">Não há membros registrados nesta comunidade.</Alert>
       ) : (
         <>
           <div className="mb-3 text-muted">Total: {total}</div>
@@ -293,10 +293,10 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
               <tr>
                 <th>Username</th>
                 <th>Email</th>
-                <th>Rol comunidad</th>
+                <th>Papel na comunidade</th>
                 <th>Estado</th>
                 <th>Principal</th>
-                <th>Acciones</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -310,7 +310,7 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
                     {miembro.es_principal ? (
                       <Badge bg="primary">Principal</Badge>
                     ) : (
-                      <span className="text-muted">No</span>
+                      <span className="text-muted">Não</span>
                     )}
                   </td>
                   <td>
@@ -324,12 +324,12 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
                             disabled={updatingUserId === miembro.user_id}
                             onClick={() => handleChangeRole(miembro, action.nextRole)}
                           >
-                            {updatingUserId === miembro.user_id ? 'Actualizando...' : action.label}
+                            {updatingUserId === miembro.user_id ? 'Atualizando...' : action.label}
                           </Button>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-muted">Sin acciones</span>
+                      <span className="text-muted">Sem ações</span>
                     )}
                   </td>
                 </tr>

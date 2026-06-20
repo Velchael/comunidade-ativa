@@ -76,13 +76,13 @@ const ComunidadesPanel = () => {
     }
 
     if (!isAdminTotal && !canManageLocalCommunity && !canAccessMembersPanel) {
-      setMessage({ type: 'danger', text: 'Acceso denegado' });
+      setMessage({ type: 'danger', text: 'Acesso negado' });
       setLoading(false);
       return;
     }
 
     if (!isAdminTotal && !comunidadId) {
-      setMessage({ type: 'danger', text: 'No tienes comunidad asignada' });
+      setMessage({ type: 'danger', text: 'Você não tem comunidade atribuída' });
       setLoading(false);
       return;
     }
@@ -102,7 +102,7 @@ const ComunidadesPanel = () => {
       const res = await axios.get(API_URL);
       setComunidades(res.data.map(normalizeComunidad));
     } catch (err) {
-      setMessage({ type: 'danger', text: 'Error al cargar comunidades' });
+      setMessage({ type: 'danger', text: 'Erro ao carregar comunidades' });
     } finally {
       setLoading(false);
     }
@@ -115,7 +115,7 @@ const ComunidadesPanel = () => {
     } catch (err) {
       setMessage({
         type: 'danger',
-        text: err.response?.data?.message || 'Error al cargar tu comunidad'
+        text: err.response?.data?.message || 'Erro ao carregar sua comunidade'
       });
     } finally {
       setLoading(false);
@@ -152,14 +152,14 @@ const ComunidadesPanel = () => {
     try {
       if (editingComunidad) {
         await axios.put(`${API_URL}/${editingComunidad.id}`, formData);
-        setMessage({ type: 'success', text: 'Comunidad actualizada' });
+        setMessage({ type: 'success', text: 'Comunidade atualizada' });
       } else {
         console.log('📤 Enviando datos comunidad:', formData);
         if (!formData.nombre.trim()) {
-        return setMessage({ type: 'danger', text: 'El nombre de la comunidad es obligatorio.' });
+        return setMessage({ type: 'danger', text: 'O nome da comunidade é obrigatório.' });
         }
         await axios.post(API_URL, formData);
-        setMessage({ type: 'success', text: 'Comunidad creada' });
+        setMessage({ type: 'success', text: 'Comunidade criada' });
       }
 
       if (isAdminTotal) {
@@ -172,16 +172,16 @@ const ComunidadesPanel = () => {
     } catch (err) {
       setMessage({
         type: 'danger',
-        text: err.response?.data?.message || 'Error al guardar comunidad',
+        text: err.response?.data?.message || 'Erro ao salvar comunidade',
       });
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta comunidad?')) return;
+    if (!window.confirm('Excluir esta comunidade?')) return;
     try {
       await axios.delete(`${API_URL}/${id}`);
-      setMessage({ type: 'success', text: 'Comunidad eliminada' });
+      setMessage({ type: 'success', text: 'Comunidade excluída' });
 
       if (isAdminTotal) {
         await fetchComunidades();
@@ -191,38 +191,38 @@ const ComunidadesPanel = () => {
     } catch (err) {
       setMessage({
         type: 'danger',
-        text: err.response?.data?.message || 'Error al eliminar comunidad'
+        text: err.response?.data?.message || 'Erro ao excluir comunidade'
       });
     }
   };
 
   return (
     <Container className="mt-4">
-      <h2 className="mb-3">🏘️ Panel de Gestión de Comunidades</h2>
+      <h2 className="mb-3">🏘️ Painel de Gestão de Comunidades</h2>
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
 
      {isAdminTotal && (
        <Button variant="primary" className="mb-3" onClick={() => openModal()}>
-        ➕ Crear nueva comunidad
+        ➕ Criar nova comunidade
        </Button>
      )}
 
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" variant="primary" />
-          <div>Cargando comunidades...</div>
+          <div>Carregando comunidades...</div>
         </div>
       ) : (
         <Table responsive bordered hover>
           <thead className="table-light">
             <tr>
               <th>ID</th>
-              <th>Nombre</th>
+              <th>Nome</th>
               <th>Administrador</th>
-              <th>Teléfono</th>
-              <th>Dirección</th>
-              <th>Acciones</th>
+              <th>Telefone</th>
+              <th>Endereço</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -241,7 +241,7 @@ const ComunidadesPanel = () => {
                       className="me-2"
                       onClick={() => handleViewMembers(com)}
                     >
-                      Ver miembros
+                      Ver membros
                     </Button>
                   )}
                   {((isAdminTotal || canManageLocalCommunity) &&
@@ -261,7 +261,7 @@ const ComunidadesPanel = () => {
                           variant="danger"
                           onClick={() => handleDelete(com.id)}
                         >
-                          Eliminar
+                          Excluir
                         </Button>
                       )}
                     </>
@@ -277,12 +277,12 @@ const ComunidadesPanel = () => {
       <Modal show={modalShow} onHide={() => setModalShow(false)}>
         <Modal.Header closeButton>
           <Modal.Title>
-            {editingComunidad ? 'Editar Comunidad' : 'Nueva Comunidad'}
+            {editingComunidad ? 'Editar comunidade' : 'Nova comunidade'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form.Group className="mb-2">
-            <Form.Label>Nombre</Form.Label>
+            <Form.Label>Nome</Form.Label>
             <Form.Control
               name="nombre"
               value={formData.nombre}
@@ -290,7 +290,7 @@ const ComunidadesPanel = () => {
             />
           </Form.Group>
           <Form.Group className="mb-2">
-            <Form.Label>Descripción</Form.Label>
+            <Form.Label>Descrição</Form.Label>
             <Form.Control
               name="descripcion"
               value={formData.descripcion}
@@ -299,7 +299,7 @@ const ComunidadesPanel = () => {
             />
           </Form.Group>
           <Form.Group className="mb-2">
-            <Form.Label>Dirección</Form.Label>
+            <Form.Label>Endereço</Form.Label>
             <Form.Control
               name="direccion"
               value={formData.direccion}
@@ -307,7 +307,7 @@ const ComunidadesPanel = () => {
             />
           </Form.Group>
           <Form.Group className="mb-2">
-            <Form.Label>Teléfono</Form.Label>
+            <Form.Label>Telefone</Form.Label>
             <Form.Control
               name="telefono"
               value={formData.telefono}
@@ -333,7 +333,7 @@ const ComunidadesPanel = () => {
           onClick={handleSubmit}
           disabled={!isAdminTotal && !canManageCommunity}
          >
-          {editingComunidad ? 'Guardar Cambios' : 'Crear Comunidad'}
+          {editingComunidad ? 'Salvar alterações' : 'Criar comunidade'}
          </Button>
 
         </Modal.Footer>

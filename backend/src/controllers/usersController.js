@@ -56,7 +56,7 @@ const createUser = async (req, res) => {
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(409).json({ message: 'El correo electrónico ya está registrado' });
+      return res.status(409).json({ message: 'O endereço de e-mail já está cadastrado' });
     }
 
     const safeData = pickAllowedFields(req.body, PUBLIC_USER_FIELDS);
@@ -64,7 +64,7 @@ const createUser = async (req, res) => {
     res.status(201).json(newUser);
   } catch (error) {
     console.error("❌ Error al registrar usuario:", error.message);
-    res.status(500).json({ message: 'Error al registrar usuario' });
+    res.status(500).json({ message: 'Erro ao cadastrar usuário' });
   }
 };
 
@@ -80,12 +80,12 @@ const getUserByEmail = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     res.json(user);
   } catch (err) {
-    res.status(500).json({ message: 'Error del servidor', error: err.message });
+    res.status(500).json({ message: 'Erro do servidor', error: err.message });
   }
 };
 
@@ -98,11 +98,11 @@ const completeGoogleProfile = async (req, res) => {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     if (user.googleId && user.googleId !== String(googleId)) {
-      return res.status(403).json({ message: 'Google ID no coincide' });
+      return res.status(403).json({ message: 'Google ID não corresponde' });
     }
 
     if (data.username && user.username && user.username !== data.username) {
@@ -113,7 +113,7 @@ const completeGoogleProfile = async (req, res) => {
     }
 
     if (user.apellido && user.fecha_nacimiento) {
-      return res.status(400).json({ message: 'Perfil ya fue completado' });
+      return res.status(400).json({ message: 'O perfil já foi concluído' });
     }
 
     await user.update(data);
@@ -124,13 +124,13 @@ const completeGoogleProfile = async (req, res) => {
     });
 
     res.status(200).json({
-      message: 'Perfil actualizado correctamente',
+      message: 'Perfil atualizado com sucesso',
       user: await buildAuthUserResponse(updatedUser)
     });
 
   } catch (err) {
     console.error('❌ Error al completar perfil Google:', err);
-    res.status(500).json({ message: 'Error del servidor' });
+    res.status(500).json({ message: 'Erro do servidor' });
   }
 };
 
@@ -148,7 +148,7 @@ const getAllUsers = async (req, res) => {
     });
     res.json(users);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener usuarios' });
+    res.status(500).json({ error: 'Erro ao obter usuários' });
   }
 };
 
@@ -164,7 +164,7 @@ const updateUser = async (req, res) => {
     const user = await User.findByPk(id, { transaction });
     if (!user) {
       await transaction.rollback();
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     if (loggedUser.rol === 'admin_total') {
@@ -175,7 +175,7 @@ const updateUser = async (req, res) => {
     // ⚠️ Si el usuario intenta editar otro usuario y NO es admin_total
     if (loggedUser.rol !== 'admin_total' && loggedUser.id !== user.id) {
       await transaction.rollback();
-      return res.status(403).json({ message: 'No tienes permiso para editar otros usuarios' });
+      return res.status(403).json({ message: 'Você não tem permissão para editar outros usuários' });
     }
 
     const updatesMembershipState =
@@ -218,7 +218,7 @@ const updateUser = async (req, res) => {
       await transaction.rollback();
     }
     console.error('❌ Error al actualizar usuario:', err);
-    return res.status(500).json({ message: 'Error actualizando usuario' });
+    return res.status(500).json({ message: 'Erro ao atualizar usuário' });
   }
 };
 
@@ -230,14 +230,14 @@ const updateUserRole = async (req, res) => {
 
   const validRoles = ['miembro', 'admin_basic', 'admin_total'];
   if (!validRoles.includes(rol)) {
-    return res.status(400).json({ message: 'Rol inválido' });
+    return res.status(400).json({ message: 'Papel inválido' });
   }
 
   try {
     const user = await User.findByPk(id, { transaction });
     if (!user) {
       await transaction.rollback();
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     await syncUserAndPrimaryMembershipTx({
@@ -253,13 +253,13 @@ const updateUserRole = async (req, res) => {
 
     await transaction.commit();
 
-    res.status(200).json({ message: 'Rol actualizado con éxito' });
+    res.status(200).json({ message: 'Papel atualizado com sucesso' });
   } catch (error) {
     if (!transaction.finished) {
       await transaction.rollback();
     }
     console.error('❌ Error al actualizar rol:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' });
   }
 };
 
@@ -270,13 +270,13 @@ const deleteUser = async (req, res) => {
     const user = await User.findByPk(id);
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     await user.destroy();
-    res.json({ message: 'Usuario eliminado correctamente' });
+    res.json({ message: 'Usuário excluído com sucesso' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar usuario' });
+    res.status(500).json({ error: 'Erro ao excluir usuário' });
   }
 };
 

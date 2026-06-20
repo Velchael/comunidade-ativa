@@ -9,7 +9,7 @@ const syncComunidadMiembro = async (req, res, next) => {
     return next();
   } catch (error) {
     console.error('syncComunidadMiembro error:', error.message);
-    return res.status(500).json({ message: 'Error sincronizando membresia de comunidad' });
+    return res.status(500).json({ message: 'Erro ao sincronizar associação da comunidade' });
   }
 };
 

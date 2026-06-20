@@ -21,7 +21,7 @@ exports.listarComunidades = async (req, res) => {
 
     res.json(comunidades);
   } catch (error) {
-    res.status(500).json({ message: 'Error al listar comunidades', error: error.message });
+    res.status(500).json({ message: 'Erro ao listar comunidades', error: error.message });
   }
 };
 
@@ -86,18 +86,18 @@ exports.crearComunidadOnboarding = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) {
       await transaction.rollback();
-      return res.status(401).json({ message: 'No autenticado' });
+      return res.status(401).json({ message: 'Não autenticado' });
     }
 
     const user = await User.findByPk(userId, { transaction });
     if (!user) {
       await transaction.rollback();
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     if (user.comunidad_id) {
       await transaction.rollback();
-      return res.status(409).json({ message: 'El usuario ya tiene comunidad asignada' });
+      return res.status(409).json({ message: 'O usuário já possui comunidade atribuída' });
     }
 
     const {
@@ -115,7 +115,7 @@ exports.crearComunidadOnboarding = async (req, res) => {
 
     if (!nombre || !String(nombre).trim()) {
       await transaction.rollback();
-      return res.status(400).json({ message: 'El nombre de la comunidad es obligatorio' });
+      return res.status(400).json({ message: 'O nome da comunidade é obrigatório' });
     }
 
     const comunidad = await Comunidad.create({
@@ -186,29 +186,29 @@ exports.unirseComunidad = async (req, res) => {
 
     if (!userId) {
       await transaction.rollback();
-      return res.status(401).json({ message: 'No autenticado' });
+      return res.status(401).json({ message: 'Não autenticado' });
     }
 
     if (!Number.isInteger(comunidadId)) {
       await transaction.rollback();
-      return res.status(400).json({ message: 'Comunidad inválida' });
+      return res.status(400).json({ message: 'Comunidade inválida' });
     }
 
     const comunidad = await Comunidad.findByPk(comunidadId, { transaction });
     if (!comunidad || comunidad.activa === false) {
       await transaction.rollback();
-      return res.status(404).json({ message: 'Comunidad no encontrada' });
+      return res.status(404).json({ message: 'Comunidade não encontrada' });
     }
 
     const user = await User.findByPk(userId, { transaction });
     if (!user) {
       await transaction.rollback();
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     if (user.comunidad_id && user.comunidad_id !== comunidad.id) {
       await transaction.rollback();
-      return res.status(409).json({ message: 'El usuario ya pertenece a otra comunidad.' });
+      return res.status(409).json({ message: 'O usuário já pertence a outra comunidade.' });
     }
 
     const rol = user.rol === 'admin_total' ? user.rol : 'miembro';
@@ -262,7 +262,7 @@ exports.actualizarComunidad = async (req, res) => {
 
   try {
     const comunidad = await Comunidad.findByPk(id);
-    if (!comunidad) return res.status(404).json({ message: 'No encontrada' });
+    if (!comunidad) return res.status(404).json({ message: 'Não encontrada' });
 
     const { nombre, administrador, ...resto } = req.body;
 
@@ -274,7 +274,7 @@ exports.actualizarComunidad = async (req, res) => {
 
     res.json(comunidad);
   } catch (error) {
-    res.status(500).json({ message: 'Error al actualizar comunidad', error: error.message });
+    res.status(500).json({ message: 'Erro ao atualizar comunidade', error: error.message });
   }
 };
 
@@ -283,9 +283,9 @@ exports.eliminarComunidad = async (req, res) => {
   const { id } = req.params;
   try {
     await Comunidad.destroy({ where: { id } });
-    res.json({ message: 'Comunidad eliminada' });
+    res.json({ message: 'Comunidade excluída' });
   } catch (error) {
-    res.status(500).json({ message: 'Error al eliminar comunidad', error: error.message });
+    res.status(500).json({ message: 'Erro ao excluir comunidade', error: error.message });
   }
 };
 
@@ -296,12 +296,12 @@ exports.obtenerComunidadPorId = async (req, res) => {
     const comunidad = await Comunidad.findByPk(id);
 
     if (!comunidad) {
-      return res.status(404).json({ message: 'Comunidad no encontrada' });
+      return res.status(404).json({ message: 'Comunidade não encontrada' });
     }
 
     res.json(comunidad);
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener comunidad', error: error.message });
+    res.status(500).json({ message: 'Erro ao obter comunidade', error: error.message });
   }
 };
 
@@ -311,7 +311,7 @@ exports.listarMiembrosComunidad = async (req, res) => {
     const comunidadId = Number(req.params.id);
 
     if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
-      return res.status(400).json({ message: 'Comunidad inválida' });
+      return res.status(400).json({ message: 'Comunidade inválida' });
     }
 
     const comunidad = await Comunidad.findByPk(comunidadId, {
@@ -319,7 +319,7 @@ exports.listarMiembrosComunidad = async (req, res) => {
     });
 
     if (!comunidad) {
-      return res.status(404).json({ message: 'Comunidad no encontrada' });
+      return res.status(404).json({ message: 'Comunidade não encontrada' });
     }
 
     const membresias = await ComunidadMiembro.findAll({
@@ -366,7 +366,7 @@ exports.listarMiembrosComunidad = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
-      message: 'Error al listar miembros de la comunidad',
+      message: 'Erro ao listar membros da comunidade',
       error: error.message
     });
   }
@@ -381,22 +381,22 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
     const comunidad = req.comunidad;
 
     if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
-      return res.status(400).json({ message: 'Comunidad inválida' });
+      return res.status(400).json({ message: 'Comunidade inválida' });
     }
 
     if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
-      return res.status(400).json({ message: 'Usuario inválido' });
+      return res.status(400).json({ message: 'Usuário inválido' });
     }
 
     if (!['admin_basic', 'moderador', 'miembro'].includes(rol_comunidad)) {
       return res.status(400).json({
-        message: 'rol_comunidad inválido. Solo se permite admin_basic, moderador o miembro'
+        message: 'rol_comunidad inválido. Só é permitido admin_basic, moderador ou miembro'
       });
     }
 
     if (Number(actor?.id) === Number(targetUserId)) {
       return res.status(403).json({
-        message: 'No puedes cambiar tu propio rol local en esta fase'
+        message: 'Você não pode alterar seu próprio papel local nesta fase'
       });
     }
 
@@ -405,12 +405,12 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
     });
 
     if (!targetUser) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
     if (Number(comunidad.owner_user_id) === Number(targetUserId)) {
       return res.status(403).json({
-        message: 'No se puede modificar el rol local del owner de la comunidad'
+        message: 'Não é possível modificar o papel local do owner da comunidade'
       });
     }
 
@@ -424,7 +424,7 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
 
     if (!targetMembership) {
       return res.status(404).json({
-        message: 'Membresía no encontrada para esa comunidad'
+        message: 'Associação não encontrada para essa comunidade'
       });
     }
 
@@ -433,7 +433,7 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
       targetUser.rol_global === 'admin_total'
     ) {
       return res.status(403).json({
-        message: 'No puedes modificar el rol local de un admin_total'
+        message: 'Você não pode modificar o papel local de um admin_total'
       });
     }
 
@@ -442,7 +442,7 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
     }
 
     return res.json({
-      message: 'Rol comunitario actualizado',
+      message: 'Papel comunitário atualizado',
       comunidad_id: comunidadId,
       miembro: {
         user_id: targetMembership.user_id,
@@ -456,7 +456,7 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
-      message: 'Error al actualizar rol comunitario',
+      message: 'Erro ao atualizar papel comunitário',
       error: error.message
     });
   }

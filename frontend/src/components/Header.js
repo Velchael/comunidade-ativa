@@ -34,7 +34,7 @@ export default function Header({ toggleSidebar }) {
               <>
                 <span>{user.username}</span>
                 <Button size="sm" onClick={handleLogout}>
-                  Logout
+                  Sair
                 </Button>
               </>
             )}

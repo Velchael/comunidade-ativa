@@ -50,7 +50,7 @@ function Header({ toggleSidebar }) {
   const isGlobalAdmin = isAdminTotalGlobal(user);
   const canManageLocalCommunity = canManageCommunity(user);
   const canAccessMembersPanel = canViewCommunityMembers(user);
-  const userCommunityName = user?.comunidadNombre || 'Sin comunidad';
+  const userCommunityName = user?.comunidadNombre || 'Sem comunidade';
   const shouldShowConfigMenu =
     !isHydrating &&
     (isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel);
@@ -119,7 +119,7 @@ function Header({ toggleSidebar }) {
                       as={NavLink}
                       to={`/configuracion/comunidades/${user?.comunidadId || user?.comunidad_id}/miembros`}
                     >
-                      Miembros
+                      Membros
                     </NavDropdown.Item>
                   )}
 
@@ -131,7 +131,7 @@ function Header({ toggleSidebar }) {
                 size="sm"
                 onClick={handleLogout}
               >
-                Sair
+              Sair
               </Button>
             </div>
           ) : (

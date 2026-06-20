@@ -16,11 +16,11 @@ exports.crearReporte = async (req, res) => {
     // Verificar si el grupo existe y pertenece a la misma comunidad del usuario
     const grupo = await GrupoActivo.findByPk(grupoId);
     if (!grupo) {
-      return res.status(404).json({ error: 'Grupo no encontrado' });
+        return res.status(404).json({ error: 'Grupo não encontrado' });
     }
 
     if (!puedeAccederGrupo(req.user, grupo)) {
-      return res.status(403).json({ error: 'No autorizado para crear reportes en este grupo' });
+      return res.status(403).json({ error: 'Não autorizado a criar relatórios neste grupo' });
     }
 
     const asistenciaNum = asistencia === '' || asistencia === null || asistencia === undefined
@@ -29,7 +29,7 @@ exports.crearReporte = async (req, res) => {
 
     // Validar que sea un número si el campo no es nulo
     if (asistenciaNum !== null && isNaN(asistenciaNum)) {
-      return res.status(400).json({ error: 'El valor de asistencia debe ser un número válido' });
+      return res.status(400).json({ error: 'O valor de presença deve ser um número válido' });
     }
 
     const nuevo = await Reporte.create({
@@ -51,11 +51,11 @@ exports.crearReporte = async (req, res) => {
       error?.original?.constraint === 'unique_reporte_semana'
     ) {
       return res.status(409).json({
-        error: 'Ya existe un reporte para este grupo en esa semana.'
+        error: 'Já existe um relatório para este grupo nessa semana.'
       });
     }
 
-    res.status(400).json({ error: 'No se pudo crear el reporte' });
+    res.status(400).json({ error: 'Não foi possível criar o relatório' });
   }
 };
 
@@ -66,11 +66,11 @@ exports.listarReportes = async (req, res) => {
 
     const grupo = await GrupoActivo.findByPk(grupoId);
     if (!grupo) {
-      return res.status(404).json({ error: 'Grupo no encontrado' });
+      return res.status(404).json({ error: 'Grupo não encontrado' });
     }
 
     if (!puedeAccederGrupo(req.user, grupo)) {
-      return res.status(403).json({ error: 'No autorizado para ver reportes de este grupo' });
+      return res.status(403).json({ error: 'Não autorizado a ver relatórios deste grupo' });
     }
 
     const reportes = await Reporte.findAll({
@@ -85,7 +85,7 @@ exports.listarReportes = async (req, res) => {
     res.json(reportes);
   } catch (error) {
     console.error('❌ Error en listarReportes:', error);
-    res.status(500).json({ error: 'Error al listar reportes' });
+    res.status(500).json({ error: 'Erro ao listar relatórios' });
   }
 };
 
@@ -102,17 +102,17 @@ exports.obtenerReporte = async (req, res) => {
     });
 
     if (!reporte) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
+      return res.status(404).json({ error: 'Relatório não encontrado' });
     }
 
     if (!puedeAccederGrupo(req.user, reporte.grupo)) {
-      return res.status(403).json({ error: 'No autorizado para ver este reporte' });
+      return res.status(403).json({ error: 'Não autorizado a ver este relatório' });
     }
 
     res.json(reporte);
   } catch (error) {
     console.error('❌ Error en obtenerReporte:', error);
-    res.status(500).json({ error: 'Error al obtener reporte' });
+    res.status(500).json({ error: 'Erro ao obter relatório' });
   }
 };
 
@@ -125,24 +125,24 @@ exports.editarReporte = async (req, res) => {
       include: [{ model: GrupoActivo, as: 'grupo' }],
     });
     if (!reporte) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
+      return res.status(404).json({ error: 'Relatório não encontrado' });
     }
 
     if (!puedeAccederGrupo(req.user, reporte.grupo)) {
-      return res.status(403).json({ error: 'No autorizado para editar este reporte' });
+      return res.status(403).json({ error: 'Não autorizado a editar este relatório' });
     }
 
     // 🔐 Solo el creador puede editar su reporte
     if (reporte.creador_id !== req.user.id) {
-      return res.status(403).json({ error: 'No autorizado para editar este reporte' });
+      return res.status(403).json({ error: 'Não autorizado a editar este relatório' });
     }
 
     await reporte.update(req.body);
 
-    res.json({ mensaje: 'Reporte actualizado correctamente', reporte });
+    res.json({ mensaje: 'Relatório atualizado com sucesso', reporte });
   } catch (error) {
     console.error('❌ Error en editarReporte:', error);
-    res.status(400).json({ error: 'No se pudo actualizar el reporte' });
+    res.status(400).json({ error: 'Não foi possível atualizar o relatório' });
   }
 };
 
@@ -158,7 +158,7 @@ exports.eliminarReporte = async (req, res) => {
 
     if (!reporte) {
       return res.status(404).json({
-        error: 'Reporte no encontrado'
+        error: 'Relatório não encontrado'
       });
     }
 
@@ -169,21 +169,21 @@ exports.eliminarReporte = async (req, res) => {
 
     if (!esAdmin && !esCreador) {
       return res.status(403).json({
-        error: 'No autorizado para eliminar este reporte'
+        error: 'Não autorizado a excluir este relatório'
       });
     }
 
     await reporte.destroy();
 
     return res.json({
-      mensaje: 'Reporte eliminado correctamente'
+      mensaje: 'Relatório excluído com sucesso'
     });
 
   } catch (error) {
     console.error('❌ Error en eliminarReporte:', error);
 
     return res.status(500).json({
-      error: 'No se pudo eliminar el reporte'
+      error: 'Não foi possível excluir o relatório'
     });
   }
 };

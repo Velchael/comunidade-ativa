@@ -34,7 +34,7 @@ module.exports = {
       const grupo = await obtenerGrupoDesdeParams(req.params);
 
       if (!grupo) {
-        return res.status(404).json({ error: 'Grupo no encontrado' });
+        return res.status(404).json({ error: 'Grupo não encontrado' });
       }
 
       if (await esAdminComunidad(user, grupo.comunidad_id)) {
@@ -42,13 +42,13 @@ module.exports = {
       }
 
       if (grupo.lider_id !== user.id) {
-        return res.status(403).json({ error: 'No puedes ver reportes de otros grupos' });
+        return res.status(403).json({ error: 'Você não pode ver relatórios de outros grupos' });
       }
 
       return next();
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: 'Error en permisos' });
+      res.status(500).json({ error: 'Erro de permissões' });
     }
   },
 
@@ -59,7 +59,7 @@ module.exports = {
       const grupo = await obtenerGrupoDesdeParams(req.params);
 
       if (!grupo) {
-        return res.status(404).json({ error: 'Grupo no encontrado' });
+        return res.status(404).json({ error: 'Grupo não encontrado' });
       }
 
       if (await esAdminComunidad(user, grupo.comunidad_id)) {
@@ -71,10 +71,10 @@ module.exports = {
         return next();
       }
 
-      return res.status(403).json({ error: 'No tienes permisos para crear/editar' });
+      return res.status(403).json({ error: 'Você não tem permissão para criar/editar' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: 'Error en permisos' });
+      res.status(500).json({ error: 'Erro de permissões' });
     }
   },
 
@@ -84,6 +84,6 @@ module.exports = {
     if (user.rol === 'admin_total') {
       return next();
     }
-    return res.status(403).json({ error: 'Solo admin puede eliminar reportes' });
+    return res.status(403).json({ error: 'Somente admin pode excluir relatórios' });
   },
 };

@@ -19,7 +19,7 @@ import format from 'date-fns/format';
 import parse from 'date-fns/parse';
 import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
-import es from 'date-fns/locale/es';
+import ptBR from 'date-fns/locale/pt-BR';
 import parseISO from 'date-fns/parseISO';
 import { UserContext } from '../UserContext';
 import {
@@ -27,7 +27,7 @@ import {
   isAdminTotalGlobal
 } from '../utils/permissions';
 
-const locales = { es };
+const locales = { 'pt-BR': ptBR };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 const API_URL = `${process.env.REACT_APP_API_URL || ''}/api/tasks`;
@@ -77,7 +77,7 @@ const TaskList = () => {
       // Debug: ver qué devuelve la API
       // console.log('tasks from API', res.data);
     } catch (err) {
-      showMessage('danger', 'Error al cargar tareas');
+      showMessage('danger', 'Erro ao carregar tarefas');
     } finally {
       setLoading(false);
     }
@@ -112,32 +112,32 @@ const TaskList = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.dueDate) {
-      showMessage('danger', 'La fecha de vencimiento es obligatoria');
+      showMessage('danger', 'A data de vencimento é obrigatória');
       return;
     }
     try {
       if (editingId) {
         await axios.put(`${API_URL}/${editingId}`, form);
-        showMessage('success', 'Tarea actualizada');
+        showMessage('success', 'Tarefa atualizada');
       } else {
         await axios.post(API_URL, form);
-        showMessage('success', 'Tarea creada');
+        showMessage('success', 'Tarefa criada');
       }
       fetchTasks();
       setModalShow(false);
     } catch (err) {
-      showMessage('danger', err.response?.data?.message || 'Error al guardar tarea');
+      showMessage('danger', err.response?.data?.message || 'Erro ao salvar tarefa');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta tarea?')) return;
+    if (!window.confirm('Excluir esta tarefa?')) return;
     try {
       await axios.delete(`${API_URL}/${id}`);
-      showMessage('success', 'Tarea eliminada');
+      showMessage('success', 'Tarefa excluída');
       fetchTasks();
     } catch {
-      showMessage('danger', 'No se pudo eliminar');
+      showMessage('danger', 'Não foi possível excluir');
     }
   };
 
@@ -181,7 +181,7 @@ const TaskList = () => {
   return (
     <Container className="mt-4">
       <Row className="mb-3 align-items-center">
-        <Col><h2>📅 Agenda de Tareas</h2></Col>
+        <Col><h2>📅 Agenda de Tarefas</h2></Col>
 
         <Col className="text-end d-flex gap-2 justify-content-end align-items-center">
           <Form.Select
@@ -189,19 +189,19 @@ const TaskList = () => {
             onChange={(e) => { setFrecuenciaFiltro(e.target.value); setLoading(true); }}
             style={{ maxWidth: '220px' }}
           >
-            <option value="">Todas las frecuencias</option>
+            <option value="">Todas as frequências</option>
             <option value="semanal">Semanal</option>
-            <option value="mensual">Mensual</option>
+            <option value="mensual">Mensal</option>
             <option value="anual">Anual</option>
           </Form.Select>
 
           <ButtonGroup className="me-2">
-            <Button variant={viewMode === 'table' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('table')}>Tabla</Button>
-            <Button variant={viewMode === 'month' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('month')}>Mes</Button>
+            <Button variant={viewMode === 'table' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('table')}>Tabela</Button>
+            <Button variant={viewMode === 'month' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('month')}>Mês</Button>
           </ButtonGroup>
 
           {canCreateOrEditTasks && (
-            <Button onClick={() => openModal()} variant="primary">Nueva tarea</Button>
+            <Button onClick={() => openModal()} variant="primary">Nova tarefa</Button>
           )}
         </Col>
       </Row>
@@ -211,7 +211,7 @@ const TaskList = () => {
       {loading ? (
         <div className="text-center py-5"><Spinner animation="border" /></div>
       ) : tasks.length === 0 ? (
-        <Alert variant="info">No hay tareas disponibles.</Alert>
+        <Alert variant="info">Não há tarefas disponíveis.</Alert>
       ) : (
         <>
           {/* CALENDAR: sólo vista "month" */}
@@ -226,8 +226,8 @@ const TaskList = () => {
                 views={['month']}
                 defaultView="month"
                 onSelectEvent={handleSelectEvent}
-                messages={{ next: 'Siguiente', previous: 'Anterior', today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día' }}
-                culture="es"
+                messages={{ next: 'Próximo', previous: 'Anterior', today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
+                culture="pt-BR"
               />
             </div>
           )}
@@ -238,22 +238,22 @@ const TaskList = () => {
               <thead>
                 <tr>
                   <th>Título</th>
-                  <th>Descripción</th>
-                  <th>Vencimiento</th>
+                  <th>Descrição</th>
+                  <th>Vencimento</th>
                   <th>Estado</th>
-                  <th>Creado</th>
+                  <th>Criado em</th>
                   <th>Autor</th>
-                  {canCreateOrEditTasks && <th>Acciones</th>}
+                  {canCreateOrEditTasks && <th>Ações</th>}
                 </tr>
               </thead>
               <tbody>
                 {tasks.map((task) => {
                   const rawDue = task.dueDate || task.due_date || task.due;
                   const due = rawDue ? (/\d{4}-\d{2}-\d{2}/.test(rawDue) ? new Date(`${rawDue}T00:00:00`) : new Date(rawDue)) : null;
-                  const dueStr = due ? due.toLocaleDateString('es-ES') : '-';
+                  const dueStr = due ? due.toLocaleDateString('pt-BR') : '-';
                   const createdRaw = task.createdAt || task.created_at || task.created;
                   const created = createdRaw ? new Date(createdRaw) : null;
-                  const createdStr = created ? created.toLocaleDateString('es-ES') : '-';
+                  const createdStr = created ? created.toLocaleDateString('pt-BR') : '-';
                   return (
                     <tr key={task.id}>
                       <td>{task.title}</td>
@@ -265,7 +265,7 @@ const TaskList = () => {
                       {canCreateOrEditTasks && (
                         <td>
                           <Button size="sm" variant="warning" onClick={() => openModal(task)} className="me-2">Editar</Button>
-                          {canDeleteTasks && <Button size="sm" variant="danger" onClick={() => handleDelete(task.id)}>Eliminar</Button>}
+                          {canDeleteTasks && <Button size="sm" variant="danger" onClick={() => handleDelete(task.id)}>Excluir</Button>}
                         </td>
                       )}
                     </tr>
@@ -280,7 +280,7 @@ const TaskList = () => {
       {/* Modal crear/editar */}
       <Modal show={modalShow} onHide={() => setModalShow(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>{editingId ? 'Editar Tarea' : 'Nueva Tarea'}</Modal.Title>
+          <Modal.Title>{editingId ? 'Editar tarefa' : 'Nova tarefa'}</Modal.Title>
         </Modal.Header>
 
         <Form onSubmit={handleSubmit}>
@@ -291,48 +291,48 @@ const TaskList = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Descripción</Form.Label>
+              <Form.Label>Descrição</Form.Label>
               <Form.Control as="textarea" name="description" value={form.description} onChange={handleChange}/>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Frecuencia</Form.Label>
+              <Form.Label>Frequência</Form.Label>
               <Form.Select name="frequency" value={form.frequency} onChange={handleChange}>
                 <option value="semanal">Semanal</option>
-                <option value="mensual">Mensual</option>
+                <option value="mensual">Mensal</option>
                 <option value="anual">Anual</option>
               </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Fecha de vencimiento</Form.Label>
+              <Form.Label>Data de vencimento</Form.Label>
               <Form.Control type="date" name="dueDate" value={form.dueDate} onChange={handleChange} required/>
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Estado</Form.Label>
               <Form.Select name="status" value={form.status} onChange={handleChange}>
-                <option value="pendiente">Pendiente</option>
-                <option value="en_progreso">En progreso</option>
-                <option value="completada">Completada</option>
+                <option value="pendiente">Pendente</option>
+                <option value="en_progreso">Em andamento</option>
+                <option value="completada">Concluída</option>
                 <option value="cancelada">Cancelada</option>
               </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Prioridad</Form.Label>
+              <Form.Label>Prioridade</Form.Label>
               <Form.Select name="priority" value={form.priority} onChange={handleChange}>
-                <option value="baja">Baja</option>
-                <option value="media">Media</option>
+                <option value="baja">Baixa</option>
+                <option value="media">Média</option>
                 <option value="alta">Alta</option>
               </Form.Select>
-              <Form.Text className="text-muted">La prioridad se guarda, no aparece en la tabla por diseño.</Form.Text>
+              <Form.Text className="text-muted">A prioridade é salva, mas não aparece na tabela por design.</Form.Text>
             </Form.Group>
           </Modal.Body>
 
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setModalShow(false)}>Cancelar</Button>
-            <Button type="submit" variant="primary">{editingId ? 'Actualizar' : 'Crear'}</Button>
+            <Button type="submit" variant="primary">{editingId ? 'Atualizar' : 'Criar'}</Button>
           </Modal.Footer>
         </Form>
       </Modal>

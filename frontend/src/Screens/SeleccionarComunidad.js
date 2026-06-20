@@ -24,7 +24,7 @@ export default function SeleccionarComunidad() {
     } catch (error) {
       setMessage({
         type: 'danger',
-        text: error.response?.data?.message || 'Error al cargar comunidades'
+        text: error.response?.data?.message || 'Erro ao carregar comunidades'
       });
     } finally {
       setLoading(false);
@@ -69,7 +69,7 @@ export default function SeleccionarComunidad() {
     } catch (error) {
       setMessage({
         type: 'danger',
-        text: error.response?.data?.message || 'No se pudo unir a la comunidad'
+        text: error.response?.data?.message || 'Não foi possível entrar na comunidade'
       });
     } finally {
       setJoiningId(null);
@@ -79,7 +79,7 @@ export default function SeleccionarComunidad() {
   if (!user) {
     return (
       <Container className="small-container mt-5" style={{ maxWidth: '760px' }}>
-        <Alert variant="warning">Debes iniciar sesion para unirte a una comunidad.</Alert>
+        <Alert variant="warning">Você precisa entrar para participar de uma comunidade.</Alert>
         <Button onClick={() => navigate('/Seinscrever')}>Entrar</Button>
       </Container>
     );
@@ -88,7 +88,7 @@ export default function SeleccionarComunidad() {
   if (user.comunidad_id || user.comunidadId) {
     return (
       <Container className="small-container mt-5" style={{ maxWidth: '760px' }}>
-        <Alert variant="info">Tu usuario ya tiene una comunidad asignada.</Alert>
+        <Alert variant="info">Seu usuário já tem uma comunidade atribuída.</Alert>
         <Button onClick={() => navigate('/interacciones')}>Continuar</Button>
       </Container>
     );
@@ -97,8 +97,8 @@ export default function SeleccionarComunidad() {
   return (
     <Container className="mt-5">
       <div className="mb-4">
-        <h2>Unirme a una comunidad</h2>
-        <p>Elige una comunidad existente para comenzar a participar.</p>
+        <h2>Entrar em uma comunidade</h2>
+        <p>Escolha uma comunidade existente para começar a participar.</p>
       </div>
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
@@ -106,13 +106,13 @@ export default function SeleccionarComunidad() {
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" />
-          <div>Cargando comunidades...</div>
+          <div>Carregando comunidades...</div>
         </div>
       ) : (
         <Row>
           {comunidades.length === 0 && (
             <Col>
-              <Alert variant="info">No hay comunidades disponibles.</Alert>
+              <Alert variant="info">Não há comunidades disponíveis.</Alert>
             </Col>
           )}
 
@@ -126,10 +126,10 @@ export default function SeleccionarComunidad() {
                       <span>Administrador: {comunidad.administrador}<br /></span>
                     )}
                     {comunidad.direccion && (
-                      <span>Direccion: {comunidad.direccion}<br /></span>
+                      <span>Endereço: {comunidad.direccion}<br /></span>
                     )}
                     {comunidad.telefono && (
-                      <span>Telefono: {comunidad.telefono}</span>
+                      <span>Telefone: {comunidad.telefono}</span>
                     )}
                   </Card.Text>
                   <Button
@@ -137,7 +137,7 @@ export default function SeleccionarComunidad() {
                     onClick={() => handleUnirse(comunidad.id)}
                     disabled={joiningId === comunidad.id}
                   >
-                    {joiningId === comunidad.id ? 'Uniendo...' : 'Unirme'}
+                    {joiningId === comunidad.id ? 'Entrando...' : 'Entrar'}
                   </Button>
                 </Card.Body>
               </Card>

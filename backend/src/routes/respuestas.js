@@ -45,12 +45,12 @@ const cargarRespuesta = async (req, res, next) => {
     });
 
     if (!respuesta) {
-      return res.status(404).json({ message: "Respuesta no encontrada" });
+      return res.status(404).json({ message: "Resposta não encontrada" });
     }
 
     if (!respuesta.interaccion?.comunidad_id) {
       return res.status(400).json({
-        message: "No se pudo resolver la comunidad origen de la interacción"
+        message: "Não foi possível resolver a comunidade de origem da interação"
       });
     }
 
@@ -58,7 +58,7 @@ const cargarRespuesta = async (req, res, next) => {
     return next();
   } catch (error) {
     console.error("cargarRespuesta error:", error.message);
-    return res.status(500).json({ message: "Error cargando respuesta" });
+    return res.status(500).json({ message: "Erro ao carregar resposta" });
   }
 };
 

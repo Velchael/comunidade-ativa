@@ -17,28 +17,28 @@ exports.actualizarEstado = async (req, res) => {
 
     if (!ESTADOS_PERMITIDOS.includes(estado)) {
       return res.status(400).json({
-        message: "estado inválido. Solo se permite activa u oculta"
+        message: "estado inválido. Só são permitidos activa ou oculta"
       });
     }
 
     const respuesta = req.respuestaTarget;
 
     if (!respuesta) {
-      return res.status(404).json({ message: "Respuesta no encontrada" });
+      return res.status(404).json({ message: "Resposta não encontrada" });
     }
 
     const comunidadId = respuesta.interaccion?.comunidad_id;
 
     if (!comunidadId) {
       return res.status(400).json({
-        message: "No se pudo resolver la comunidad origen de la interacción"
+        message: "Não foi possível resolver a comunidade de origem da interação"
       });
     }
 
     await respuesta.update({ estado });
 
     return res.json({
-      message: "Estado actualizado",
+      message: "Estado atualizado",
       data: {
         id: respuesta.id,
         interaccion_id: respuesta.interaccion_id,
@@ -49,7 +49,7 @@ exports.actualizarEstado = async (req, res) => {
   } catch (err) {
     console.error("actualizarEstado respuesta error:", err.message);
     return res.status(500).json({
-      message: "Error actualizando estado de la respuesta"
+      message: "Erro ao atualizar o estado da resposta"
     });
   }
 };

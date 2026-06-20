@@ -31,7 +31,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
     setReportes(res.data);
   } catch (err) {
     console.error('❌ Error al cargar reportes:', err);
-    setMessage({ type: 'danger', text: 'Error al cargar reportes' });
+    setMessage({ type: 'danger', text: 'Erro ao carregar relatórios' });
   } finally {
     setLoading(false);
   }
@@ -57,7 +57,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
-      setMessage({ type: 'success', text: 'Reporte creado correctamente' });
+      setMessage({ type: 'success', text: 'Relatório criado com sucesso' });
       fetchReportes();
       setNuevoReporte({ semana: '', asistencia: '', tema: '', observaciones: '' });
     } catch (err) {
@@ -65,7 +65,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
       const errorMessage =
         err.response?.data?.error ||
         err.response?.data?.message ||
-        'No se pudo crear el reporte';
+        'Não foi possível criar o relatório';
 
       setMessage({ type: 'danger', text: errorMessage });
     }
@@ -74,7 +74,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   return (
     <Modal show={show} onHide={handleClose} size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>📄 Reporte: {user?.nombre || user?.username}</Modal.Title>
+        <Modal.Title>📄 Relatório: {user?.nombre || user?.username}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {message.text && <Alert variant={message.type}>{message.text}</Alert>}
@@ -88,9 +88,9 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
             <thead>
               <tr>
                 <th>Semana</th>
-                <th>Asistencia</th>
+                <th>Presença</th>
                 <th>Tema</th>
-                <th>Observaciones</th>
+                <th>Observações</th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +105,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="text-center">No hay reportes</td>
+                  <td colSpan="4" className="text-center">Não há relatórios</td>
                 </tr>
               )}
             </tbody>
@@ -115,16 +115,16 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
         {/* Formulario solo para líder o admin */}
         {(esAdmin || esLider) && (
           <Form>
-            <h5>➕ Nuevo Reporte</h5>
+            <h5>➕ Novo relatório</h5>
             <Form.Group className="mb-2">
-              <Form.Label>Semana (fecha de inicio)</Form.Label>
+              <Form.Label>Semana (data de início)</Form.Label>
               <Form.Control 
                 type="date" 
                 value={nuevoReporte.semana} 
                 onChange={(e) => setNuevoReporte({ ...nuevoReporte, semana: e.target.value })} />
             </Form.Group>
             <Form.Group className="mb-2">
-              <Form.Label>Asistencia</Form.Label>
+              <Form.Label>Presença</Form.Label>
               <Form.Control 
                 type="number" 
                 value={nuevoReporte.asistencia} 
@@ -138,13 +138,13 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
                 onChange={(e) => setNuevoReporte({ ...nuevoReporte, tema: e.target.value })} />
             </Form.Group>
             <Form.Group className="mb-2">
-              <Form.Label>Observaciones</Form.Label>
+              <Form.Label>Observações</Form.Label>
               <Form.Control 
                 as="textarea" 
                 value={nuevoReporte.observaciones} 
                 onChange={(e) => setNuevoReporte({ ...nuevoReporte, observaciones: e.target.value })} />
             </Form.Group>
-            <Button variant="primary" onClick={handleCreate}>Guardar Reporte</Button>
+            <Button variant="primary" onClick={handleCreate}>Salvar relatório</Button>
           </Form>
         )}
       </Modal.Body>

@@ -227,11 +227,11 @@ const syncUserAndPrimaryMembershipTx = async ({
   deactivatePreviousPrimary = true
 }) => {
   if (!user?.id) {
-    throw new Error('syncUserAndPrimaryMembershipTx requiere un usuario valido');
+    throw new Error('syncUserAndPrimaryMembershipTx requer um usuário válido');
   }
 
   if (!transaction) {
-    throw new Error('syncUserAndPrimaryMembershipTx requiere transaction');
+    throw new Error('syncUserAndPrimaryMembershipTx requer transaction');
   }
 
   const previousComunidadId = normalizeId(user.comunidad_id);

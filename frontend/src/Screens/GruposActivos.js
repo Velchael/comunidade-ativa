@@ -64,7 +64,7 @@ const GruposActivos = () => {
       setMessage({ type: '', text: '' });
     } catch (err) {
       console.error('❌ Error al cargar grupos:', err);
-      setMessage({ type: 'danger', text: 'Error al cargar grupos' });
+      setMessage({ type: 'danger', text: 'Erro ao carregar grupos' });
     }
   };
 
@@ -83,23 +83,23 @@ const GruposActivos = () => {
 
   const handleDelete = async (id) => {
     if (!user) return;
-    if (!window.confirm('¿Seguro que quieres eliminar este grupo?')) return;
+    if (!window.confirm('Tem certeza de que deseja excluir este grupo?')) return;
 
     try {
       await axios.delete(`${API_BASE}/api/grupos/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setMessage({ type: 'success', text: 'Grupo eliminado correctamente' });
+      setMessage({ type: 'success', text: 'Grupo excluído com sucesso' });
       fetchGrupos();
     } catch (err) {
       console.error('❌ Error al eliminar grupo:', err);
-      setMessage({ type: 'danger', text: 'Error al eliminar grupo' });
+      setMessage({ type: 'danger', text: 'Erro ao excluir grupo' });
     }
   };
 
   return (
     <Container className="mt-4">
-      <h2>📘 Grupos Activos</h2>
+      <h2>📘 Grupos ativos</h2>
 
       {message.text && <Alert variant={message.type}>{message.text}</Alert>}
 
@@ -109,7 +109,7 @@ const GruposActivos = () => {
           <Row>
             <Col md={3}>
               <Form.Control
-                placeholder="Filtrar por comunidad_id"
+                placeholder="Filtrar por comunidade_id"
                 value={filterComunidad}
                 onChange={(e) => setFilterComunidad(e.target.value)}
               />
@@ -141,7 +141,7 @@ const GruposActivos = () => {
         }}
          className="mb-3"
       >
-        ➕ Nuevo Grupo
+        ➕ Novo grupo
       </Button>
       )}
 
@@ -150,24 +150,24 @@ const GruposActivos = () => {
         <thead>
           <tr>
             <th>Líder</th>
-            <th>Co-Líder</th>
-            <th>Anfitrión</th>
-            <th>Dirección</th>
-            <th>Reporte</th>
-            {esAdmin && <th>Acciones</th>}
+            <th>Co-líder</th>
+            <th>Anfitrião</th>
+            <th>Endereço</th>
+            <th>Relatório</th>
+            {esAdmin && <th>Ações</th>}
           </tr>
         </thead>
         <tbody>
           {grupos.length > 0 ? (
             grupos.map(grupo => (
               <tr key={grupo.id}>
-                <td>{grupo.lider?.username || grupo.lider_id || 'Sin nombre'}</td>
+                <td>{grupo.lider?.username || grupo.lider_id || 'Sem nome'}</td>
                 <td>{grupo.colider_nombre || '-'}</td>
                 <td>{grupo.anfitrion_nombre || '-'}</td>
                 <td>{grupo.direccion_grupo || '-'}</td>
                 <td>
                   <Button variant="info" size="sm" onClick={() => { setSelectedGrupoReportes(grupo); setShowReportesModal(true); }}>
-                    Reporte
+                    Relatório
                   </Button>
                 </td>
                 {esAdmin && (
@@ -183,7 +183,7 @@ const GruposActivos = () => {
                         </Button>
                       </>
                     ) : (
-                      <small>Sin permisos</small>
+                      <small>Sem permissão</small>
                     )}
                   </td>
                 )}
@@ -191,7 +191,7 @@ const GruposActivos = () => {
             ))
           ) : (
             <tr>
-              <td colSpan={esAdmin ? 6 : 5} className="text-center">No hay grupos disponibles</td>
+              <td colSpan={esAdmin ? 6 : 5} className="text-center">Não há grupos disponíveis</td>
             </tr>
           )}
         </tbody>
@@ -200,7 +200,7 @@ const GruposActivos = () => {
       <GrupoFormModal
         show={showModal}
         handleClose={() => { setShowModal(false); setSelectedGrupo(null); }}
-        onSave={() => { fetchGrupos(); setMessage({ type: 'success', text: selectedGrupo ? 'Grupo actualizado' : 'Grupo creado correctamente' }); }}
+        onSave={() => { fetchGrupos(); setMessage({ type: 'success', text: selectedGrupo ? 'Grupo atualizado' : 'Grupo criado com sucesso' }); }}
         grupo={selectedGrupo}
         initialLiderId={nuevoLiderId} // 👈 ESTA ES LA LÍNEA QUE FALTA
       />

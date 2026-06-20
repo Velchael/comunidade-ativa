@@ -11,7 +11,7 @@ export default function Sidebar({ isOpen, toggle }) {
       <div className={`sidebar ${isOpen ? "open" : ""}`}>
         <button className="close-btn" onClick={toggle}>✖</button>
 
-        <h4>Menú</h4>
+        <h4>Menu</h4>
 
         <NavLink to="/TaskList" onClick={toggle}>
           Agenda

@@ -6,11 +6,11 @@ module.exports = async (req, res, next) => {
     const comunidadId = Number(req.params.id);
 
     if (!user?.id) {
-      return res.status(401).json({ message: 'No autenticado' });
+      return res.status(401).json({ message: 'Não autenticado' });
     }
 
     if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
-      return res.status(400).json({ message: 'Comunidad inválida' });
+      return res.status(400).json({ message: 'Comunidade inválida' });
     }
 
     const comunidad = await Comunidad.findByPk(comunidadId, {
@@ -18,7 +18,7 @@ module.exports = async (req, res, next) => {
     });
 
     if (!comunidad) {
-      return res.status(404).json({ message: 'Comunidad no encontrada' });
+      return res.status(404).json({ message: 'Comunidade não encontrada' });
     }
 
     req.comunidad = comunidad;
@@ -45,7 +45,7 @@ module.exports = async (req, res, next) => {
 
     if (!membresia) {
       return res.status(403).json({
-        message: 'No tienes permisos para administrar roles en esta comunidad'
+        message: 'Você não tem permissão para administrar papéis nesta comunidade'
       });
     }
 
@@ -53,7 +53,7 @@ module.exports = async (req, res, next) => {
     return next();
   } catch (error) {
     return res.status(500).json({
-      message: 'Error verificando permisos para administrar roles',
+      message: 'Erro ao verificar permissões para administrar papéis',
       error: error.message
     });
   }

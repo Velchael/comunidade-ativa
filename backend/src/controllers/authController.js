@@ -12,19 +12,19 @@ const MAX_REFRESH_AGE_SECONDS = 7 * 24 * 60 * 60;
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email y password son requeridos' });
+    if (!email || !password) return res.status(400).json({ message: 'E-mail e senha são obrigatórios' });
 
     const user = await User.findOne({
       where: { email },
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
-    if (!user) return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+    if (!user) return res.status(401).json({ message: 'Usuário ou senha incorretos' });
 
-    if (!user.password) return res.status(401).json({ message: 'Usuario no tiene password (usar Google Sign-In)' });
+    if (!user.password) return res.status(401).json({ message: 'Usuário não possui senha (use o login com Google)' });
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+    if (!match) return res.status(401).json({ message: 'Usuário ou senha incorretos' });
 
     const payload = {
       id: user.id,
@@ -43,7 +43,7 @@ const login = async (req, res) => {
     return res.json({ token, user: userResponse });
   } catch (err) {
     console.error('❌ authController.login error:', err);
-    return res.status(500).json({ message: 'Error al autenticar' });
+    return res.status(500).json({ message: 'Erro ao autenticar' });
   }
 };
 
@@ -51,7 +51,7 @@ const login = async (req, res) => {
 const googleCallback = async (req, res) => {
   try {
     const user = req.user;
-    if (!user || !user.id) return res.status(401).json({ message: 'Error en autenticación Google (usuario inválido)' });
+    if (!user || !user.id) return res.status(401).json({ message: 'Erro na autenticação Google (usuário inválido)' });
 
     const payload = {
       id: user.id,
@@ -68,7 +68,7 @@ const googleCallback = async (req, res) => {
     return res.redirect(redirectURL);
   } catch (err) {
     console.error('❌ Error en callback Google:', err.message);
-    return res.status(500).json({ message: 'Error interno en autenticación con Google' });
+    return res.status(500).json({ message: 'Erro interno na autenticação com Google' });
   }
 };
 
@@ -76,19 +76,19 @@ const googleCallback = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: 'No autenticado' });
+    if (!userId) return res.status(401).json({ message: 'Não autenticado' });
 
     const user = await User.findByPk(userId, {
       attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
 
     return res.json(await buildAuthUserResponse(user));
   } catch (err) {
     console.error('❌ authController.getMe error:', err);
-    return res.status(500).json({ message: 'Error obteniendo usuario' });
+    return res.status(500).json({ message: 'Erro ao obter usuário' });
   }
 };
 
@@ -97,7 +97,7 @@ const refreshToken = async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace(/^Bearer\s+/i, '');
-    if (!token) return res.status(401).json({ message: 'Token requerido para refresh' });
+    if (!token) return res.status(401).json({ message: 'Token obrigatório para refresh' });
 
     let payload;
     try {
@@ -108,7 +108,7 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ message: 'Token inválido para refresh' });
     }
 
-    if (!payload?.id) return res.status(400).json({ message: 'Payload inválido en token' });
+    if (!payload?.id) return res.status(400).json({ message: 'Payload inválido no token' });
 
     if (!payload.iat) {
       return res.status(401).json({ message: 'Token inválido para refresh' });
@@ -125,7 +125,7 @@ const refreshToken = async (req, res) => {
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado para refresh' });
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado para refresh' });
 
     const newPayload = {
       id: user.id,
@@ -144,7 +144,7 @@ const refreshToken = async (req, res) => {
     return res.json({ token: newToken, user: userResponse });
   } catch (err) {
     console.error('❌ Error al generar nuevo token (refresh):', err.message);
-    return res.status(500).json({ message: 'Error al generar nuevo token' });
+    return res.status(500).json({ message: 'Erro ao gerar novo token' });
   }
 };
 

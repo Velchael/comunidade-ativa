@@ -30,13 +30,13 @@ exports.listarTodosGrupos = async (req, res) => {
         ]
       });
     } else {
-      return res.status(403).json({ message: 'No tienes permiso para ver todos los grupos' });
+      return res.status(403).json({ message: 'Você não tem permissão para ver todos os grupos' });
     }
 
     res.json(grupos);
   } catch (error) {
     console.error('❌ Error al listar grupos:', error);
-    res.status(500).json({ message: 'Error al listar grupos' });
+    res.status(500).json({ message: 'Erro ao listar grupos' });
   }
 };
 
@@ -53,7 +53,7 @@ exports.listarMisGrupos = async (req, res) => {
     res.json(grupos);
   } catch (error) {
     console.error('❌ Error al listar mis grupos:', error);
-    res.status(500).json({ message: 'Error al listar mis grupos' });
+    res.status(500).json({ message: 'Erro ao listar meus grupos' });
   }
 };
 
@@ -66,7 +66,7 @@ exports.obtenerGrupo = async (req, res) => {
         { model: db.Comunidad, as: 'comunidad' }
       ]
     });
-    if (!grupo) return res.status(404).json({ message: 'Grupo no encontrado' });
+    if (!grupo) return res.status(404).json({ message: 'Grupo não encontrado' });
 
     if (req.user.rol === 'admin_total') {
       return res.json(grupo);
@@ -74,17 +74,17 @@ exports.obtenerGrupo = async (req, res) => {
 
     if (req.user.rol === 'admin_basic') {
       if (grupo.comunidad_id === req.user.comunidad_id) return res.json(grupo);
-      return res.status(403).json({ message: 'No puedes ver grupos de otra comunidad' });
+      return res.status(403).json({ message: 'Você não pode ver grupos de outra comunidade' });
     }
 
     if (grupo.lider_id !== req.user.id) {
-      return res.status(403).json({ message: 'No tienes permiso para ver este grupo' });
+      return res.status(403).json({ message: 'Você não tem permissão para ver este grupo' });
     }
 
     res.json(grupo);
   } catch (error) {
     console.error('❌ Error al obtener grupo:', error);
-    res.status(500).json({ message: 'Error al obtener grupo' });
+    res.status(500).json({ message: 'Erro ao obter grupo' });
   }
 };
 
@@ -92,7 +92,7 @@ exports.obtenerGrupo = async (req, res) => {
 exports.crearGrupo = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'No autorizado: usuario no válido' });
+      return res.status(401).json({ message: 'Não autorizado: usuário inválido' });
     }
 
     let liderIdToUse;
@@ -104,7 +104,7 @@ exports.crearGrupo = async (req, res) => {
 
     if (!req.user.comunidad_id) {
       return res.status(400).json({
-        message: 'Tu usuario no tiene comunidad asignada. Completa tu perfil antes de crear un grupo.'
+        message: 'Seu usuário não possui comunidade atribuída. Complete seu perfil antes de criar um grupo.'
       });
     }
 
@@ -118,7 +118,7 @@ exports.crearGrupo = async (req, res) => {
 
     if (existente) {
       return res.status(409).json({
-        message: 'Ya existe un grupo registrado con ese líder y dirección'
+        message: 'Já existe um grupo cadastrado com esse líder e endereço'
       });
     }
 
@@ -135,7 +135,7 @@ exports.crearGrupo = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error al crear grupo:', error);
-    res.status(500).json({ message: 'Error al crear grupo en el servidor' });
+    res.status(500).json({ message: 'Erro ao criar grupo no servidor' });
   }
 };
 
@@ -143,20 +143,20 @@ exports.crearGrupo = async (req, res) => {
 exports.actualizarGrupo = async (req, res) => {
   try {
     const grupo = await db.GrupoActivo.findByPk(req.params.id);
-    if (!grupo) return res.status(404).json({ message: 'Grupo no encontrado' });
+    if (!grupo) return res.status(404).json({ message: 'Grupo não encontrado' });
 
     if (req.user.rol === 'admin_basic' && grupo.comunidad_id !== req.user.comunidad_id) {
-      return res.status(403).json({ message: 'No puedes editar grupos de otra comunidad' });
+      return res.status(403).json({ message: 'Você não pode editar grupos de outra comunidade' });
     }
 
     // ✅ Solo los campos válidos según el modelo
     const { colider_nombre, anfitrion_nombre, direccion_grupo } = req.body;
     await grupo.update({ colider_nombre, anfitrion_nombre, direccion_grupo });
 
-    res.json({ message: 'Grupo actualizado correctamente', grupo });
+    res.json({ message: 'Grupo atualizado com sucesso', grupo });
   } catch (error) {
     console.error('❌ Error al actualizar grupo:', error);
-    res.status(500).json({ message: 'Error al actualizar grupo' });
+    res.status(500).json({ message: 'Erro ao atualizar grupo' });
   }
 };
 
@@ -164,16 +164,16 @@ exports.actualizarGrupo = async (req, res) => {
 exports.eliminarGrupo = async (req, res) => {
   try {
     const grupo = await db.GrupoActivo.findByPk(req.params.id);
-    if (!grupo) return res.status(404).json({ message: 'Grupo no encontrado' });
+    if (!grupo) return res.status(404).json({ message: 'Grupo não encontrado' });
 
     if (req.user.rol === 'admin_basic' && grupo.comunidad_id !== req.user.comunidad_id) {
-      return res.status(403).json({ message: 'No puedes eliminar grupos de otra comunidad' });
+      return res.status(403).json({ message: 'Você não pode excluir grupos de outra comunidade' });
     }
 
     await grupo.destroy();
-    res.json({ message: 'Grupo eliminado correctamente' });
+    res.json({ message: 'Grupo excluído com sucesso' });
   } catch (error) {
     console.error('❌ Error al eliminar grupo:', error);
-    res.status(500).json({ message: 'Error al eliminar grupo' });
+    res.status(500).json({ message: 'Erro ao excluir grupo' });
   }
 };

@@ -153,20 +153,20 @@ exports.actualizarEstado = async (req, res) => {
 
     if (!ESTADOS_PERMITIDOS.includes(estado)) {
       return res.status(400).json({
-        message: "estado inválido. Solo se permite abierto, cerrado, en_proceso u oculto"
+        message: "estado inválido. Só são permitidos abierto, cerrado, en_proceso ou oculto"
       });
     }
 
     const interaccion = req.interaccionTarget;
 
     if (!interaccion) {
-      return res.status(404).json({ message: "Interacción no encontrada" });
+      return res.status(404).json({ message: "Interação não encontrada" });
     }
 
     await interaccion.update({ estado });
 
     return res.json({
-      message: "Estado actualizado",
+      message: "Estado atualizado",
       data: {
         id: interaccion.id,
         comunidad_id: interaccion.comunidad_id,

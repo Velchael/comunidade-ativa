@@ -77,7 +77,7 @@ export default function Interacciones() {
     } catch (error) {
       console.error("Error cargando interacciones", error);
       setEstadoErrorGeneral(
-        "No se pudieron cargar las interacciones."
+        "Não foi possível carregar as interações."
       );
     } finally {
       isFetchingRef.current = false;
@@ -146,7 +146,7 @@ export default function Interacciones() {
     const comunidadId = user.comunidadId || user.comunidad_id;
 
     if (!comunidadId) {
-      alert("Usuario sin comunidad asignada");
+      alert("Usuário sem comunidade atribuída");
       return;
     }
 
@@ -202,7 +202,7 @@ export default function Interacciones() {
     } catch (error) {
       console.error("Error publicando", error);
       if (error.response?.status === 401 || error.response?.status === 403) {
-        alert(error.response?.data?.message || error.response?.data?.error || "No autorizado");
+        alert(error.response?.data?.message || error.response?.data?.error || "Não autorizado");
       }
     }
   };
@@ -233,7 +233,7 @@ export default function Interacciones() {
     } catch (error) {
       console.error("Error respondiendo", error);
       if (error.response?.status === 401 || error.response?.status === 403) {
-        alert(error.response?.data?.message || error.response?.data?.error || "No autorizado");
+        alert(error.response?.data?.message || error.response?.data?.error || "Não autorizado");
       }
     }
   };
@@ -265,11 +265,25 @@ export default function Interacciones() {
   };
 
   const getEstadoLabel = (estado) => {
-    if (estado === "cerrado") return "Cerrado";
+    if (estado === "cerrado") return "Fechado";
     if (estado === "oculto") return "Oculto";
-    if (estado === "en_proceso") return "En proceso";
+    if (estado === "en_proceso") return "Em andamento";
 
-    return "Abierto";
+    return "Aberto";
+  };
+
+  const getTipoLabel = (tipo) => {
+    if (tipo === "necesidad") return "NECESSIDADE";
+    if (tipo === "ayuda") return "AJUDA";
+
+    return String(tipo || "").toUpperCase();
+  };
+
+  const getCategoriaLabel = (categoria) => {
+    if (categoria === "servicio") return "SERVIÇO";
+    if (categoria === "producto") return "PRODUTO";
+
+    return String(categoria || "").toUpperCase();
   };
 
   const getModerationActions = (estado) => {
@@ -301,7 +315,7 @@ export default function Interacciones() {
     if (estado === "abierto") {
       return [
         {
-          label: "Cerrar",
+          label: "Fechar",
           nextEstado: "cerrado",
           variant: "outline-warning"
         },
@@ -354,25 +368,25 @@ export default function Interacciones() {
           ...prev,
           [interaccionId]:
             backendMessage ||
-            "No autorizado para cambiar el estado."
+            "Não autorizado para alterar o estado."
         }));
       } else if (status === 403) {
         setEstadoErroresPorId((prev) => ({
           ...prev,
           [interaccionId]:
             backendMessage ||
-            "No tienes permisos para moderar esta interacción."
+            "Você não tem permissão para moderar esta interação."
         }));
       } else if (status === 400) {
         setEstadoErroresPorId((prev) => ({
           ...prev,
           [interaccionId]:
             backendMessage ||
-            "Estado inválido para esta interacción."
+            "Estado inválido para esta interação."
         }));
       } else {
         setEstadoErrorGeneral(
-          "No se pudo actualizar el estado de la interacción."
+          "Não foi possível atualizar o estado da interação."
         );
       }
     } finally {
@@ -418,11 +432,11 @@ export default function Interacciones() {
           ...prev,
           [respuestaId]:
             backendMessage ||
-            "No se pudo actualizar el estado de la respuesta."
+            "Não foi possível atualizar o estado da resposta."
         }));
       } else {
         setEstadoErrorGeneral(
-          "No se pudo actualizar el estado de la respuesta."
+          "Não foi possível atualizar o estado da resposta."
         );
       }
     } finally {
@@ -444,14 +458,14 @@ export default function Interacciones() {
   return (
     <Container>
 
-      <h2>Interacción</h2>
+      <h2>Interação</h2>
 
       {/* ========================= */}
       {/* 📝 CREAR PUBLICACIÓN */}
       {/* ========================= */}
 
       <div style={{ marginBottom: "20px" }}>
-        <h5>Crear publicación</h5>
+        <h5>Criar publicação</h5>
       </div>
 
       {/* TIPO */}
@@ -470,7 +484,7 @@ export default function Interacciones() {
           }}
           onClick={() => setTipo("necesidad")}
         >
-          Necesidad
+          Necessidade
         </Button>
 
         <Button
@@ -485,14 +499,14 @@ export default function Interacciones() {
           }}
           onClick={() => setTipo("ayuda")}
         >
-          Ayuda
+          Ajuda
         </Button>
       </div>
 
       {/* URGENCIA */}
       {tipo === "necesidad" && (
         <div style={{ marginBottom: "10px" }}>
-          <strong>Urgencia:</strong>
+          <strong>Urgência:</strong>
 
           <Button
             variant={
@@ -550,7 +564,7 @@ export default function Interacciones() {
 
       {/* CATEGORIA */}
       <div style={{ marginBottom: "10px" }}>
-        <strong>Categoría:</strong>
+        <strong>Categoria:</strong>
 
         <Button
           variant={
@@ -564,7 +578,7 @@ export default function Interacciones() {
           }}
           onClick={() => setCategoria("servicio")}
         >
-          🛠️ Servicio
+          🛠️ Serviço
         </Button>
 
         <Button
@@ -579,13 +593,13 @@ export default function Interacciones() {
           }}
           onClick={() => setCategoria("producto")}
         >
-          📦 Producto
+          📦 Produto
         </Button>
       </div>
 
       {/* VISIBILIDAD */}
       <div style={{ marginBottom: "10px" }}>
-        <strong>Visibilidad:</strong>
+        <strong>Visibilidade:</strong>
 
         <Button
           variant={
@@ -616,13 +630,13 @@ export default function Interacciones() {
           }}
           onClick={() => setVisibilidad("comunidad")}
         >
-          🏘️ Comunidad
+          🏘️ Comunidade
         </Button>
       </div>
 
       {/* INPUT */}
       <Form.Control
-        placeholder="¿Qué necesitas o puedes ofrecer?"
+        placeholder="Do que você precisa ou o que pode oferecer?"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
       />
@@ -682,7 +696,7 @@ export default function Interacciones() {
       }}
       onClick={() => setFiltroTipo("necesidad")}
     >
-      Necesidades
+      Necessidades
     </Button>
 
     <Button
@@ -699,7 +713,7 @@ export default function Interacciones() {
       }}
       onClick={() => setFiltroTipo("ayuda")}
     >
-      Ayuda
+      Ajuda
     </Button>
 
   </div>
@@ -707,7 +721,7 @@ export default function Interacciones() {
   {/* 🟠 FILTRO CATEGORIA */}
   <div>
 
-    <strong>Categoría:</strong>
+    <strong>Categoria:</strong>
 
     <Button
       variant={
@@ -723,7 +737,7 @@ export default function Interacciones() {
       }}
       onClick={() => setFiltroCategoria("servicio")}
     >
-      Servicios
+      Serviços
     </Button>
 
     <Button
@@ -740,7 +754,7 @@ export default function Interacciones() {
       }}
       onClick={() => setFiltroCategoria("producto")}
     >
-      Productos
+      Produtos
     </Button>
 
   </div>
@@ -794,7 +808,7 @@ export default function Interacciones() {
                   color: "orange",
                   fontWeight: "bold"
                 }}>
-                  ⚠️ Alta prioridad
+                  ⚠️ Alta prioridade
                 </span>
               )}
 
@@ -802,9 +816,9 @@ export default function Interacciones() {
 
             {/* HEADER */}
             <strong>
-              {item.tipo?.toUpperCase()}
+              {getTipoLabel(item.tipo)}
               {" | "}
-              {item.categoria?.toUpperCase()}
+              {getCategoriaLabel(item.categoria)}
             </strong>
 
             {/* USUARIO */}
@@ -824,13 +838,13 @@ export default function Interacciones() {
 
               {item.respuestas?.length === 0 && (
                 <span style={{ color: "red" }}>
-                  🆘 Sin respuestas
+                  🆘 Sem respostas
                 </span>
               )}
 
               {item.respuestas?.length > 0 && (
                 <span style={{ color: "green" }}>
-                  🤝 Con ayuda
+                  🤝 Com ajuda
                 </span>
               )}
 
@@ -841,7 +855,7 @@ export default function Interacciones() {
               <small style={{ color: "gray" }}>
                 {item.visibilidad === "global"
                   ? "🌍 Global"
-                  : "🏘️ Comunidad"}
+                  : "🏘️ Comunidade"}
               </small>
             </div>
 
@@ -957,7 +971,7 @@ export default function Interacciones() {
                         )
                       }
                     >
-                      {r.estado === "oculta" ? "Activar" : "Ocultar"}
+                      {r.estado === "oculta" ? "Ativar" : "Ocultar"}
                     </Button>
                   </div>
                 )}

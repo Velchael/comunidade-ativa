@@ -109,12 +109,12 @@ export const UserProvider = ({ children }) => {
       }
 
       if (!hasCompleteAuthUser(authUser)) {
-        throw new Error("No se pudo hidratar el usuario autenticado");
+        throw new Error("Não foi possível hidratar o usuário autenticado");
       }
 
       return persistSessionUser(sessionToken, authUser);
     } catch (err) {
-      console.error("❌ Error al guardar sesión:", err.message);
+      console.error("❌ Erro ao salvar sessão:", err.message);
       logout();
       throw err;
     }
