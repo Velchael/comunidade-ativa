@@ -4,7 +4,7 @@ import axios from "axios";
 import { UserContext } from "../UserContext";
 
 export default function Interacciones() {
-  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
   const pollingIntervalRef = useRef(null);
   const isFetchingRef = useRef(false);
 
@@ -143,9 +143,9 @@ export default function Interacciones() {
   const publicar = async () => {
     if (!texto || !user) return;
 
-    const comunidadId = user.comunidadId || user.comunidad_id;
+    const comunidadIdActual = user.comunidadId || user.comunidad_id;
 
-    if (!comunidadId) {
+    if (!comunidadIdActual) {
       alert("Usuário sem comunidade atribuída");
       return;
     }
@@ -169,7 +169,7 @@ export default function Interacciones() {
     };
 
     // ⚡ UI optimista
-    setLista(prev => [nueva, ...prev]);
+    setLista((prev) => [nueva, ...prev]);
 
     try {
       const token = localStorage.getItem("token");
@@ -178,7 +178,7 @@ export default function Interacciones() {
         `${API_BASE}/api/interacciones`,
         {
           user_id: user.id,
-          comunidad_id: comunidadId,
+          comunidad_id: comunidadIdActual,
           tipo,
           categoria,
           descripcion: texto,
@@ -193,12 +193,9 @@ export default function Interacciones() {
       );
 
       setTexto("");
-
-      // reset opcional
       setUrgencia("normal");
 
       cargarInteracciones();
-
     } catch (error) {
       console.error("Error publicando", error);
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -229,7 +226,6 @@ export default function Interacciones() {
       );
 
       cargarInteracciones();
-
     } catch (error) {
       console.error("Error respondiendo", error);
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -242,24 +238,20 @@ export default function Interacciones() {
   const getActiveStyle = (activo) => {
     return activo
       ? {
-          //transform: "scale(1.05)",
-          //boxShadow: "0 0 10px rgba(0,0,0,0.2)",
-          //border: "2px solid #000"
-        transform: "scale(1.10)",
-        boxShadow: "0 0 13px rgba(0,0,0,0.50)",
-        border: "2px solid #000",
-        transition: "all 0.2s ease"
-
+          transform: "scale(1.10)",
+          boxShadow: "0 0 13px rgba(0,0,0,0.50)",
+          border: "2px solid #000",
+          transition: "all 0.2s ease"
         }
       : {
-        transition: "all 0.2s ease"
+          transition: "all 0.2s ease"
         };
   };
 
   // 🎨 COLOR TARJETA
-  const getCardColor = (tipo) => {
-    if (tipo === "necesidad") return "#fff5f5";
-    if (tipo === "ayuda") return "#f0fff4";
+  const getCardColor = (tipoActual) => {
+    if (tipoActual === "necesidad") return "#fffdf8";
+    if (tipoActual === "ayuda") return "#fbfffc";
 
     return "#fff";
   };
@@ -272,18 +264,18 @@ export default function Interacciones() {
     return "Aberto";
   };
 
-  const getTipoLabel = (tipo) => {
-    if (tipo === "necesidad") return "NECESSIDADE";
-    if (tipo === "ayuda") return "AJUDA";
+  const getTipoLabel = (tipoActual) => {
+    if (tipoActual === "necesidad") return "NECESSIDADE";
+    if (tipoActual === "ayuda") return "AJUDA";
 
-    return String(tipo || "").toUpperCase();
+    return String(tipoActual || "").toUpperCase();
   };
 
-  const getCategoriaLabel = (categoria) => {
-    if (categoria === "servicio") return "SERVIÇO";
-    if (categoria === "producto") return "PRODUTO";
+  const getCategoriaLabel = (categoriaActual) => {
+    if (categoriaActual === "servicio") return "SERVIÇO";
+    if (categoriaActual === "producto") return "PRODUTO";
 
-    return String(categoria || "").toUpperCase();
+    return String(categoriaActual || "").toUpperCase();
   };
 
   const getModerationActions = (estado) => {
@@ -445,325 +437,276 @@ export default function Interacciones() {
   };
 
   // 🔍 FILTROS
-  const listaFiltrada = lista.filter(item => {
+  const listaFiltrada = lista.filter((item) => {
     return (
       (filtroTipo === "todos" ||
         item.tipo === filtroTipo) &&
-
       (filtroCategoria === "todos" ||
         item.categoria === filtroCategoria)
     );
   });
 
   return (
-    <Container>
-
-      <h2>Interação</h2>
-
-      {/* ========================= */}
-      {/* 📝 CREAR PUBLICACIÓN */}
-      {/* ========================= */}
-
-      <div style={{ marginBottom: "20px" }}>
-        <h5>Criar publicação</h5>
+    <Container className="interacciones-screen">
+      <div className="interacciones-header">
+        <h2 className="interacciones-title">Interação</h2>
+        <p className="interacciones-subtitle">
+          Publique pedidos, ofereça ajuda e acompanhe respostas da comunidade.
+        </p>
       </div>
 
-      {/* TIPO */}
-      <div style={{ marginBottom: "10px" }}>
-        <strong>Tipo:</strong>
+      <Card className="interacciones-panel publicar-panel">
+        <Card.Body>
+          <div className="panel-heading">
+            <span className="panel-eyebrow">Nova interação</span>
+            <h5 className="panel-title">Criar publicação</h5>
+          </div>
 
-        <Button
-          variant={
-            tipo === "necesidad"
-              ? "primary"
-              : "outline-primary"
-          }
-          style={{
-            marginLeft: 10,
-            ...getActiveStyle(tipo === "necesidad")
-          }}
-          onClick={() => setTipo("necesidad")}
-        >
-          Necessidade
-        </Button>
+          <div className="composer-row">
+            <strong className="control-label">Tipo</strong>
+            <div className="control-actions">
+              <Button
+                variant={
+                  tipo === "necesidad"
+                    ? "primary"
+                    : "outline-primary"
+                }
+                className="chip-button"
+                style={getActiveStyle(tipo === "necesidad")}
+                onClick={() => setTipo("necesidad")}
+              >
+                Necessidade
+              </Button>
 
-        <Button
-          variant={
-            tipo === "ayuda"
-              ? "success"
-              : "outline-success"
-          }
-          style={{
-            marginLeft: 10,
-            ...getActiveStyle(tipo === "ayuda")
-          }}
-          onClick={() => setTipo("ayuda")}
-        >
-          Ajuda
-        </Button>
-      </div>
+              <Button
+                variant={
+                  tipo === "ayuda"
+                    ? "success"
+                    : "outline-success"
+                }
+                className="chip-button"
+                style={getActiveStyle(tipo === "ayuda")}
+                onClick={() => setTipo("ayuda")}
+              >
+                Ajuda
+              </Button>
+            </div>
+          </div>
 
-      {/* URGENCIA */}
-      {tipo === "necesidad" && (
-        <div style={{ marginBottom: "10px" }}>
-          <strong>Urgência:</strong>
+          {tipo === "necesidad" && (
+            <div className="composer-row">
+              <strong className="control-label">Urgência</strong>
+              <div className="control-actions">
+                <Button
+                  variant={
+                    urgencia === "normal"
+                      ? "success"
+                      : "outline-success"
+                  }
+                  className="chip-button"
+                  style={getActiveStyle(urgencia === "normal")}
+                  onClick={() => setUrgencia("normal")}
+                >
+                  🟢 Normal
+                </Button>
 
-          <Button
-            variant={
-              urgencia === "normal"
-                ? "success"
-                : "outline-success"
-            }
-            //style={{ marginLeft: 10 }}
+                <Button
+                  variant={
+                    urgencia === "alta"
+                      ? "warning"
+                      : "outline-warning"
+                  }
+                  className="chip-button"
+                  style={getActiveStyle(urgencia === "alta")}
+                  onClick={() => setUrgencia("alta")}
+                >
+                  🟠 Alta
+                </Button>
 
-            style={{
-             marginLeft: 10,
-             ...getActiveStyle(urgencia === "normal")
-             }}
+                <Button
+                  variant={
+                    urgencia === "critica"
+                      ? "danger"
+                      : "outline-danger"
+                  }
+                  className="chip-button"
+                  style={getActiveStyle(urgencia === "critica")}
+                  onClick={() => setUrgencia("critica")}
+                >
+                  🔴 Crítica
+                </Button>
+              </div>
+            </div>
+          )}
 
-            onClick={() => setUrgencia("normal")}
-          >
-            🟢 Normal
-          </Button>
+          <div className="composer-row">
+            <strong className="control-label">Categoria</strong>
+            <div className="control-actions">
+              <Button
+                variant={
+                  categoria === "servicio"
+                    ? "warning"
+                    : "outline-warning"
+                }
+                className="chip-button"
+                style={getActiveStyle(categoria === "servicio")}
+                onClick={() => setCategoria("servicio")}
+              >
+                🛠️ Serviço
+              </Button>
 
-          <Button
-            variant={
-              urgencia === "alta"
-                ? "warning"
-                : "outline-warning"
-            }
-           // style={{ marginLeft: 10 }}
-           style={{
-            marginLeft: 10,
-           ...getActiveStyle(urgencia === "alta")
-           }}
+              <Button
+                variant={
+                  categoria === "producto"
+                    ? "info"
+                    : "outline-info"
+                }
+                className="chip-button"
+                style={getActiveStyle(categoria === "producto")}
+                onClick={() => setCategoria("producto")}
+              >
+                📦 Produto
+              </Button>
+            </div>
+          </div>
 
-            onClick={() => setUrgencia("alta")}
-          >
-            🟠 Alta
-          </Button>
+          <div className="composer-row">
+            <strong className="control-label">Visibilidade</strong>
+            <div className="control-actions">
+              <Button
+                variant={
+                  visibilidad === "global"
+                    ? "dark"
+                    : "outline-dark"
+                }
+                className="chip-button"
+                style={getActiveStyle(visibilidad === "global")}
+                onClick={() => setVisibilidad("global")}
+              >
+                🌍 Global
+              </Button>
 
-          <Button
-            variant={
-              urgencia === "critica"
-                ? "danger"
-                : "outline-danger"
-            }
-            //style={{ marginLeft: 10 }}
-               style={{
-                marginLeft: 10,
-                ...getActiveStyle(urgencia === "critica")
-               }}
+              <Button
+                variant={
+                  visibilidad === "comunidad"
+                    ? "secondary"
+                    : "outline-secondary"
+                }
+                className="chip-button"
+                style={getActiveStyle(visibilidad === "comunidad")}
+                onClick={() => setVisibilidad("comunidad")}
+              >
+                🏘️ Comunidade
+              </Button>
+            </div>
+          </div>
 
-            onClick={() => setUrgencia("critica")}
-          >
-            🔴 Crítica
-          </Button>
-        </div>
-      )}
+          <Form.Control
+            className="composer-input"
+            placeholder="Do que você precisa ou o que pode oferecer?"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+          />
 
-      {/* CATEGORIA */}
-      <div style={{ marginBottom: "10px" }}>
-        <strong>Categoria:</strong>
+          <div className="composer-actions">
+            <Button
+              onClick={publicar}
+              className="composer-submit"
+            >
+              Publicar
+            </Button>
+          </div>
+        </Card.Body>
+      </Card>
 
-        <Button
-          variant={
-            categoria === "servicio"
-              ? "warning"
-              : "outline-warning"
-          }
-          style={{
-            marginLeft: 10,
-            ...getActiveStyle(categoria === "servicio")
-          }}
-          onClick={() => setCategoria("servicio")}
-        >
-          🛠️ Serviço
-        </Button>
+      <Card className="interacciones-panel filtros-panel">
+        <Card.Body>
+          <div className="panel-heading filtros-heading">
+            <h5 className="panel-title">Explorar</h5>
+            <span className="filtros-resumen">
+              {listaFiltrada.length} interaç{listaFiltrada.length === 1 ? "ão" : "ões"}
+            </span>
+          </div>
 
-        <Button
-          variant={
-            categoria === "producto"
-              ? "info"
-              : "outline-info"
-          }
-          style={{
-            marginLeft: 10,
-            ...getActiveStyle(categoria === "producto")
-          }}
-          onClick={() => setCategoria("producto")}
-        >
-          📦 Produto
-        </Button>
-      </div>
+          <div className="filter-row compact">
+            <strong className="control-label">Tipo</strong>
+            <div className="control-actions">
+              <Button
+                variant={
+                  filtroTipo === "todos"
+                    ? "primary"
+                    : "outline-primary"
+                }
+                className="chip-button compact"
+                style={getActiveStyle(filtroTipo === "todos")}
+                onClick={() => {
+                  setFiltroTipo("todos");
+                  setFiltroCategoria("todos");
+                }}
+              >
+                Todos
+              </Button>
 
-      {/* VISIBILIDAD */}
-      <div style={{ marginBottom: "10px" }}>
-        <strong>Visibilidade:</strong>
+              <Button
+                variant={
+                  filtroTipo === "necesidad"
+                    ? "primary"
+                    : "outline-primary"
+                }
+                className="chip-button compact"
+                style={getActiveStyle(filtroTipo === "necesidad")}
+                onClick={() => setFiltroTipo("necesidad")}
+              >
+                Necessidades
+              </Button>
 
-        <Button
-          variant={
-            visibilidad === "global"
-              ? "dark"
-              : "outline-dark"
-          }
-          style={{
-            marginLeft: 10,
-            ...getActiveStyle(visibilidad === "global")
-          }}
-          onClick={() => setVisibilidad("global")}
-        >
-          🌍 Global
-        </Button>
+              <Button
+                variant={
+                  filtroTipo === "ayuda"
+                    ? "success"
+                    : "outline-success"
+                }
+                className="chip-button compact"
+                style={getActiveStyle(filtroTipo === "ayuda")}
+                onClick={() => setFiltroTipo("ayuda")}
+              >
+                Ajuda
+              </Button>
+            </div>
+          </div>
 
-        <Button
-          variant={
-            visibilidad === "comunidad"
-              ? "secondary"
-              : "outline-secondary"
-          }
-          style={{
-            marginLeft: 10,
-            ...getActiveStyle(
-              visibilidad === "comunidad"
-            )
-          }}
-          onClick={() => setVisibilidad("comunidad")}
-        >
-          🏘️ Comunidade
-        </Button>
-      </div>
+          <div className="filter-row compact">
+            <strong className="control-label">Categoria</strong>
+            <div className="control-actions">
+              <Button
+                variant={
+                  filtroCategoria === "servicio"
+                    ? "warning"
+                    : "outline-warning"
+                }
+                className="chip-button compact"
+                style={getActiveStyle(filtroCategoria === "servicio")}
+                onClick={() => setFiltroCategoria("servicio")}
+              >
+                Serviços
+              </Button>
 
-      {/* INPUT */}
-      <Form.Control
-        placeholder="Do que você precisa ou o que pode oferecer?"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-      />
-
-      {/* BOTON */}
-      <Button
-        onClick={publicar}
-        style={{ marginTop: "10px" }}
-      >
-        Publicar
-      </Button>
-
-     
- 
-{/* ========================= */}
-{/* 🔍 FILTROS */}
-{/* ========================= */}
-
-<div style={{ marginTop: "30px", marginBottom: "15px" }}>
-  
-  <h5>Explorar</h5>
-
-  {/* 🔵 FILTRO TIPO */}
-  <div style={{ marginBottom: "10px" }}>
-    
-    <strong>Tipo:</strong>
-
-    <Button
-      variant={
-        filtroTipo === "todos"
-          ? "primary"
-          : "outline-primary"
-      }
-      style={{
-        marginLeft: 5,
-        ...getActiveStyle(filtroTipo === "todos")
-      }}
-      onClick={() => {
-        setFiltroTipo("todos");
-        setFiltroCategoria("todos");
-      }}
-    >
-      Todos
-    </Button>
-
-    <Button
-      variant={
-        filtroTipo === "necesidad"
-          ? "primary"
-          : "outline-primary"
-      }
-      style={{
-        marginLeft: 5,
-        ...getActiveStyle(
-          filtroTipo === "necesidad"
-        )
-      }}
-      onClick={() => setFiltroTipo("necesidad")}
-    >
-      Necessidades
-    </Button>
-
-    <Button
-      variant={
-        filtroTipo === "ayuda"
-          ? "success"
-          : "outline-success"
-      }
-      style={{
-        marginLeft: 5,
-        ...getActiveStyle(
-          filtroTipo === "ayuda"
-        )
-      }}
-      onClick={() => setFiltroTipo("ayuda")}
-    >
-      Ajuda
-    </Button>
-
-  </div>
-
-  {/* 🟠 FILTRO CATEGORIA */}
-  <div>
-
-    <strong>Categoria:</strong>
-
-    <Button
-      variant={
-        filtroCategoria === "servicio"
-          ? "warning"
-          : "outline-warning"
-      }
-      style={{
-        marginLeft: 10,
-        ...getActiveStyle(
-          filtroCategoria === "servicio"
-        )
-      }}
-      onClick={() => setFiltroCategoria("servicio")}
-    >
-      Serviços
-    </Button>
-
-    <Button
-      variant={
-        filtroCategoria === "producto"
-          ? "info"
-          : "outline-info"
-      }
-      style={{
-        marginLeft: 5,
-        ...getActiveStyle(
-          filtroCategoria === "producto"
-        )
-      }}
-      onClick={() => setFiltroCategoria("producto")}
-    >
-      Produtos
-    </Button>
-
-  </div>
-
-</div>
-
-      {/* ========================= */}
-      {/* 📋 LISTA */}
-      {/* ========================= */}
+              <Button
+                variant={
+                  filtroCategoria === "producto"
+                    ? "info"
+                    : "outline-info"
+                }
+                className="chip-button compact"
+                style={getActiveStyle(filtroCategoria === "producto")}
+                onClick={() => setFiltroCategoria("producto")}
+              >
+                Produtos
+              </Button>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
 
       {estadoErrorGeneral && (
         <Alert
@@ -775,137 +718,98 @@ export default function Interacciones() {
       )}
 
       {listaFiltrada.map((item) => (
-
         <Card
           key={item.id}
+          className="interaccion-card"
           style={{
-            marginTop: "15px",
             backgroundColor: getCardColor(item.tipo),
-
-            // 🔥 borde urgencia crítica
             border:
               item.urgencia === "critica"
-                ? "2px solid red"
-                : "1px solid #ddd"
+                ? "2px solid #dc3545"
+                : "1px solid rgba(202, 147, 43, 0.18)"
           }}
         >
           <Card.Body>
-
-            {/* ALERTAS */}
-            <div>
-
+            <div className="interaccion-alerts">
               {item.urgencia === "critica" && (
-                <span style={{
-                  color: "red",
-                  fontWeight: "bold"
-                }}>
+                <span className="status-pill danger">
                   🚨 URGENTE
                 </span>
               )}
 
               {item.urgencia === "alta" && (
-                <span style={{
-                  color: "orange",
-                  fontWeight: "bold"
-                }}>
+                <span className="status-pill warning">
                   ⚠️ Alta prioridade
                 </span>
               )}
-
             </div>
 
-            {/* HEADER */}
-            <strong>
-              {getTipoLabel(item.tipo)}
-              {" | "}
-              {getCategoriaLabel(item.categoria)}
-            </strong>
+            <div className="interaccion-topline">
+              <strong className="interaccion-kind">
+                {getTipoLabel(item.tipo)}
+                {" | "}
+                {getCategoriaLabel(item.categoria)}
+              </strong>
+              <span className="status-pill subtle">
+                {item.visibilidad === "global"
+                  ? "🌍 Global"
+                  : "🏘️ Comunidade"}
+              </span>
+            </div>
 
-            {/* USUARIO */}
-            <div
-              style={{
-                fontSize: "13px",
-                color: "#555"
-              }}
-            >
+            <div className="interaccion-meta">
               👤 {item.usuario?.username}
               {" - "}
               🏘️ {item.comunidad?.nombre_comunidad}
             </div>
 
-            {/* ESTADO SOCIAL */}
-            <div>
-
+            <div className="interaccion-support">
               {item.respuestas?.length === 0 && (
-                <span style={{ color: "red" }}>
+                <span className="support-status empty">
                   🆘 Sem respostas
                 </span>
               )}
 
               {item.respuestas?.length > 0 && (
-                <span style={{ color: "green" }}>
+                <span className="support-status active">
                   🤝 Com ajuda
                 </span>
               )}
-
             </div>
 
-            {/* VISIBILIDAD */}
-            <div>
-              <small style={{ color: "gray" }}>
-                {item.visibilidad === "global"
-                  ? "🌍 Global"
-                  : "🏘️ Comunidade"}
-              </small>
-            </div>
-
-            <div>
-              <small
-                style={{
-                  color: "#555",
-                  fontWeight: "bold"
-                }}
-              >
+            <div className="interaccion-tags">
+              <small className="meta-tag">
                 Estado: {getEstadoLabel(item.estado)}
               </small>
-            </div>
-
-            {/* URGENCIA TEXTO */}
-            <div>
               <small
+                className="meta-tag urgency-tag"
                 style={{
                   color:
                     item.urgencia === "critica"
-                      ? "red"
+                      ? "#dc3545"
                       : item.urgencia === "alta"
-                      ? "orange"
-                      : "green"
+                      ? "#c97f10"
+                      : "#2f8f4e"
                 }}
               >
-                ⚡{" "}
-                {item.urgencia?.toUpperCase()
-                  || "NORMAL"}
+                ⚡ {item.urgencia?.toUpperCase() || "NORMAL"}
               </small>
             </div>
 
-            {/* TEXTO */}
-            <p style={{ marginTop: "10px" }}>
+            <p className="interaccion-body">
               {item.descripcion}
             </p>
 
             {puedeModerarInteraccion(item) &&
               getModerationActions(item.estado).length > 0 && (
-                <div style={{ marginBottom: "10px" }}>
+                <div className="moderation-actions">
                   {getModerationActions(item.estado).map(
                     (action) => (
                       <Button
                         key={`${item.id}-${action.nextEstado}`}
                         size="sm"
                         variant={action.variant}
-                        style={{
-                          marginRight: "8px",
-                          marginBottom: "8px"
-                        }}
+                        className="moderation-button"
                         disabled={accionEstadoId === item.id}
                         onClick={() =>
                           cambiarEstadoInteraccion(
@@ -922,75 +826,68 @@ export default function Interacciones() {
               )}
 
             {estadoErroresPorId[item.id] && (
-              <div
-                style={{
-                  color: "#b02a37",
-                  fontSize: "14px",
-                  marginBottom: "10px"
-                }}
-              >
+              <div className="inline-error">
                 {estadoErroresPorId[item.id]}
               </div>
             )}
 
-            {/* RESPUESTAS */}
-            {item.respuestas?.map((r) => (
-              <div
-                key={r.id}
-                style={{
-                  fontSize: "14px",
-                  color: "gray",
-                  marginBottom: "8px"
-                }}
-              >
-                <p style={{ marginBottom: "4px" }}>
-                  ↳
-                  {" "}
-                  <strong>
-                    {r.usuario?.username}:
-                  </strong>
-                  {" "}
-                  {r.mensaje}
-                  {r.estado === "oculta" && (
-                    <small style={{ marginLeft: "8px", color: "#b02a37" }}>
-                      Oculta
-                    </small>
-                  )}
-                </p>
+            {item.respuestas?.length > 0 && (
+              <div className="respuestas-list">
+                {item.respuestas.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`respuesta-item ${r.estado === "oculta" ? "is-hidden" : ""}`}
+                  >
+                    <div className="respuesta-content">
+                      <span className="respuesta-arrow">↳</span>
+                      <p className="respuesta-text">
+                        <strong>
+                          {r.usuario?.username}:
+                        </strong>
+                        {" "}
+                        {r.mensaje}
+                        {r.estado === "oculta" && (
+                          <small className="respuesta-hidden-label">
+                            Oculta
+                          </small>
+                        )}
+                      </p>
+                    </div>
 
-                {puedeModerarInteraccion(item) && (
-                  <div style={{ marginBottom: "6px" }}>
-                    <Button
-                      size="sm"
-                      variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
-                      disabled={accionEstadoRespuestaId === r.id}
-                      onClick={() =>
-                        cambiarEstadoRespuesta(
-                          r.id,
-                          r.estado === "oculta" ? "activa" : "oculta"
-                        )
-                      }
-                    >
-                      {r.estado === "oculta" ? "Ativar" : "Ocultar"}
-                    </Button>
-                  </div>
-                )}
+                    {puedeModerarInteraccion(item) && (
+                      <div className="respuesta-actions">
+                        <Button
+                          size="sm"
+                          variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
+                          className="moderation-button"
+                          disabled={accionEstadoRespuestaId === r.id}
+                          onClick={() =>
+                            cambiarEstadoRespuesta(
+                              r.id,
+                              r.estado === "oculta" ? "activa" : "oculta"
+                            )
+                          }
+                        >
+                          {r.estado === "oculta" ? "Ativar" : "Ocultar"}
+                        </Button>
+                      </div>
+                    )}
 
-                {estadoErroresRespuestaPorId[r.id] && (
-                  <div style={{ color: "#b02a37", fontSize: "13px" }}>
-                    {estadoErroresRespuestaPorId[r.id]}
+                    {estadoErroresRespuestaPorId[r.id] && (
+                      <div className="inline-error small">
+                        {estadoErroresRespuestaPorId[r.id]}
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
+            )}
 
-            {/* INPUT RESPUESTA */}
             <Form.Control
+              className="respuesta-input"
               placeholder="Responder..."
               onKeyDown={(e) => {
-
                 if (e.key === "Enter") {
-
                   responder(
                     item.id,
                     e.target.value
@@ -1000,12 +897,9 @@ export default function Interacciones() {
                 }
               }}
             />
-
           </Card.Body>
         </Card>
-
       ))}
-
     </Container>
   );
 }

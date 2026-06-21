@@ -1,6 +1,23 @@
 const { Interaccion, Respuesta, User, Comunidad } = require("../models");
 const { Op, Sequelize } = require("sequelize");
 const ESTADOS_PERMITIDOS = ["abierto", "cerrado", "en_proceso", "oculto"];
+const resolveComunidadId = (req) => {
+  const candidates = [
+    req.comunidadAuth?.comunidad_id,
+    req.params?.comunidad_id,
+    req.body?.comunidad_id,
+    req.user?.comunidad_id
+  ];
+
+  for (const candidate of candidates) {
+    const comunidadId = Number(candidate);
+    if (Number.isInteger(comunidadId) && comunidadId > 0) {
+      return comunidadId;
+    }
+  }
+
+  return null;
+};
 
 exports.crear = async (req, res) => {
   try {
@@ -20,7 +37,13 @@ exports.crear = async (req, res) => {
       urgencia = "critica";
     }
 
-    const comunidad_id = Number(req.comunidadAuth?.comunidad_id);
+    const comunidad_id = resolveComunidadId(req);
+
+    if (!comunidad_id) {
+      return res.status(400).json({
+        message: "comunidad_id válido é obrigatório para criar interação"
+      });
+    }
 
     const data = await Interaccion.create({
       user_id: req.user.id,

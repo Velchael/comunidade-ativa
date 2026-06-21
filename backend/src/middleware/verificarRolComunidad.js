@@ -1,6 +1,11 @@
 const { ROLES, tieneRolComunidad } = require('../utils/comunidadRoles');
 
 const defaultGetComunidadId = (req) => req.user?.comunidad_id || req.params?.comunidad_id || req.body?.comunidad_id;
+const normalizeComunidadId = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+};
 
 const verificarRolComunidad = ({
   rolesPermitidos = [],
@@ -16,6 +21,17 @@ const verificarRolComunidad = ({
       }
 
       if (permitirAdminTotalGlobal && user.rol === ROLES.ADMIN_TOTAL) {
+        const comunidadId = normalizeComunidadId(await getComunidadId(req));
+
+        if (comunidadId) {
+          req.comunidadAuth = {
+            comunidad_id: comunidadId,
+            rol_comunidad: ROLES.ADMIN_TOTAL,
+            source: 'admin_total_context',
+            membresia: null
+          };
+        }
+
         return next();
       }
 
