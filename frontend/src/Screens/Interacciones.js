@@ -730,20 +730,7 @@ export default function Interacciones() {
           }}
         >
           <Card.Body>
-            <div className="interaccion-alerts">
-              {item.urgencia === "critica" && (
-                <span className="status-pill danger">
-                  🚨 URGENTE
-                </span>
-              )}
-
-              {item.urgencia === "alta" && (
-                <span className="status-pill warning">
-                  ⚠️ Alta prioridade
-                </span>
-              )}
-            </div>
-
+            
             <div className="interaccion-topline">
               <strong className="interaccion-kind">
                 {getTipoLabel(item.tipo)}
