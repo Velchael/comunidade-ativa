@@ -2,775 +2,836 @@
 
 # COMUVA — Contexto Maestro del Proyecto
 
-## 1. Visión General del Proyecto
+## Estado del documento
 
-COMUVA es una plataforma híbrida de comunidades colaborativas orientada a:
-
-* ayuda comunitaria
-* interacción social contextual
-* networking local/global
-* economía solidaria
-* colaboración entre comunidades
-
-La arquitectura busca combinar:
-
-* comunidades locales independientes
-* usuarios multi-comunidad
-* interacciones globales
-* moderación contextual
-* ownership distribuido
-
-Filosofía principal:
-
-```txt
-1 comunidad = muchos usuarios
-1 usuario = muchas comunidades
-muchas comunidades = ecosistema conectado
-```
-
-COMUVA NO está diseñada como comunidades completamente aisladas.
-
-El objetivo es un modelo híbrido:
-
-```txt
-visibilidad global
-+
-ownership local
-+
-moderación contextual
-```
+- Alcance: cierre de Fase D
+- Estado: `COMPLETADO`
+- Fuente de validación: código actual de `backend`, `frontend` y migraciones Sequelize
+- Regla oficial: este documento describe el sistema real implementado, no el diseño aspiracional
 
 ---
 
-# 2. Stack Tecnológico
+# 1. Estado actual del proyecto
 
-## Frontend
+## Resumen ejecutivo
 
-* React
-* React Router
-* Axios
-* Bootstrap / React-Bootstrap
-* LocalStorage para persistencia ligera
-* JWT auth
+COMUVA es una plataforma comunitaria con arquitectura híbrida:
 
-## Backend
+- visibilidad global de interacciones
+- ownership local por comunidad
+- membresías locales por comunidad
+- moderación contextual
+- sesión frontend sincronizada periódicamente con el backend
 
-* Node.js
-* Express
-* Sequelize ORM
-* PostgreSQL
-* JWT Authentication
+## Estado por área
 
-## Base de Datos
+### `COMPLETADO`
 
-* PostgreSQL
-* Sequelize migrations
+- autenticación JWT con `login`, `me` y `refresh`
+- sincronización de sesión desde backend en `UserContext`
+- modelo `comunidades`
+- modelo `users`
+- modelo `comunidad_miembros`
+- `owner_user_id` en comunidades
+- resolución híbrida de roles vía `comunidadRoles`
+- respuesta autenticada normalizada vía `buildAuthUserResponse`
+- panel de miembros de comunidad
+- gestión de roles locales
+- interacciones globales
+- respuestas cross-community
+- owner efectivo como admin local efectivo
 
----
+### `EN USO`
 
-# 3. Arquitectura General
+- `rol_global` en `users`
+- `rol_comunidad` en `comunidad_miembros`
+- `owner_user_id` en `comunidades`
+- `refreshAuthSession`
+- polling de `Interacciones`
+- middlewares híbridos de comunidad
+- onboarding para crear o unirse a una comunidad
 
-## Frontend
+### `PRODUCCIÓN CANDIDATA`
 
-Ruta principal:
+- comunidades
+- miembros de comunidad
+- interacciones
+- respuestas
+- refresco de sesión y rehidratación del usuario autenticado
 
-```txt
-frontend/src/
-```
+Estas áreas ya tienen flujo backend coherente, persistencia real en PostgreSQL y representación frontend alineada con el backend.
 
-Estructura importante:
+### `LEGACY / DEPRECADO`
 
-```txt
-Screens/
-Components/
-contexts/
-services/
-utils/
-```
+- uso de `users.rol` como autoridad local
+- uso directo de `req.user.comunidad_id` como única fuente de permisos locales
+- lógica de autorización de `grupos` basada principalmente en `req.user.rol`
+- lógica de autorización de `tareas` mezclando middleware híbrido con chequeos legacy internos
 
-Pantallas principales:
+### `PENDIENTE`
 
-* Interacciones.js
-* MiembrosComunidadPanel.js
-* ComunidadesPanel.js
-* ConfiguracionPanel.js
-
-Contexto principal:
-
-```txt
-frontend/src/contexts/UserContext.js
-```
-
----
-
-## Backend
-
-Ruta principal:
-
-```txt
-backend/src/
-```
-
-Estructura:
-
-```txt
-controllers/
-routes/
-middleware/
-models/
-utils/
-migrations/
-```
+- alinear `grupos` completamente al sistema híbrido
+- alinear `tareas` completamente al sistema híbrido
+- auditar `reportes` end-to-end contra las reglas híbridas
+- definir creación multi-comunidad
+- reemplazo eventual del polling por tiempo real
 
 ---
 
-# 4. Sistema de Autenticación JWT
+# 2. Arquitectura oficial
 
-## Flujo actual
+## 2.1 Entidades principales
 
-1. Usuario login/register
-2. Backend genera JWT
-3. Frontend guarda:
+### `users`
 
-   * token
-   * user
-4. UserContext hidrata sesión desde localStorage
-
-## JWT contiene típicamente
-
-```json
-{
-  "id": 1,
-  "email": "...",
-  "rol": "admin_total",
-  "rol_global": "admin_total",
-  "username": "Velchael",
-  "comunidad_id": 1
-}
-```
-
-## Middleware principal
-
-```txt
-backend/src/middleware/authMiddleware.js
-```
-
-Exporta:
-
-```js
-verificarToken
-```
-
----
-
-# 5. Sistema de Roles Globales
-
-## Roles globales actuales
-
-```txt
-admin_total
-admin_basic (legacy/global parcial)
-miembro
-```
-
-## Fuente real
-
-Tabla:
-
-```txt
-users
-```
-
-Campos:
-
-```txt
-rol
-rol_global
-```
-
-Actualmente ambos siguen coexistiendo por compatibilidad histórica.
-
-## admin_total global
-
-Tiene autoridad transversal sobre TODAS las comunidades.
-
-Puede:
-
-* moderar cualquier comunidad
-* listar miembros
-* cambiar roles locales
-* moderar interacciones
-* moderar respuestas
-
-Aunque NO tenga rol local administrativo.
-
----
-
-# 6. Sistema de Roles Locales por Comunidad
-
-## Tabla principal
-
-```txt
-comunidad_miembros
-```
+Persistencia principal del usuario autenticado.
 
 Campos relevantes:
 
-```txt
-user_id
-comunidad_id
-rol_comunidad
-estado
-es_principal
-```
+- `id`
+- `email`
+- `username`
+- `rol`
+- `rol_global`
+- `comunidad_id`
 
-## Roles locales actuales
+Rol de la tabla:
 
-```txt
-admin_total
-admin_basic
-moderador
-miembro
-```
+- identidad del usuario
+- rol global persistido
+- comunidad principal actual
+- compatibilidad con flujos legacy
 
-## Filosofía
+Estado:
 
-Los roles locales NO reemplazan roles globales.
+- `EN USO`
+- parcialmente `LEGACY` por la coexistencia `rol` + `rol_global`
 
-Son dimensiones separadas.
+### `comunidades`
 
-Ejemplo:
+Persistencia principal de comunidades.
 
-```txt
-rol_global = admin_total
-rol_comunidad = miembro
-```
+Campos relevantes:
 
-Eso es válido y esperado.
+- `id`
+- `nombre_comunidad`
+- `nombre_administrador`
+- `activa`
+- `owner_user_id`
+- `objetivo`
+- `tipo`
+- `visibilidad`
+- `ciudad`
+- `pais`
 
----
+Rol de la tabla:
 
-# 7. Relación Usuario ↔ Comunidad
+- identidad de la comunidad
+- ownership oficial
+- configuración básica
 
-Modelo actual:
+Estado:
 
-```txt
-muchos a muchos
-```
+- `EN USO`
 
-Tabla pivote:
+### `comunidad_miembros`
 
-```txt
-comunidad_miembros
-```
+Tabla oficial de membresías locales.
 
-Un usuario puede:
+Campos relevantes:
 
-* pertenecer a múltiples comunidades
-* tener distintos roles locales
-* tener comunidad principal
-* participar globalmente
+- `user_id`
+- `comunidad_id`
+- `rol_comunidad`
+- `estado`
+- `es_principal`
 
----
+Rol de la tabla:
 
-# 8. Middlewares Importantes
+- relación usuario-comunidad
+- rol local
+- membresía activa/inactiva
+- comunidad principal del usuario
 
-## verificarToken
+Estado:
 
-Archivo:
+- `EN USO`
+- `SOURCE OF TRUTH` para permisos locales, junto con `owner_user_id`
 
-```txt
-backend/src/middleware/authMiddleware.js
-```
+## 2.2 Relaciones oficiales
 
-Responsabilidad:
+### `users` -> `comunidades`
 
-* validar JWT
-* hidratar req.user
+- `users.comunidad_id` apunta a la comunidad principal actual del usuario
+- esta relación sigue existiendo por compatibilidad y navegación operativa
 
----
+### `users` <-> `comunidades` vía `comunidad_miembros`
 
-## verificarRolComunidad
+- relación muchos a muchos
+- representa la membresía real
+- permite evolución futura a multi-comunidad
 
-Archivo:
+### `comunidades.owner_user_id` -> `users.id`
 
-```txt
-backend/src/middleware/verificarRolComunidad.js
-```
-
-Middleware CENTRAL del sistema multi-comunidad.
-
-Responsabilidad:
-
-* resolver membresía activa
-* validar roles locales
-* permitir admin_total global
-
-Produce:
-
-```js
-req.comunidadAuth
-```
-
-Con:
-
-```js
-{
-  comunidad_id,
-  rol_comunidad,
-  source
-}
-```
+- identifica al owner persistido de la comunidad
+- no reemplaza la membresía
+- complementa la membresía local
 
 ---
 
-## ownershipComunidad
+# 3. Fuente de verdad
 
-Archivo:
+## Regla oficial
 
-```txt
-backend/src/middleware/ownershipComunidad.js
-```
+- Backend = `fuente de verdad`
+- PostgreSQL = `persistencia oficial`
+- Frontend = `representación de estado`
 
-Usado para:
+## Implicancias
 
-* editar comunidad
-* eliminar comunidad
+- el frontend no define permisos
+- el frontend no define ownership
+- el frontend no define el rol efectivo final
+- la sesión persistida en `localStorage` es solo caché temporal
+- el backend reconstruye el estado autenticado real mediante `buildAuthUserResponse`
 
-Regla:
+## Backend como autoridad
 
-```txt
-owner_user_id OR admin_total global
-```
+El backend valida:
+
+- token
+- usuario real en base de datos
+- comunidad activa
+- owner
+- membresía local
+- rol local efectivo
+- privilegios globales
+
+## Frontend como consumidor
+
+El frontend consume y representa:
+
+- `rol_global`
+- `rol_comunidad`
+- `is_owner`
+- `can_manage_comunidad`
+- `comunidadNombre`
+
+Si hay divergencia entre lo persistido localmente y la base real, el backend corrige el estado mediante `auth/refresh`.
 
 ---
 
-## allowListarMiembrosComunidad
+# 4. Sistema oficial de roles
 
-Middleware específico creado en Fase 4.6.1.
+## 4.1 Dimensiones de autorización
+
+### `rol_global`
+
+Vive en `users.rol_global`.
+
+Define autoridad transversal del usuario sobre el sistema.
+
+Valores implementados:
+
+- `admin_total`
+- `admin_basic`
+- `miembro`
+
+Estado:
+
+- `EN USO`
+
+### `rol_comunidad`
+
+Vive en `comunidad_miembros.rol_comunidad`.
+
+Define autoridad local dentro de una comunidad específica.
+
+Valores implementados:
+
+- `admin_total`
+- `admin_basic`
+- `moderador`
+- `miembro`
+
+Estado:
+
+- `EN USO`
+
+### `owner_user_id`
+
+Vive en `comunidades.owner_user_id`.
+
+Define ownership estructural de la comunidad.
+
+Estado:
+
+- `EN USO`
+
+## 4.2 Roles efectivos
+
+### `admin_total`
+
+Alcance:
+
+- global
+- transversal a todas las comunidades
+
+Permisos reales validados:
+
+- crear comunidades por `POST /api/comunidades`
+- editar y eliminar comunidades
+- ver miembros de cualquier comunidad
+- gestionar roles locales
+- moderar interacciones
+- moderar respuestas
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+### `owner`
+
+Definición:
+
+- usuario cuyo `id` coincide con `comunidades.owner_user_id`
+
+Alcance:
+
+- estructural sobre su comunidad
+
+Permisos reales validados:
+
+- editar su comunidad
+- eliminar su comunidad
+- ver miembros de su comunidad
+- gestionar roles locales en su comunidad
+
+Interpretación oficial:
+
+- owner = `admin_basic` local efectivo para permisos de gestión local
+- owner no equivale a `admin_total`
+- owner no habilita crear comunidades adicionales por la ruta administrativa global
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+### `admin_basic` local
+
+Definición:
+
+- membresía activa en `comunidad_miembros` con `rol_comunidad = 'admin_basic'`
+
+Alcance:
+
+- comunidad específica
+
+Permisos reales validados:
+
+- ver miembros de su comunidad
+- gestionar roles locales permitidos
+- moderar interacciones de su comunidad
+- moderar respuestas de su comunidad
+- editar su comunidad en frontend/backend local
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+### `moderador`
+
+Definición:
+
+- membresía activa con `rol_comunidad = 'moderador'`
+
+Alcance:
+
+- comunidad específica
+
+Permisos reales validados:
+
+- moderar interacciones de su comunidad
+- moderar respuestas de su comunidad
+- no gestionar miembros
+- no administrar comunidad
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+### `miembro`
+
+Definición:
+
+- membresía activa con `rol_comunidad = 'miembro'`
+
+Permisos reales validados:
+
+- crear interacciones
+- listar interacciones visibles
+- responder interacciones, incluso globales, usando su comunidad actual como contexto
+- no moderar
+- no gestionar miembros
+- no administrar comunidad
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+## 4.3 Precedencia oficial
+
+Orden práctico de precedencia:
+
+1. `admin_total` global
+2. `owner_user_id` para comunidad objetivo
+3. `rol_comunidad` activo en `comunidad_miembros`
+4. fallback legacy sobre `users.rol` y `users.comunidad_id` cuando corresponde
+
+## 4.4 Excepciones oficiales
+
+- `owner` no se expone como valor persistido de `rol_comunidad`; es una condición estructural
+- `buildAuthUserResponse` expone `is_owner` y `can_manage_comunidad`
+- `resolveRolComunidadHibrido` resuelve al owner como `admin_basic` efectivo salvo caso especial de membresía `admin_total`
+- `users.rol` sigue coexistiendo por compatibilidad, pero no es la fuente oficial futura de permisos locales
+
+---
+
+# 5. Middleware y autorización oficial
+
+## `verificarToken`
+
+- valida JWT
+- carga `req.user`
+- protege endpoints autenticados
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+## `verificarRolComunidad`
+
+Middleware genérico híbrido.
+
+Hace:
+
+- resuelve `comunidad_id`
+- permite bypass de `admin_total` global cuando aplica
+- consulta `tieneRolComunidad`
+- adjunta `req.comunidadAuth`
+
+Estado:
+
+- `COMPLETADO`
+- `EN USO`
+
+## `allowListarMiembrosComunidad`
 
 Permite:
 
-* admin_total global
-* owner_user_id
-* admin_basic local
+- `admin_total`
+- `owner`
+- `admin_basic` local
 
----
+Estado:
 
-## allowGestionarRolesComunidad
+- `COMPLETADO`
+- `EN USO`
 
-Usado en Fase 4.6.3.
+## `allowGestionarRolesComunidad`
 
 Permite:
 
-* admin_total global
-* admin_basic local
+- `admin_total`
+- `owner`
+- `admin_basic` local
 
-Bloquea:
+Estado:
 
-* autoedición
-* owner
-* admin_total global target
+- `COMPLETADO`
+- `EN USO`
 
----
+## `ownershipComunidad`
 
-# 9. Flujo Actual de Permisos
+Permite:
 
-## Arquitectura correcta actual
+- `admin_total`
+- owner real de la comunidad
 
-```txt
-ownership/moderación = comunidad origen
-```
+Uso:
 
-## Reglas importantes
+- `PUT /api/comunidades/:id`
+- `DELETE /api/comunidades/:id`
 
-### Interacciones globales
+Estado:
 
-Pueden:
+- `COMPLETADO`
+- `EN USO`
 
-* verse globalmente
-* recibir respuestas cross-community
+## `syncComunidadMiembro`
 
-NO pueden:
+Uso de compatibilidad:
 
-* ser moderadas por cualquier comunidad
+- crea o corrige membresía desde estado legacy cuando existe `req.user.comunidad_id`
 
-## Moderación
+Estado:
 
-Siempre depende de:
-
-```txt
-interaccion.comunidad_id
-```
-
-NO de la comunidad del actor.
+- `EN USO`
+- `DEPRECADO` como mecanismo de transición
 
 ---
 
-# 10. Interacciones (Fase 4.6.4-C1)
+# 6. Comunidades y creación de comunidades
 
-## Estados actuales
+## Ruta administrativa global
 
-```txt
-abierto
-cerrado
-en_proceso
-oculto
-```
+### `POST /api/comunidades`
 
-## PATCH implementado
+Protección:
 
-```txt
-PATCH /api/interacciones/:id/estado
-```
+- `verificarToken`
+- `onlyAdminTotal`
 
-## Moderadores permitidos
+Puede crear:
 
-```txt
-admin_total global
-admin_basic local
-moderador local
-```
+- solo `admin_total`
 
-## miembro simple
+No puede crear:
 
-NO puede moderar.
+- owner
+- admin local
+- moderador
+- miembro
 
----
+Efectos:
 
-# 11. Filosofía Correcta del Sistema
+- crea comunidad
+- asigna `owner_user_id`
+- crea o corrige membresía del creador como `admin_basic` local
 
-## Mantener
+Estado:
 
-✅ interacciones globales
-✅ respuestas cross-community
-✅ usuarios multi-comunidad
+- `EN USO`
 
-## NO hacer
+## Ruta de onboarding
 
-❌ comunidades totalmente cerradas
-❌ moderación global indiscriminada
+### `POST /api/comunidades/onboarding`
 
----
+Protección:
 
-# 12. Decisiones Técnicas Tomadas
+- token válido
+- usuario autenticado existente
+- `user.comunidad_id` debe ser nulo
 
-## Decisión crítica
+Puede crear:
 
-NO sincronizar automáticamente:
+- cualquier usuario autenticado sin comunidad asignada
 
-```txt
-rol_global -> rol_comunidad
-```
+No puede crear:
 
-Porque son dimensiones distintas.
+- usuario ya vinculado a una comunidad
 
----
+Efectos:
 
-## Decisión de moderación
+- crea comunidad
+- asigna `owner_user_id`
+- sincroniza usuario y membresía principal
+- deja al creador como `admin_basic` local
 
-La moderación pertenece siempre a:
+Estado:
 
-```txt
-comunidad origen
-```
+- `EN USO`
 
----
+## Conclusión oficial
 
-## Decisión de UI
+La creación de comunidades hoy tiene dos carriles:
 
-Frontend NO debe inferir permisos desde localStorage.
+- carril administrativo global para `admin_total`
+- carril de onboarding para primer ingreso sin comunidad
 
-Debe consumir permisos reales desde backend.
+La creación multi-comunidad aún no está implementada.
 
 ---
 
-## Decisión de C1
+# 7. Sistema híbrido de roles
 
-GET interacciones ahora devuelve:
+## Implementación oficial
 
-```json
-{
-  "items": [...],
-  "auth": {
-    "rol_comunidad": "...",
-    "can_moderate_interacciones": true
-  }
-}
-```
+La lógica híbrida vive principalmente en:
 
----
+- `backend/src/utils/comunidadRoles.js`
+- `backend/src/utils/buildAuthUserResponse.js`
 
-# 13. Problemas ya corregidos
+## Responsabilidades de `comunidadRoles`
 
-## ✔ Listado seguro de miembros
+- resolver membresía activa
+- resolver owner
+- producir rol local efectivo
+- soportar fallback legacy
+- sincronizar usuario y membresía principal
+- crear membresías faltantes de compatibilidad
 
-Fase 4.6.1 completada.
+## Responsabilidades de `buildAuthUserResponse`
 
----
+- hidratar comunidad actual
+- calcular `rol_comunidad`
+- calcular `is_owner`
+- calcular `can_manage_comunidad`
+- devolver snapshot autenticado consistente para frontend
 
-## ✔ Roles locales
+## Decisión oficial
 
-Fase 4.6.3 completada.
+Para autorización local:
 
-Incluye:
-
-* promover
-* degradar
-* moderador
-* admin local
+- la combinación `owner_user_id + comunidad_miembros` es la referencia real
+- `users.rol` ya no debe considerarse suficiente por sí solo
 
 ---
 
-## ✔ Moderación de interacciones
+# 8. Fase C
 
-Fase 4.6.4-C1 funcional.
+## Estado
 
-Incluye:
+- `COMPLETADA`
 
-* ocultar
-* abrir
-* cerrar
-* permisos contextuales
+## Cierre funcional validado
 
----
+- reducción de dependencia directa del frontend sobre `user.rol` para permisos locales
+- sesión frontend rehidratada desde backend
+- corrección de stale session mediante `refreshAuthSession`
+- `UserContext` normaliza `rol_global`, `rol_comunidad`, `is_owner`, `can_manage_comunidad`
+- `Header` y `App.js` consumen permisos derivados del usuario autenticado actualizado
+- `Interacciones` usa polling con foco/visibilidad y relectura del backend
+- `auth/refresh` recompone el estado autenticado real desde PostgreSQL
 
-## ✔ Protección admin_total
+## Resultado arquitectónico
 
-No editable localmente.
-
----
-
-## ✔ Frontend consume permisos reales
-
-Interacciones.js ya usa:
-
-```txt
-auth.can_moderate_interacciones
-```
+- backend consolidado como fuente de verdad
+- frontend dejó de ser autoridad sobre permisos locales
+- cambios de rol/comunidad se reflejan sin exigir relogin duro en cada caso
 
 ---
 
-# 14. Problemas Pendientes
+# 9. Fase D
 
-## C2 — Moderación de respuestas
+## Estado
 
-Pendiente.
+- `COMPLETADA`
 
-Debe implementar:
+## Cierre funcional validado
 
-```txt
-PATCH /api/respuestas/:id/estado
-```
+- introducción de `owner_user_id` en `comunidades`
+- owner efectivo documentado y utilizado en middlewares/controladores
+- owner tratado como `admin_basic` local efectivo para gestión local
+- migración SQL de `owner_user_id` aplicada
+- migración de `rol_global` aplicada
+- tabla `comunidad_miembros` creada y poblada
+- migración para `moderador` aplicada
+- migración de consistencia owner/admin_basic aplicada
+- `buildAuthUserResponse` consolidado
+- `comunidadRoles` consolidado
+- `MiembrosComunidadPanel` alineado al modelo híbrido
 
-Estados previstos:
+## Resultado arquitectónico
 
-```txt
-activa
-oculta
-```
-
----
-
-## Riesgo detectado
-
-La tabla respuestas podría NO tener columna:
-
-```txt
-estado
-```
-
-Debe verificarse antes de implementar C2.
+- ownership persistido en base de datos
+- permisos locales separados de permisos globales
+- panel de miembros con owner visible como rol estructural
+- backend capaz de exponer estado autenticado coherente para UI
 
 ---
 
-## UserContext stale
+# 10. Estado actual validado
 
-Problema parcial:
+Validado contra código actual:
 
-roles locales pueden quedar stale en localStorage.
+- `admin_total` funciona
+- `owner` funciona
+- `admin_basic` funciona
+- `moderador` funciona
+- `miembro` funciona
+- moderación funciona
+- gestión de miembros funciona
+- interacciones globales funcionan
+- respuestas cross-community funcionan
 
-Mitigado parcialmente porque frontend ya consume permisos reales desde backend.
+## Alcance de esta validación
 
----
+La validación anterior aplica a:
 
-# 15. Riesgos Conocidos
+- autenticación y refresh
+- comunidades
+- membresías
+- owner
+- interacciones
+- respuestas
+- paneles de comunidad y miembros
 
-## Riesgo 1
-
-Uso simultáneo de:
-
-```txt
-rol
-rol_global
-```
-
-Aún existe por compatibilidad legacy.
-
----
-
-## Riesgo 2
-
-Algunas pantallas todavía muestran:
-
-```txt
-Rol comunidad
-```
-
-cuando realmente muestran rol global.
+No implica que `grupos`, `tareas` y `reportes` ya estén completamente alineados al sistema híbrido.
 
 ---
 
-## Riesgo 3
+# 11. Módulos y estado de alineación
 
-Interacciones globales pueden crecer rápidamente.
+## `auth`
 
-En producción será necesario:
+- estado: `COMPLETADO`
+- uso: `EN USO`
+- observación: backend recompone sesión desde DB
 
-* rate limits
-* reputación
-* anti-spam
-* auditoría
-* observabilidad
+## `comunidades`
 
----
+- estado: `COMPLETADO`
+- uso: `EN USO`
+- observación: ownership y membresía local ya integrados
 
-# 16. Convenciones Actuales
+## `miembros de comunidad`
 
-## Backend
+- estado: `COMPLETADO`
+- uso: `EN USO`
+- observación: UI y backend alineados a owner/admin_basic/moderador/miembro
 
-Controllers:
+## `interacciones`
 
-```txt
-exports.nombreFuncion
-```
+- estado: `COMPLETADO`
+- uso: `EN USO`
+- observación: usa `verificarRolComunidad`, soporta visibilidad global y moderación contextual
 
-Middleware:
+## `respuestas`
 
-```txt
-req.comunidadAuth
-req.user
-```
+- estado: `COMPLETADO`
+- uso: `EN USO`
+- observación: soporta respuesta cross-community para interacciones globales y moderación contextual
 
----
+## `grupos`
 
-## Frontend
+- estado: `PENDIENTE`
+- uso: `EN USO`
+- observación: mezcla ruta híbrida con lógica legacy basada en `req.user.rol`
 
-Estado principal:
+## `tareas`
 
-```js
-const [lista, setLista]
-```
+- estado: `PENDIENTE`
+- uso: `EN USO`
+- observación: usa middleware híbrido pero mantiene chequeos internos legacy con `req.user.rol`
 
-Errores:
+## `reportes`
 
-```js
-estadoErrorGeneral
-estadoErroresPorId
-```
-
----
-
-# 17. Archivos Más Importantes
-
-## Backend
-
-```txt
-backend/src/controllers/comunidadesController.js
-backend/src/controllers/interaccionesController.js
-backend/src/controllers/respuestasController.js
-
-backend/src/middleware/verificarRolComunidad.js
-backend/src/middleware/allowGestionarRolesComunidad.js
-backend/src/middleware/allowListarMiembrosComunidad.js
-
-backend/src/utils/comunidadRoles.js
-
-backend/src/models/ComunidadMiembro.js
-backend/src/models/Interaccion.js
-backend/src/models/Respuesta.js
-```
+- estado: `PENDIENTE`
+- uso: `EN USO`
+- observación: middleware ya consulta `tieneRolComunidad`, pero falta auditoría integral del módulo
 
 ---
 
-## Frontend
+# 12. Decisiones oficiales vigentes
 
-```txt
-frontend/src/Screens/Interacciones.js
-frontend/src/Screens/MiembrosComunidadPanel.js
-frontend/src/Screens/ComunidadesPanel.js
-frontend/src/Screens/ConfiguracionPanel.js
+## `COMPLETADO`
 
-frontend/src/contexts/UserContext.js
-```
+- backend como autoridad final
+- PostgreSQL como persistencia oficial
+- frontend como vista sincronizada
+- ownership estructural separado de rol global
+- membresía local separada de rol global
+- refresh de sesión como mecanismo de corrección de estado
 
----
+## `DEPRECADO`
 
-# 18. Estado Actual del Desarrollo
+- asumir que `users.rol` define por sí solo permisos locales
+- asumir que `localStorage.user` es verdad persistente
+- acoplar UI de permisos solo a datos decodificados del JWT sin refresh
 
-## Estado general
+## `PENDIENTE`
 
-```txt
-Fase 4.x avanzada
-```
-
-## Completado
-
-* roles locales
-* miembros
-* moderadores
-* moderación de interacciones
-* permisos contextuales
-* ownership contextual
-
-## Próximo objetivo
-
-```txt
-Fase 4.6.4-C2
-→ moderación de respuestas
-```
+- política oficial de multi-comunidad
+- normalización total de módulos legacy
+- sustitución del polling por tiempo real
 
 ---
 
-# 19. Recomendación Arquitectónica Final
+# 13. Roadmap
 
-NO cerrar comunidades.
+## Fase E
 
-Mantener:
+Estado:
 
-```txt
-global visibility
-+
-local ownership
-+
-contextual moderation
-```
+- `PENDIENTE`
 
-Esa es la arquitectura correcta para COMUVA.
+Objetivo:
+
+- auditoría de `Grupos`
+- auditoría de `Tareas`
+- auditoría de `Reportes`
+- validación de alineación completa con el sistema híbrido
+
+## Fase F
+
+Estado:
+
+- `PENDIENTE`
+
+Objetivo:
+
+- creación multi-comunidad
+
+Definir:
+
+- quién puede crear múltiples comunidades
+- límites por usuario
+- ownership por comunidad
+- reglas de negocio de membresía principal
+- convivencia con `owner_user_id`
+
+## Fase G
+
+Estado:
+
+- `PENDIENTE`
+
+Objetivo:
+
+- notificaciones en tiempo real
+
+Evaluar:
+
+- WebSocket
+- SSE
+- eliminación futura de polling
+
+## Fase H
+
+Estado:
+
+- `PENDIENTE`
+
+Objetivo:
+
+- preparación para escalabilidad
+
+Evaluar:
+
+- AWS
+- RDS
+- caché
+- observabilidad
+- métricas
 
 ---
 
-# 20. Recomendación para Próximos Chats/Codex
+# 14. Conclusión oficial
 
-Antes de modificar cualquier flujo:
+Al cierre de Fase D, COMUVA ya tiene un núcleo arquitectónico estable:
 
-1. Revisar:
+- autenticación con refresh
+- backend como fuente de verdad
+- ownership persistido
+- membresías locales
+- sistema híbrido de roles operativo
+- moderación contextual funcional
 
-   * req.comunidadAuth
-   * ownership real
-   * comunidad origen
-2. Nunca inferir permisos desde frontend solamente.
-3. Preferir:
-
-   * backend source of truth
-4. Mantener separación:
-
-   * rol_global
-   * rol_comunidad
-5. No romper interacciones globales cross-community.
-6. Toda moderación debe resolverse desde:
-
-   * recurso real
-   * comunidad origen
-
-FIN
+La siguiente prioridad no es redefinir lo ya resuelto, sino alinear `grupos`, `tareas` y `reportes` al mismo estándar antes de abrir multi-comunidad y tiempo real.

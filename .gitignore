@@ -6,3 +6,4 @@ docker-compose.prod.yml
 certbot/
 q/
 *.zip
+docs/COMUVA_CONTEXT.md

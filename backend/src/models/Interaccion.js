@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     categoria: {
       type: DataTypes.STRING,
-      defaultValue: "servicio"
+      defaultValue: "serviço"
     },
     urgencia: {
       type: DataTypes.STRING,
