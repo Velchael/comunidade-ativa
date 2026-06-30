@@ -91,7 +91,26 @@ function Header({ toggleSidebar }) {
                 fontWeight: "bold"
               }}
             >
-              {userCommunityName} - Olá: {user.username}
+              <div className="header-user-summary">
+                <span>{userCommunityName} - Olá: {user.username}</span>
+                <svg
+                  className="header-ecg"
+                  viewBox="0 0 360 32"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="
+                    M2 20
+                    H120
+                    L128 20 L133 17 L138 23 L143 20
+                    H195
+                    L204 20 L212 12 L221 28 L230 20
+                    H270
+                    L280 20 L292 6 L306 31 L320 20
+                    H358
+                  "></path>
+                </svg>
+              </div>
 
               {shouldShowConfigMenu && (
                 <NavDropdown title="⚙️" id="config-dropdown">
@@ -155,15 +174,10 @@ function Header({ toggleSidebar }) {
 
               <button
                 onClick={toggleSidebar}
-                style={{
-                  marginRight: "10px",
-                  fontSize: "20px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer"
-                }}
+                className="sidebar-menu-button"
+                aria-label="Abrir menu lateral"
               >
-                Explorar ☰
+                ☰
               </button>
 
             </Navbar.Brand>

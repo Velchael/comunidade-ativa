@@ -7,12 +7,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 header {
+  box-sizing: border-box;
   background-color: #ca932b;
   padding: 1rem;
   max-width: 100%;
-  max-height: 100%;
   width: 100%;
-  height: 7.5rem;
+  min-height: 7.5rem;
+  height: auto;
+  overflow: visible;
 }
 
 .user-info-bar {
@@ -39,13 +41,59 @@ header {
   font-weight: bold;
 }
 main {
-  flex: 1;
+  flex: 1 0 auto;
+  width: 100%;
 }
 .btn {
   background-color: #fdbb05;
   color: #431a03;
   font-weight: bold;
 }
+
+.header-user-summary {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #000;
+  line-height: 1.15;
+}
+
+.menu-header {
+  width: 100%;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  clear: both;
+}
+
+.header-ecg {
+  width: min(260px, 100%);
+  height: 24px;
+  margin-top: 2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.sidebar-menu-button {
+  margin-right: 10px;
+  padding: 0.1rem 0.35rem;
+  border: none;
+  background: transparent;
+  color: #000;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sidebar-menu-button:hover,
+.sidebar-menu-button:focus {
+  color: #431a03;
+}
+
 .img-large {
   max-width: 55%;
 }
@@ -124,6 +172,48 @@ footer {
   background-color: #0056b3; /* Cambia el color de fondo al pasar el cursor */
   transform: translateY(-2px); /* Agrega un ligero desplazamiento hacia arriba al pasar el cursor */
 }
+
+@media (max-width: 768px) {
+  header {
+    min-height: 0;
+    padding: 0.75rem 0.75rem 0.85rem;
+  }
+
+  header .row {
+    row-gap: 0.5rem;
+  }
+
+  header .d-flex.align-items-center {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .header-user-summary {
+    max-width: 58vw;
+    align-items: flex-end;
+    font-size: 0.86rem;
+  }
+
+  .header-ecg {
+    width: min(210px, 100%);
+    height: 20px;
+  }
+
+  .menu-header {
+    padding-top: 0.45rem;
+    padding-bottom: 0.2rem;
+  }
+
+  .menu-header .container {
+    align-items: center;
+  }
+
+  .menu {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+}
+
 @media (max-width: 768px) {
   .list-unstyled {
     flex-wrap: wrap;
