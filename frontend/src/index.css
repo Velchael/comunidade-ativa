@@ -589,6 +589,21 @@ footer {
   margin-top: 0.25rem;
 }
 
+.respuesta-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.respuesta-form .respuesta-input {
+  flex: 1;
+}
+
+.respuesta-submit {
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+}
+
 @media (max-width: 768px) {
   .composer-row,
   .filter-row,
@@ -609,5 +624,9 @@ footer {
 
   .composer-submit {
     width: 100%;
+  }
+
+  .respuesta-form {
+    align-items: stretch;
   }
 }

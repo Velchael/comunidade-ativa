@@ -870,20 +870,30 @@ export default function Interacciones() {
               </div>
             )}
 
-            <Form.Control
-              className="respuesta-input"
-              placeholder="Responder..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  responder(
-                    item.id,
-                    e.target.value
-                  );
+            <Form
+              className="respuesta-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = e.currentTarget.elements.respuesta;
+                const mensaje = input.value.trim();
 
-                  e.target.value = "";
-                }
+                if (!mensaje) return;
+
+                responder(item.id, mensaje);
+                input.value = "";
               }}
-            />
+            >
+              <Form.Control
+                name="respuesta"
+                className="respuesta-input"
+                placeholder="Responder..."
+                enterKeyHint="send"
+                autoComplete="off"
+              />
+              <Button type="submit" className="respuesta-submit">
+                Enviar
+              </Button>
+            </Form>
           </Card.Body>
         </Card>
       ))}
