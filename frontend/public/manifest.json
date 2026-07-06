@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "COMUVA",
+  "name": "COMUVA",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#2e7d32",
+  "background_color": "#ffffff",
+  "description": "Comunidade Viva, Ativa e em Movimento. Conectando pessoas para fortalecer suas comunidades."
 }
