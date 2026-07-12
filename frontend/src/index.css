@@ -265,6 +265,538 @@ footer {
   color: #fdbb05;
 }
 
+/* COMUVA Home */
+.comuva-home {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  color: #1f2933;
+  overflow: hidden;
+}
+
+.comuva-home p {
+  text-align: left;
+}
+
+.comuva-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  min-height: calc(100vh - 190px);
+  padding: clamp(3rem, 7vw, 7rem) 0 clamp(5rem, 9vw, 9rem);
+}
+
+.comuva-hero__image-wrap,
+.comuva-feature__media {
+  position: relative;
+  overflow: hidden;
+  background: #eef2f0;
+  box-shadow: 0 24px 70px rgba(31, 41, 51, 0.16);
+}
+
+.comuva-hero__image-wrap {
+  min-height: 650px;
+  border-radius: 8px;
+}
+
+.comuva-hero__image-wrap::after,
+.comuva-feature__media::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.comuva-hero__image-wrap::after {
+  background:
+    linear-gradient(180deg, rgba(23, 32, 38, 0.06), rgba(23, 32, 38, 0.18)),
+    linear-gradient(90deg, rgba(202, 147, 43, 0.10), transparent 48%);
+}
+
+.comuva-feature__media::after {
+  background: linear-gradient(180deg, transparent 58%, rgba(23, 32, 38, 0.12));
+}
+
+.comuva-hero__image,
+.comuva-feature__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comuva-hero__image {
+  object-position: center center;
+}
+
+.comuva-hero__content {
+  max-width: 620px;
+  padding-top: 1rem;
+}
+
+.comuva-kicker,
+.comuva-feature__eyebrow,
+.comuva-feature__number {
+  margin: 0;
+  color: #7a4f14;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.comuva-kicker {
+  margin-bottom: 0.9rem;
+}
+
+.comuva-feature__number {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 1.35rem;
+  padding-bottom: 0.65rem;
+  color: #a8741e;
+}
+
+.comuva-feature__number::after {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 3.5rem;
+  height: 1px;
+  background: #ca932b;
+  content: "";
+}
+
+.comuva-hero h1,
+.comuva-mission h2,
+.comuva-feature h2,
+.comuva-emotional h2,
+.comuva-final h2 {
+  margin: 0;
+  color: #172026;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.comuva-hero h1 {
+  max-width: 11ch;
+  font-size: clamp(2.7rem, 7vw, 5.6rem);
+  line-height: 0.96;
+}
+
+.comuva-hero__subtitle {
+  margin: 1.3rem 0 0;
+  color: #2f5f53;
+  font-size: clamp(1.2rem, 2.4vw, 1.8rem);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.comuva-hero__text {
+  max-width: 34rem;
+  margin: 1.15rem 0 0;
+  color: #3f4e58;
+  font-size: clamp(1.02rem, 1.7vw, 1.24rem);
+  line-height: 1.72;
+}
+
+.comuva-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 2.1rem;
+}
+
+.comuva-button.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  border-radius: 6px;
+  padding: 0.8rem 1.25rem;
+  border-width: 2px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.comuva-button--primary.btn {
+  border-color: #ca932b;
+  background: #ca932b;
+  color: #1b1306;
+}
+
+.comuva-button--primary.btn:hover,
+.comuva-button--primary.btn:focus {
+  border-color: #a8741e;
+  background: #a8741e;
+  color: #fff;
+}
+
+.comuva-button--secondary.btn {
+  border-color: #2f5f53;
+  background: transparent;
+  color: #24483f;
+}
+
+.comuva-button--secondary.btn:hover,
+.comuva-button--secondary.btn:focus {
+  border-color: #2f5f53;
+  background: #2f5f53;
+  color: #fff;
+}
+
+.comuva-mission,
+.comuva-emotional,
+.comuva-final {
+  padding: clamp(4.5rem, 9vw, 9rem) clamp(1rem, 3vw, 2rem);
+}
+
+.comuva-section-inner {
+  margin: 0 auto;
+}
+
+.comuva-section-inner--narrow {
+  max-width: 840px;
+}
+
+.comuva-mission {
+  border-top: 1px solid rgba(202, 147, 43, 0.28);
+  border-bottom: 1px solid rgba(47, 95, 83, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(247, 251, 248, 0.96)),
+    #fffaf0;
+}
+
+.comuva-mission h2 {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.08;
+}
+
+.comuva-mission p,
+.comuva-emotional p,
+.comuva-final p {
+  margin: 1.3rem 0 0;
+  color: #3f4e58;
+  font-size: clamp(1.04rem, 1.8vw, 1.3rem);
+  line-height: 1.78;
+}
+
+.comuva-story {
+  display: grid;
+  gap: clamp(5rem, 9vw, 9rem);
+  padding: clamp(5rem, 10vw, 10rem) 0;
+}
+
+.comuva-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+}
+
+.comuva-feature--reverse {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+}
+
+.comuva-feature--reverse .comuva-feature__media {
+  order: 2;
+}
+
+.comuva-feature--reverse .comuva-feature__content {
+  order: 1;
+}
+
+.comuva-feature__media {
+  height: clamp(380px, 48vw, 560px);
+  border-radius: 8px;
+}
+
+.comuva-feature--interacoes .comuva-feature__media {
+  height: clamp(360px, 42vw, 500px);
+}
+
+.comuva-feature--agenda .comuva-feature__media {
+  height: clamp(410px, 50vw, 590px);
+}
+
+.comuva-feature--grupos .comuva-feature__media {
+  height: clamp(500px, 58vw, 680px);
+}
+
+.comuva-feature--solidariedade .comuva-feature__media {
+  height: clamp(390px, 46vw, 540px);
+}
+
+.comuva-feature--crescimento .comuva-feature__media {
+  height: clamp(520px, 60vw, 700px);
+}
+
+.comuva-feature__media img {
+  object-position: center center;
+}
+
+.comuva-feature--agenda .comuva-feature__media img {
+  object-position: center center;
+}
+
+.comuva-feature--grupos .comuva-feature__media img,
+.comuva-feature--crescimento .comuva-feature__media img {
+  object-position: center center;
+}
+
+.comuva-feature__content {
+  max-width: 560px;
+}
+
+.comuva-feature__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.95rem;
+}
+
+.comuva-feature h2 {
+  font-size: clamp(1.9rem, 4vw, 3.25rem);
+  line-height: 1.08;
+}
+
+.comuva-feature p:last-child {
+  margin: 1.15rem 0 0;
+  color: #43535e;
+  font-size: clamp(1rem, 1.7vw, 1.2rem);
+  line-height: 1.78;
+}
+
+.comuva-emotional {
+  min-height: 520px;
+  display: grid;
+  align-items: center;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(202, 147, 43, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(47, 95, 83, 0.96), rgba(28, 47, 55, 0.96)),
+    #2f5f53;
+  color: #fff;
+}
+
+.comuva-emotional .comuva-kicker {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.comuva-emotional h2 {
+  max-width: 920px;
+  color: #fff;
+  font-size: clamp(2.5rem, 6.4vw, 5.65rem);
+  line-height: 1.01;
+}
+
+.comuva-emotional p {
+  max-width: 700px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.comuva-final {
+  margin-bottom: clamp(3rem, 6vw, 5rem);
+  border-top: 1px solid rgba(202, 147, 43, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.96), rgba(255, 255, 255, 0.96)),
+    #fffaf0;
+  text-align: center;
+}
+
+.comuva-final h2 {
+  font-size: clamp(2.2rem, 5vw, 4.25rem);
+  line-height: 1.05;
+}
+
+.comuva-final p {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.comuva-final .comuva-button {
+  margin-top: 1.7rem;
+}
+
+.comuva-signature {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  max-width: 480px;
+  margin: clamp(3rem, 6vw, 5rem) auto 0;
+  padding-top: 1.4rem;
+  border-top: 1px solid rgba(47, 95, 83, 0.22);
+  color: #56636b;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.comuva-signature strong {
+  color: #172026;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.comuva-signature span:last-child {
+  color: #2f5f53;
+  font-style: italic;
+}
+
+@media (max-width: 991px) {
+  .comuva-hero,
+  .comuva-feature,
+  .comuva-feature--reverse {
+    grid-template-columns: 1fr;
+  }
+
+  .comuva-hero {
+    min-height: 0;
+    padding-top: 2rem;
+  }
+
+  .comuva-hero__image-wrap {
+    min-height: 540px;
+    order: 1;
+  }
+
+  .comuva-hero__content {
+    order: 2;
+    max-width: 720px;
+  }
+
+  .comuva-feature--reverse .comuva-feature__media,
+  .comuva-feature--reverse .comuva-feature__content {
+    order: initial;
+  }
+
+  .comuva-feature__content {
+    max-width: 720px;
+  }
+
+  .comuva-feature__media,
+  .comuva-feature--interacoes .comuva-feature__media,
+  .comuva-feature--agenda .comuva-feature__media,
+  .comuva-feature--solidariedade .comuva-feature__media {
+    height: 480px;
+  }
+
+  .comuva-feature--grupos .comuva-feature__media,
+  .comuva-feature--crescimento .comuva-feature__media {
+    height: 560px;
+  }
+}
+
+@media (max-width: 575px) {
+  .comuva-home {
+    width: 100%;
+  }
+
+  .comuva-hero,
+  .comuva-story {
+    gap: 2rem;
+  }
+
+  .comuva-story {
+    padding-top: 4.25rem;
+    padding-bottom: 4.25rem;
+  }
+
+  .comuva-hero__image-wrap {
+    min-height: 430px;
+  }
+
+  .comuva-hero h1 {
+    max-width: 10ch;
+  }
+
+  .comuva-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .comuva-button.btn {
+    width: 100%;
+    min-height: 3.1rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .comuva-mission,
+  .comuva-emotional,
+  .comuva-final {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .comuva-feature__media,
+  .comuva-feature--interacoes .comuva-feature__media,
+  .comuva-feature--agenda .comuva-feature__media,
+  .comuva-feature--solidariedade .comuva-feature__media {
+    height: 390px;
+    border-radius: 6px;
+  }
+
+  .comuva-feature--grupos .comuva-feature__media,
+  .comuva-feature--crescimento .comuva-feature__media {
+    height: 460px;
+    border-radius: 6px;
+  }
+
+  .comuva-emotional {
+    min-height: 430px;
+  }
+}
+
+@media (max-width: 375px) {
+  .comuva-hero__image-wrap {
+    min-height: 400px;
+  }
+
+  .comuva-feature__media,
+  .comuva-feature--interacoes .comuva-feature__media,
+  .comuva-feature--agenda .comuva-feature__media,
+  .comuva-feature--solidariedade .comuva-feature__media {
+    height: 360px;
+  }
+
+  .comuva-feature--grupos .comuva-feature__media,
+  .comuva-feature--crescimento .comuva-feature__media {
+    height: 430px;
+  }
+}
+
+@media (max-width: 340px) {
+  .comuva-hero__image-wrap {
+    min-height: 370px;
+  }
+
+  .comuva-feature__media,
+  .comuva-feature--interacoes .comuva-feature__media,
+  .comuva-feature--agenda .comuva-feature__media,
+  .comuva-feature--solidariedade .comuva-feature__media {
+    height: 330px;
+  }
+
+  .comuva-feature--grupos .comuva-feature__media,
+  .comuva-feature--crescimento .comuva-feature__media {
+    height: 390px;
+  }
+
+  .comuva-hero h1 {
+    font-size: 2.45rem;
+  }
+
+  .comuva-emotional h2,
+  .comuva-final h2 {
+    font-size: 2.1rem;
+  }
+}
+
 .close-btn {
   background: none;
   border: none;

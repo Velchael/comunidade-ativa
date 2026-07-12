@@ -1,379 +1,217 @@
 import React from "react";
-import { Container, Row, Col, Card, Button } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
+
+const homeSections = [
+  {
+    eyebrow: "Interações",
+    icon: "🤝",
+    title: "Interações que aproximam pessoas",
+    text:
+      "Peça ajuda, ofereça apoio, responda e converse com pessoas da sua comunidade. Cada interação aproxima pessoas e transforma cuidado em ação.",
+    image: "/home/interacoes-maos-unidas.jpg",
+    alt: "Mãos unidas representando cooperação entre pessoas",
+    reverse: false,
+    tone: "interacoes"
+  },
+  {
+    eyebrow: "Agenda",
+    icon: "📅",
+    title: "Agenda para colocar a comunidade em movimento",
+    text:
+      "Organize mutirões, encontros, tarefas e ações reais da comunidade. A Agenda ajuda a transformar intenção em presença, compromisso e movimento.",
+    image: "/home/agenda-limpeza-comunitaria.jpg",
+    alt: "Voluntários organizados em uma ação de limpeza comunitária",
+    reverse: true,
+    tone: "agenda"
+  },
+  {
+    eyebrow: "Grupos por Comunidade",
+    icon: "👥",
+    title: "Grupos para servir melhor",
+    text:
+      "Crie e participe de grupos que atuam em necessidades locais: alimentos, transporte, limpeza, campanhas, visitas, apoio e outras formas de servir.",
+    image: "/home/grupos-entrega-alimentos.jpg",
+    alt: "Pessoas entregando alimento em uma ação comunitária",
+    reverse: false,
+    tone: "grupos"
+  }
+];
 
 export default function Casapaz() {
   const navigate = useNavigate();
+  const goToSignup = () => navigate("/Seinscrever");
 
   return (
-    <div>
-
-      {/* HERO SECTION */}
-      <div
-        style={{
-          padding: "90px 20px",
-          textAlign: "center"
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "52px",
-            fontWeight: "bold",
-            marginBottom: "20px",
-            color: "#2c2c2c"
-          }}
-        >
-          Nenhuma comunidade sobrevive sozinha.
-        </h1>
-
-        <p
-          style={{
-            fontSize: "22px",
-            maxWidth: "850px",
-            margin: "0 auto",
-            color: "#555",
-            lineHeight: "1.8"
-          }}
-        >
-          A COMUVA conecta pessoas que precisam de ajuda
-          com pessoas que podem ajudar.
-          Uma plataforma humana baseada em cooperação,
-          comunidade ativa e interdependência social.
-        </p>
-
-        <div style={{ marginTop: "40px" }}>
-          <Button
-            variant="warning"
-            size="lg"
-            style={{
-              marginRight: "15px",
-              padding: "12px 30px",
-              fontWeight: "bold"
-            }}
-            onClick={() => navigate("/Seinscrever")}
-          >
-            Entrar com Google
-          </Button>
-
-          <Button
-            variant="outline-dark"
-            size="lg"
-            style={{
-              padding: "12px 30px",
-              fontWeight: "bold"
-            }}
-            onClick={() => navigate("/Seinscrever")}
-          >
-            Criar conta
-          </Button>
+    <div className="comuva-home">
+      <section className="comuva-hero" aria-labelledby="comuva-hero-title">
+        <div className="comuva-hero__image-wrap">
+          <img
+            className="comuva-hero__image"
+            src="/home/hero-inclusion.jpg"
+            alt="Grupo diverso recebendo uma pessoa com acolhimento e confiança"
+          />
         </div>
-      </div>
 
-      {/* SEÇÃO FILOSOFIA */}
-      <Container style={{ marginTop: "80px" }}>
-        <Row className="justify-content-center">
-          <Col md={10}>
-            <Card
-              style={{
-                border: "none",
-                borderRadius: "20px",
-                padding: "40px",
-                background: "#fffaf0",
-                boxShadow: "0 0 20px rgba(0,0,0,0.08)"
-              }}
+        <div className="comuva-hero__content">
+          <p className="comuva-kicker">Comunidade ativa</p>
+          <h1 id="comuva-hero-title">Bem-vindo à COMUVA</h1>
+          <p className="comuva-hero__subtitle">
+            Comunidade Viva, Ativa e em Movimento.
+          </p>
+          <p className="comuva-hero__text">
+            Pessoas ajudando pessoas. Fortalecendo comunidades através da
+            cooperação, da solidariedade e da participação.
+          </p>
+
+          <div className="comuva-actions" aria-label="Ações principais">
+            <Button
+              className="comuva-button comuva-button--primary"
+              size="lg"
+              onClick={goToSignup}
             >
-              <h2
-                style={{
-                  marginBottom: "25px",
-                  fontWeight: "bold",
-                  textAlign: "center"
-                }}
-              >
-                O que é a COMUVA?
-              </h2>
+              Entrar na COMUVA
+            </Button>
 
-              <p
-                style={{
-                  fontSize: "20px",
-                  lineHeight: "2",
-                  color: "#444",
-                  textAlign: "center"
-                }}
-              >
-                Nas antigas civilizações,
-                viver em comunidade era sobreviver.
-                <br /><br />
-
-                Ajudar não era opcional.
-                Compartilhar fortalecia todos.
-                <br /><br />
-
-                A COMUVA resgata essa essência
-                utilizando tecnologia humana e prática
-                para fortalecer a cooperação real
-                entre pessoas e comunidades.
-                  <br /><br />
-
-<p>
-  Hoje:
-</p>
-
-<p>
-  muitas pessoas vivem conectadas digitalmente…
-  mas isoladas socialmente.
-</p>
-
-<p>
-  A COMUVA nasce para recuperar:
-</p>
-
-<p>
-  ✅ ajuda mútua <br />
-  ✅ comunidade ativa <br />
-  ✅ cooperação real <br />
-  ✅ relações humanas autênticas
-</p>  
-              </p>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
-
-      {/* COMO FUNCIONA */}
-      <Container style={{ marginTop: "100px" }}>
-        <h2
-          style={{
-            textAlign: "center",
-            marginBottom: "50px",
-            fontWeight: "bold"
-          }}
-        >
-          Como funciona?
-        </h2>
-
-        <Row>
-
-          {/* PASSO 1 */}
-          <Col md={4}>
-            <Card
-              style={{
-                textAlign: "center",
-                padding: "30px",
-                borderRadius: "20px",
-                border: "none",
-                boxShadow: "0 0 15px rgba(0,0,0,0.08)",
-                minHeight: "280px"
-              }}
+            <Button
+              className="comuva-button comuva-button--secondary"
+              size="lg"
+              variant="outline-dark"
+              onClick={goToSignup}
             >
-              <div style={{ fontSize: "55px" }}>🆘</div>
+              Criar conta
+            </Button>
+          </div>
+        </div>
+      </section>
 
-              <h4 style={{ marginTop: "20px" }}>
-                Publique uma necessidade
-              </h4>
+      <section className="comuva-mission" aria-labelledby="comuva-mission-title">
+        <div className="comuva-section-inner comuva-section-inner--narrow">
+          <p className="comuva-kicker">O que é a COMUVA?</p>
+          <h2 id="comuva-mission-title">
+            Uma plataforma para fortalecer comunidades.
+          </h2>
+          <p>
+            A COMUVA é uma plataforma para fortalecer comunidades por meio da
+            ajuda mútua, da organização comunitária e da participação cidadã.
+            Aqui, necessidades reais encontram pessoas dispostas a colaborar.
+          </p>
+        </div>
+      </section>
 
-              <p style={{ marginTop: "15px", color: "#666" }}>
-                “Preciso de alimentos”
-                <br />
-                “Procuro cuidadora”
-                <br />
-                “Preciso de transporte”
+      <section className="comuva-story" aria-label="Como a COMUVA funciona">
+        {homeSections.map((section, index) => (
+          <article
+            className={`comuva-feature comuva-feature--${section.tone} ${
+              section.reverse ? "comuva-feature--reverse" : ""
+            }`}
+            key={section.eyebrow}
+          >
+            <div className="comuva-feature__media">
+              <img src={section.image} alt={section.alt} />
+            </div>
+
+            <div className="comuva-feature__content">
+              <p className="comuva-feature__number">
+                {String(index + 1).padStart(2, "0")}
               </p>
-            </Card>
-          </Col>
-
-          {/* PASSO 2 */}
-          <Col md={4}>
-            <Card
-              style={{
-                textAlign: "center",
-                padding: "30px",
-                borderRadius: "20px",
-                border: "none",
-                boxShadow: "0 0 15px rgba(0,0,0,0.08)",
-                minHeight: "280px"
-              }}
-            >
-              <div style={{ fontSize: "55px" }}>🤝</div>
-
-              <h4 style={{ marginTop: "20px" }}>
-                Receba ajuda
-              </h4>
-
-              <p style={{ marginTop: "15px", color: "#666" }}>
-                Pessoas reais respondem,
-                colaboram e participam
-                ativamente da comunidade.
+              <p className="comuva-feature__eyebrow">
+                <span aria-hidden="true">{section.icon}</span>
+                {section.eyebrow}
               </p>
-            </Card>
-          </Col>
+              <h2>{section.title}</h2>
+              <p>{section.text}</p>
+            </div>
+          </article>
+        ))}
+      </section>
 
-          {/* PASSO 3 */}
-          <Col md={4}>
-            <Card
-              style={{
-                textAlign: "center",
-                padding: "30px",
-                borderRadius: "20px",
-                border: "none",
-                boxShadow: "0 0 15px rgba(0,0,0,0.08)",
-                minHeight: "280px"
-              }}
-            >
-              <div style={{ fontSize: "55px" }}>🌱</div>
+      <section
+        className="comuva-emotional"
+        aria-labelledby="comuva-emotional-title"
+      >
+        <div className="comuva-section-inner comuva-section-inner--narrow">
+          <p className="comuva-kicker">Filosofia COMUVA</p>
+          <h2 id="comuva-emotional-title">
+            Nenhuma comunidade sobrevive sozinha.
+          </h2>
+          <p>
+            Quando pessoas caminham juntas, pequenos gestos transformam vidas e
+            fortalecem toda a comunidade.
+          </p>
+        </div>
+      </section>
 
-              <h4 style={{ marginTop: "20px" }}>
-                Comunidade viva
-              </h4>
+      <section className="comuva-story" aria-label="Impacto humano da COMUVA">
+        <article className="comuva-feature comuva-feature--solidariedade comuva-feature--reverse">
+          <div className="comuva-feature__media">
+            <img
+              src="/home/solidariedade-consolo.jpg"
+              alt="Pessoa oferecendo consolo e apoio em um momento sensível"
+            />
+          </div>
 
-              <p style={{ marginTop: "15px", color: "#666" }}>
-                Cada interação fortalece
-                o tecido social e a ajuda mútua.
-              </p>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+          <div className="comuva-feature__content">
+            <p className="comuva-feature__number">04</p>
+            <p className="comuva-feature__eyebrow">
+              <span aria-hidden="true">❤️</span>
+              Histórias de solidariedade
+            </p>
+            <h2>A solidariedade começa nos pequenos gestos</h2>
+            <p>
+              A solidariedade começa nos pequenos gestos: escutar, responder,
+              acompanhar e estar presente quando alguém precisa.
+            </p>
+          </div>
+        </article>
 
-      {/* EXEMPLOS REAIS */}
-      <Container style={{ marginTop: "100px" }}>
-        <h2
-          style={{
-            textAlign: "center",
-            marginBottom: "50px",
-            fontWeight: "bold"
-          }}
-        >
-          Interações reais
-        </h2>
+        <article className="comuva-feature comuva-feature--crescimento">
+          <div className="comuva-feature__media">
+            <img
+              src="/home/crescimento-sembrando.jpg"
+              alt="Mãos plantando uma muda como símbolo de crescimento comunitário"
+            />
+          </div>
 
-        <Row>
+          <div className="comuva-feature__content">
+            <p className="comuva-feature__number">05</p>
+            <p className="comuva-feature__eyebrow">
+              <span aria-hidden="true">🌱</span>
+              Crescimento comunitário
+            </p>
+            <h2>Ajudar hoje fortalece a comunidade do amanhã</h2>
+            <p>
+              Ajudar hoje fortalece a comunidade do amanhã. Quando a cooperação
+              vira hábito, a comunidade cresce com mais confiança, cuidado e
+              pertencimento.
+            </p>
+          </div>
+        </article>
+      </section>
 
-          <Col md={6}>
-            <Card
-              style={{
-                marginBottom: "20px",
-                borderRadius: "20px",
-                border: "none",
-                padding: "25px",
-                background: "#fff5f5"
-              }}
-            >
-              <h5>🆘 Necessidade</h5>
+      <section className="comuva-final" aria-labelledby="comuva-final-title">
+        <div className="comuva-section-inner comuva-section-inner--narrow">
+          <h2 id="comuva-final-title">Faça parte da sua comunidade.</h2>
+          <p>
+            Entre, participe e ajude a manter sua comunidade viva, ativa e em
+            movimento.
+          </p>
 
-              <p>
-                “Preciso de uma cuidadora para minha mãe.”
-              </p>
+          <Button
+            className="comuva-button comuva-button--primary"
+            size="lg"
+            onClick={goToSignup}
+          >
+            Começar agora
+          </Button>
 
-              <hr />
-
-              <h5>🤝 Resposta</h5>
-
-              <p>
-                “Sou cuidadora e posso ajudar.”
-              </p>
-            </Card>
-          </Col>
-
-          <Col md={6}>
-            <Card
-              style={{
-                marginBottom: "20px",
-                borderRadius: "20px",
-                border: "none",
-                padding: "25px",
-                background: "#f0fff4"
-              }}
-            >
-              <h5>🆘 Necessidade</h5>
-
-              <p>
-                “Preciso de apoio psicológico para adolescente.”
-              </p>
-
-              <hr />
-
-              <h5>🤝 Resposta</h5>
-
-              <p>
-                “Sou psicóloga e quero ajudar.”
-              </p>
-            </Card>
-          </Col>
-
-        </Row>
-      </Container>
-
-      {/* TESTEMUNHOS */}
-      <Container style={{ marginTop: "100px", marginBottom: "100px" }}>
-        <h2
-          style={{
-            textAlign: "center",
-            marginBottom: "50px",
-            fontWeight: "bold"
-          }}
-        >
-          Depoimentos
-        </h2>
-
-        <Row>
-
-          <Col md={4}>
-            <Card
-              style={{
-                padding: "25px",
-                borderRadius: "20px",
-                border: "none",
-                height: "100%"
-              }}
-            >
-              <p>
-                “Graças à COMUVA encontrei ajuda
-                quando mais precisava.”
-              </p>
-
-              <strong>— Maria</strong>
-            </Card>
-          </Col>
-
-          <Col md={4}>
-            <Card
-              style={{
-                padding: "25px",
-                borderRadius: "20px",
-                border: "none",
-                height: "100%"
-              }}
-            >
-              <p>
-                “O aplicativo voltou a conectar
-                nossa comunidade.”
-              </p>
-
-              <strong>— Carlos</strong>
-            </Card>
-          </Col>
-
-          <Col md={4}>
-            <Card
-              style={{
-                padding: "25px",
-                borderRadius: "20px",
-                border: "none",
-                height: "100%"
-              }}
-            >
-              <p>
-                “Encontrei pessoas reais
-                dispostas a ajudar.”
-              </p>
-
-              <strong>— Joana</strong>
-            </Card>
-          </Col>
-
-        </Row>
-      </Container>
-
+          <div className="comuva-signature" aria-label="Frase institucional">
+            <strong>COMUVA</strong>
+            <span>Comunidade Viva, Ativa e em Movimento.</span>
+            <span>Porque nenhuma comunidade sobrevive sozinha.</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
