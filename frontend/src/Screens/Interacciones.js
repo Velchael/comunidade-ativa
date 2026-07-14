@@ -2,6 +2,43 @@ import React, { useState, useEffect, useContext, useCallback, useRef } from "rea
 import { Container, Button, Form, Card, Alert } from "react-bootstrap";
 import axios from "axios";
 import { UserContext } from "../UserContext";
+import PrimarySelectorBar from "../components/PrimarySelectorBar";
+
+const TIPO_OPTIONS = [
+  { value: "necesidad", label: "Necessidade" },
+  { value: "ayuda", label: "Ajuda" }
+];
+
+const CATEGORIA_OPTIONS = [
+  { value: "servicio", label: "Serviço" },
+  { value: "producto", label: "Produto" }
+];
+
+const VISIBILIDAD_OPTIONS = [
+  { value: "global", label: "Global" },
+  { value: "comunidad", label: "Comunidade" }
+];
+
+const FILTER_TIPO_OPTIONS = [
+  { value: "todos", label: "Todos" },
+  ...TIPO_OPTIONS
+];
+
+const FILTER_CATEGORIA_OPTIONS = [
+  { value: "todos", label: "Todas" },
+  ...CATEGORIA_OPTIONS
+];
+
+const FILTER_VISIBILIDAD_OPTIONS = [
+  { value: "todas", label: "Todas" },
+  ...VISIBILIDAD_OPTIONS
+];
+
+const normalizeCategoria = (categoriaActual) =>
+  categoriaActual === "serviço" ? "servicio" : categoriaActual;
+
+const getOptionLabel = (options, value) =>
+  options.find((option) => option.value === value)?.label || String(value || "");
 
 export default function Interacciones() {
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
@@ -12,7 +49,7 @@ export default function Interacciones() {
   const userId = user?.id || null;
   const comunidadId = user?.comunidadId || user?.comunidad_id || null;
 
-  const [tipo, setTipo] = useState("necesidad");
+  const [tipo, setTipo] = useState("ayuda");
   const [categoria, setCategoria] = useState("servicio");
   const [texto, setTexto] = useState("");
   const [visibilidad, setVisibilidad] = useState("global");
@@ -27,6 +64,8 @@ export default function Interacciones() {
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
+  const [filtroVisibilidad, setFiltroVisibilidad] = useState("todas");
+  const [selectorAberto, setSelectorAberto] = useState(null);
 
   const puedeModerar =
     interaccionesAuth?.can_moderate_interacciones === true;
@@ -193,6 +232,7 @@ export default function Interacciones() {
       );
 
       setTexto("");
+      setTipo("ayuda");
       setUrgencia("normal");
 
       cargarInteracciones();
@@ -234,6 +274,23 @@ export default function Interacciones() {
     }
   };
 
+  const handleTipoChange = (nextTipo) => {
+    setTipo(nextTipo);
+
+    if (nextTipo === "ayuda") {
+      setUrgencia("normal");
+    }
+  };
+
+  const handlePrimarySelect = (field, value) => {
+    if (field === "tipo") handleTipoChange(value);
+    if (field === "categoria") setCategoria(value);
+    if (field === "visibilidad") setVisibilidad(value);
+    if (field === "filtroTipo") setFiltroTipo(value);
+    if (field === "filtroCategoria") setFiltroCategoria(value);
+    if (field === "filtroVisibilidad") setFiltroVisibilidad(value);
+  };
+
   // 🎨 ESTILO BOTONES ACTIVOS
   const getActiveStyle = (activo) => {
     return activo
@@ -272,8 +329,10 @@ export default function Interacciones() {
   };
 
   const getCategoriaLabel = (categoriaActual) => {
-    if (categoriaActual === "servicio") return "SERVIÇO";
-    if (categoriaActual === "producto") return "PRODUTO";
+    const categoriaNormalizada = normalizeCategoria(categoriaActual);
+
+    if (categoriaNormalizada === "servicio") return "SERVIÇO";
+    if (categoriaNormalizada === "producto") return "PRODUTO";
 
     return String(categoriaActual || "").toUpperCase();
   };
@@ -437,12 +496,19 @@ export default function Interacciones() {
   };
 
   // 🔍 FILTROS
+  const hasActiveFilters =
+    filtroTipo !== "todos" ||
+    filtroCategoria !== "todos" ||
+    filtroVisibilidad !== "todas";
+
   const listaFiltrada = lista.filter((item) => {
     return (
       (filtroTipo === "todos" ||
         item.tipo === filtroTipo) &&
       (filtroCategoria === "todos" ||
-        item.categoria === filtroCategoria)
+        normalizeCategoria(item.categoria) === filtroCategoria) &&
+      (filtroVisibilidad === "todas" ||
+        item.visibilidad === filtroVisibilidad)
     );
   });
 
@@ -458,40 +524,40 @@ export default function Interacciones() {
       <Card className="interacciones-panel publicar-panel">
         <Card.Body>
           <div className="panel-heading">
-            <span className="panel-eyebrow">Nova interação</span>
-            <h5 className="panel-title">Criar publicação</h5>
+            <h5 className="panel-title">Nova publicação</h5>
           </div>
 
-          <div className="composer-row">
-            <strong className="control-label">Tipo</strong>
-            <div className="control-actions">
-              <Button
-                variant={
-                  tipo === "necesidad"
-                    ? "primary"
-                    : "outline-primary"
-                }
-                className="chip-button"
-                style={getActiveStyle(tipo === "necesidad")}
-                onClick={() => setTipo("necesidad")}
-              >
-                Necessidade
-              </Button>
-
-              <Button
-                variant={
-                  tipo === "ayuda"
-                    ? "success"
-                    : "outline-success"
-                }
-                className="chip-button"
-                style={getActiveStyle(tipo === "ayuda")}
-                onClick={() => setTipo("ayuda")}
-              >
-                Ajuda
-              </Button>
-            </div>
-          </div>
+          <PrimarySelectorBar
+            mode="form"
+            ariaLabel="Dados principais da publicação"
+            openKey={selectorAberto}
+            onOpenChange={setSelectorAberto}
+            onSelect={handlePrimarySelect}
+            items={[
+              {
+                id: "tipo",
+                label: "Tipo",
+                value: tipo,
+                valueLabel: getOptionLabel(TIPO_OPTIONS, tipo),
+                options: TIPO_OPTIONS
+              },
+              {
+                id: "categoria",
+                label: "Categoria",
+                value: categoria,
+                valueLabel: getOptionLabel(CATEGORIA_OPTIONS, categoria),
+                options: CATEGORIA_OPTIONS
+              },
+              {
+                id: "visibilidad",
+                label: "Visibilidade",
+                value: visibilidad,
+                valueLabel: getOptionLabel(VISIBILIDAD_OPTIONS, visibilidad),
+                options: VISIBILIDAD_OPTIONS,
+                align: "end"
+              }
+            ]}
+          />
 
           {tipo === "necesidad" && (
             <div className="composer-row">
@@ -539,68 +605,6 @@ export default function Interacciones() {
             </div>
           )}
 
-          <div className="composer-row">
-            <strong className="control-label">Categoria</strong>
-            <div className="control-actions">
-              <Button
-                variant={
-                  categoria === "servicio"
-                    ? "warning"
-                    : "outline-warning"
-                }
-                className="chip-button"
-                style={getActiveStyle(categoria === "servicio")}
-                onClick={() => setCategoria("servicio")}
-              >
-                🛠️ Serviço
-              </Button>
-
-              <Button
-                variant={
-                  categoria === "producto"
-                    ? "info"
-                    : "outline-info"
-                }
-                className="chip-button"
-                style={getActiveStyle(categoria === "producto")}
-                onClick={() => setCategoria("producto")}
-              >
-                📦 Produto
-              </Button>
-            </div>
-          </div>
-
-          <div className="composer-row">
-            <strong className="control-label">Visibilidade</strong>
-            <div className="control-actions">
-              <Button
-                variant={
-                  visibilidad === "global"
-                    ? "dark"
-                    : "outline-dark"
-                }
-                className="chip-button"
-                style={getActiveStyle(visibilidad === "global")}
-                onClick={() => setVisibilidad("global")}
-              >
-                🌍 Global
-              </Button>
-
-              <Button
-                variant={
-                  visibilidad === "comunidad"
-                    ? "secondary"
-                    : "outline-secondary"
-                }
-                className="chip-button"
-                style={getActiveStyle(visibilidad === "comunidad")}
-                onClick={() => setVisibilidad("comunidad")}
-              >
-                🏘️ Comunidade
-              </Button>
-            </div>
-          </div>
-
           <Form.Control
             className="composer-input"
             placeholder="Do que você precisa ou o que pode oferecer?"
@@ -628,83 +632,45 @@ export default function Interacciones() {
             </span>
           </div>
 
-          <div className="filter-row compact">
-            <strong className="control-label">Tipo</strong>
-            <div className="control-actions">
-              <Button
-                variant={
-                  filtroTipo === "todos"
-                    ? "primary"
-                    : "outline-primary"
-                }
-                className="chip-button compact"
-                style={getActiveStyle(filtroTipo === "todos")}
-                onClick={() => {
-                  setFiltroTipo("todos");
-                  setFiltroCategoria("todos");
-                }}
-              >
-                Todos
-              </Button>
-
-              <Button
-                variant={
-                  filtroTipo === "necesidad"
-                    ? "primary"
-                    : "outline-primary"
-                }
-                className="chip-button compact"
-                style={getActiveStyle(filtroTipo === "necesidad")}
-                onClick={() => setFiltroTipo("necesidad")}
-              >
-                Necessidades
-              </Button>
-
-              <Button
-                variant={
-                  filtroTipo === "ayuda"
-                    ? "success"
-                    : "outline-success"
-                }
-                className="chip-button compact"
-                style={getActiveStyle(filtroTipo === "ayuda")}
-                onClick={() => setFiltroTipo("ayuda")}
-              >
-                Ajuda
-              </Button>
-            </div>
-          </div>
-
-          <div className="filter-row compact">
-            <strong className="control-label">Categoria</strong>
-            <div className="control-actions">
-              <Button
-                variant={
-                  filtroCategoria === "servicio"
-                    ? "warning"
-                    : "outline-warning"
-                }
-                className="chip-button compact"
-                style={getActiveStyle(filtroCategoria === "servicio")}
-                onClick={() => setFiltroCategoria("servicio")}
-              >
-                Serviços
-              </Button>
-
-              <Button
-                variant={
-                  filtroCategoria === "producto"
-                    ? "info"
-                    : "outline-info"
-                }
-                className="chip-button compact"
-                style={getActiveStyle(filtroCategoria === "producto")}
-                onClick={() => setFiltroCategoria("producto")}
-              >
-                Produtos
-              </Button>
-            </div>
-          </div>
+          {/* Filtros independentes: apenas Limpar filtros restaura os três campos. */}
+          <PrimarySelectorBar
+            mode="filter"
+            ariaLabel="Filtros de exploração"
+            openKey={selectorAberto}
+            onOpenChange={setSelectorAberto}
+            onSelect={handlePrimarySelect}
+            hasActiveFilters={hasActiveFilters}
+            onClear={() => {
+              setFiltroTipo("todos");
+              setFiltroCategoria("todos");
+              setFiltroVisibilidad("todas");
+              setSelectorAberto(null);
+            }}
+            items={[
+              {
+                id: "filtroTipo",
+                label: "Tipo",
+                value: filtroTipo,
+                valueLabel: getOptionLabel(FILTER_TIPO_OPTIONS, filtroTipo),
+                options: FILTER_TIPO_OPTIONS
+              },
+              {
+                id: "filtroCategoria",
+                label: "Categoria",
+                value: filtroCategoria,
+                valueLabel: getOptionLabel(FILTER_CATEGORIA_OPTIONS, filtroCategoria),
+                options: FILTER_CATEGORIA_OPTIONS
+              },
+              {
+                id: "filtroVisibilidad",
+                label: "Visibilidade",
+                value: filtroVisibilidad,
+                valueLabel: getOptionLabel(FILTER_VISIBILIDAD_OPTIONS, filtroVisibilidad),
+                options: FILTER_VISIBILIDAD_OPTIONS,
+                align: "end"
+              }
+            ]}
+          />
         </Card.Body>
       </Card>
 
