@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
-import { BrowserRouter, Route, Routes, NavLink, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { Container, Navbar, NavDropdown, Button, Row, Col } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
@@ -20,6 +20,7 @@ import GruposActivos from './Screens/GruposActivos';
 import Interacciones from './Screens/Interacciones';
 import CrearComunidad from './Screens/CrearComunidad';
 import SeleccionarComunidad from './Screens/SeleccionarComunidad';
+import OnboardingConfirmacion from './Screens/OnboardingConfirmacion';
 
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
@@ -226,6 +227,96 @@ function Header({ toggleSidebar }) {
   );
 }
 
+function AppRoutes() {
+  const { pathname } = useLocation();
+  const isOnboardingRoute = [
+    '/Seinscrever',
+    '/crear-comunidad',
+    '/seleccionar-comunidad',
+    '/onboarding-confirmacion'
+  ].includes(pathname);
+
+  const routes = (
+    <Routes>
+
+      <Route
+        path="/"
+        element={<Casapaz />}
+      />
+
+      <Route
+        path="/Casapaz"
+        element={<Casapaz />}
+      />
+
+      <Route
+        path="/Seinscrever"
+        element={<Seinscrever />}
+      />
+
+      <Route
+        path="/crear-comunidad"
+        element={<CrearComunidad />}
+      />
+
+      <Route
+        path="/seleccionar-comunidad"
+        element={<SeleccionarComunidad />}
+      />
+
+      <Route
+        path="/onboarding-confirmacion"
+        element={<OnboardingConfirmacion />}
+      />
+
+      <Route
+        path="/TaskList"
+        element={<TaskList />}
+      />
+
+      <Route path="/configuracion">
+
+        <Route
+          path="panel"
+          element={<ConfiguracionPanel />}
+        />
+
+        <Route
+          path="comunidades"
+          element={<ComunidadesPanel />}
+        />
+
+        <Route
+          path="comunidades/:id/miembros"
+          element={<MiembrosComunidadPanel />}
+        />
+
+      </Route>
+
+      <Route
+        path="/GruposActivos"
+        element={<GruposActivos />}
+      />
+
+      <Route
+        path="/interacciones"
+        element={<Interacciones />}
+      />
+
+    </Routes>
+  );
+
+  if (isOnboardingRoute) {
+    return routes;
+  }
+
+  return (
+    <Container className="mt-3">
+      {routes}
+    </Container>
+  );
+}
+
 export default function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -280,73 +371,7 @@ export default function App() {
                   zIndex: 1
                 }}
               >
-
-                <Container className="mt-3">
-
-                  <Routes>
-
-                    <Route
-                      path="/"
-                      element={<Casapaz />}
-                    />
-
-                    <Route
-                      path="/Casapaz"
-                      element={<Casapaz />}
-                    />
-
-                    <Route
-                      path="/Seinscrever"
-                      element={<Seinscrever />}
-                    />
-
-                    <Route
-                      path="/crear-comunidad"
-                      element={<CrearComunidad />}
-                    />
-
-                    <Route
-                      path="/seleccionar-comunidad"
-                      element={<SeleccionarComunidad />}
-                    />
-
-                    <Route
-                      path="/TaskList"
-                      element={<TaskList />}
-                    />
-
-                    <Route path="/configuracion">
-
-                      <Route
-                        path="panel"
-                        element={<ConfiguracionPanel />}
-                      />
-
-                      <Route
-                        path="comunidades"
-                        element={<ComunidadesPanel />}
-                      />
-
-                      <Route
-                        path="comunidades/:id/miembros"
-                        element={<MiembrosComunidadPanel />}
-                      />
-
-                    </Route>
-
-                    <Route
-                      path="/GruposActivos"
-                      element={<GruposActivos />}
-                    />
-
-                    <Route
-                      path="/interacciones"
-                      element={<Interacciones />}
-                    />
-
-                  </Routes>
-
-                </Container>
+                <AppRoutes />
 
               </div>
 

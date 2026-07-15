@@ -9,13 +9,15 @@ import {
   Alert,
   Card,
   Row,
-  Col
+  Col,
+  FormCheck
 } from 'react-bootstrap';
 
 import { Helmet } from 'react-helmet-async';
 import { UserContext } from '../UserContext';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import OnboardingLayout from '../components/OnboardingLayout';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
@@ -49,6 +51,7 @@ export default function Seinscrever() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [startMode, setStartMode] = useState('existente');
 
   // =====================================================
   // 🔹 LOGIN GOOGLE
@@ -284,10 +287,6 @@ export default function Seinscrever() {
 
       if (sessionToken && typeof login === 'function') {
         await login(sessionToken, savedUser || null);
-      } else if (newToken) {
-        localStorage.setItem('token', newToken);
-        axios.defaults.headers.common['Authorization'] =
-          `Bearer ${newToken}`;
       }
 
       if (savedUser) {
@@ -334,6 +333,15 @@ export default function Seinscrever() {
     }
   };
 
+  const handleContinueCommunityChoice = () => {
+    if (startMode === 'crear') {
+      navigate('/crear-comunidad');
+      return;
+    }
+
+    navigate('/seleccionar-comunidad');
+  };
+
   // =====================================================
   // 🔹 LOADING
   // =====================================================
@@ -342,15 +350,17 @@ export default function Seinscrever() {
 
     return (
 
-      <Container className="small-container text-center mt-5">
+      <OnboardingLayout step={1} className="text-center" maxWidth="600px">
 
         <Helmet>
           <title>Verificando perfil...</title>
         </Helmet>
 
-        <h2>Verificando perfil...</h2>
+        <div className="onboarding-panel">
+          <h1>Verificando perfil...</h1>
+        </div>
 
-      </Container>
+      </OnboardingLayout>
     );
   }
 
@@ -396,80 +406,81 @@ export default function Seinscrever() {
 
     return (
 
-      <Container
-        className="small-container"
-        style={{ maxWidth: '600px' }}
-      >
+      <OnboardingLayout step={1} maxWidth="600px">
 
         <Helmet>
           <title>Completar perfil</title>
         </Helmet>
 
-        <h2 className="my-4">
-          👋 Bem-vindo ao COMUVA
-        </h2>
+        <div className="onboarding-panel">
+          <h1>
+            {googleUser?.username
+              ? `Bem-vindo, ${googleUser.username}`
+              : 'Bem-vindo ao COMUVA'}
+          </h1>
 
-        <p>
-          Complete seu perfil básico para continuar.
-        </p>
+          <p>
+            Complete seus dados básicos para continuar com segurança.
+          </p>
 
-        {message.text && (
-          <Alert variant={message.type}>
-            {message.text}
-          </Alert>
-        )}
+          {message.text && (
+            <Alert variant={message.type}>
+              {message.text}
+            </Alert>
+          )}
 
-        <Form onSubmit={handleCompleteProfile}>
+          <Form onSubmit={handleCompleteProfile}>
 
-          {/* APELLIDO */}
+            {/* APELLIDO */}
 
-          <Form.Group className="mb-3">
+            <Form.Group className="mb-3">
 
-            <Form.Label>
-              Sobrenome
-            </Form.Label>
+              <Form.Label>
+                Sobrenome <span className="text-danger">*</span>
+              </Form.Label>
 
-            <Form.Control
-              type="text"
-              required
-              name="apellido"
-              value={formData.apellido}
-              onChange={handleChange}
-              placeholder="Digite seu sobrenome"
-            />
+              <Form.Control
+                type="text"
+                required
+                name="apellido"
+                value={formData.apellido}
+                onChange={handleChange}
+                placeholder="Digite seu sobrenome"
+              />
 
-          </Form.Group>
+            </Form.Group>
 
-          {/* TELÉFONO */}
+            {/* TELÉFONO */}
 
-          <Form.Group className="mb-3">
+            <Form.Group className="mb-3">
 
-            <Form.Label>
-              Telefone (opcional)
-            </Form.Label>
+              <Form.Label>
+                Telefone
+              </Form.Label>
 
-            <Form.Control
-              type="text"
-              name="telefono"
-              value={formData.telefono}
-              onChange={handleChange}
-              placeholder="+55 71 9xxxx-xxxx"
-            />
+              <Form.Control
+                type="tel"
+                name="telefono"
+                value={formData.telefono}
+                onChange={handleChange}
+                placeholder="+55 71 9xxxx-xxxx"
+              />
 
-          </Form.Group>
+            </Form.Group>
 
-          <Button
-            type="submit"
-            disabled={submitting}
-          >
-            {submitting
-              ? 'Salvando...'
-              : 'Continuar'}
-          </Button>
+            <Button
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting
+                ? 'Salvando...'
+                : 'Continuar'}
+            </Button>
 
-        </Form>
+          </Form>
+        </div>
 
-      </Container>
+      </OnboardingLayout>
     );
   }
 
@@ -481,136 +492,93 @@ export default function Seinscrever() {
 
     return (
 
-      <Container style={{ marginTop: '50px' }}>
+      <OnboardingLayout step={2} maxWidth="880px">
 
         <Helmet>
           <title>Bem-vindo ao COMUVA</title>
         </Helmet>
 
-        <div className="text-center mb-5">
+        <div className="onboarding-panel">
+          <div className="text-center mb-4">
 
-          <h1>
-            🌍 Bem-vindo ao COMUVA
-          </h1>
+            <h1>
+              Como deseja começar?
+            </h1>
 
-          <p style={{ fontSize: '18px' }}>
-            Escolha como deseja participar
-            da comunidade.
-          </p>
+            <p>
+              Escolha uma opção para configurar sua entrada na COMUVA.
+            </p>
 
+          </div>
+
+          <Row className="g-3">
+
+            {/* ========================================= */}
+            {/* 🔹 UNIRSE COMUNIDAD */}
+            {/* ========================================= */}
+
+            <Col md={6}>
+
+              <Card
+                className={`onboarding-choice-card${startMode === 'existente' ? ' is-selected' : ''}`}
+                onClick={() => setStartMode('existente')}
+              >
+                <Card.Body>
+                  <FormCheck
+                    type="radio"
+                    id="start-existing-community"
+                    name="startMode"
+                    checked={startMode === 'existente'}
+                    onChange={() => setStartMode('existente')}
+                    label="Entrar em uma comunidade existente"
+                  />
+
+                  <p>
+                    Encontre sua comunidade e comece a participar.
+                  </p>
+                </Card.Body>
+              </Card>
+
+            </Col>
+
+            {/* ========================================= */}
+            {/* 🔹 CREAR COMUNIDAD */}
+            {/* ========================================= */}
+
+            <Col md={6}>
+
+              <Card
+                className={`onboarding-choice-card${startMode === 'crear' ? ' is-selected' : ''}`}
+                onClick={() => setStartMode('crear')}
+              >
+                <Card.Body>
+                  <FormCheck
+                    type="radio"
+                    id="start-new-community"
+                    name="startMode"
+                    checked={startMode === 'crear'}
+                    onChange={() => setStartMode('crear')}
+                    label="Criar uma nova comunidade"
+                  />
+
+                  <p>
+                    Cadastre uma comunidade e siga como administrador local.
+                  </p>
+                </Card.Body>
+              </Card>
+
+            </Col>
+
+          </Row>
+
+          <div className="onboarding-actions">
+            <Button onClick={handleContinueCommunityChoice}>
+              Continuar
+            </Button>
+          </div>
         </div>
 
-        <Row>
-
-          {/* ========================================= */}
-          {/* 🔹 UNIRSE COMUNIDAD */}
-          {/* ========================================= */}
-
-          <Col md={6}>
-
-            <Card
-              style={{
-                padding: '30px',
-                borderRadius: '20px',
-                minHeight: '320px',
-                boxShadow:
-                  '0 0 20px rgba(0,0,0,0.08)',
-                border: 'none'
-              }}
-            >
-
-              <h2>
-                🏘️ Entrar em uma comunidade
-              </h2>
-
-              <p style={{ marginTop: '20px' }}>
-                Participe de uma comunidade
-                existente e comece a
-                ajudar ou receber ajuda.
-              </p>
-
-              <Button
-                variant="primary"
-                style={{ marginTop: 'auto' }}
-                onClick={() =>
-                  navigate('/seleccionar-comunidad')
-                }
-              >
-                Buscar comunidades
-              </Button>
-
-            </Card>
-
-          </Col>
-
-          {/* ========================================= */}
-          {/* 🔹 CREAR COMUNIDAD */}
-          {/* ========================================= */}
-
-          <Col md={6}>
-
-            <Card
-              style={{
-                padding: '30px',
-                borderRadius: '20px',
-                minHeight: '320px',
-                boxShadow:
-                  '0 0 20px rgba(0,0,0,0.08)',
-                border: 'none'
-              }}
-            >
-
-              <h2>
-                🌱 Criar nova comunidade
-              </h2>
-
-              <p style={{ marginTop: '20px' }}>
-                Crie uma nova comunidade
-                e torne-se líder
-                comunitário.
-              </p>
-
-              <div
-                style={{
-                  marginTop: '20px',
-                  fontSize: '14px',
-                  color: '#666'
-                }}
-              >
-                🔒 IMPORTANTE:
-                <br /><br />
-
-                Criar uma comunidade NÃO
-                concede permissões globais.
-
-                <br /><br />
-
-                O criador recebe o papel:
-                <strong> admin_basic</strong>
-
-                <br /><br />
-
-                Limitado apenas
-                à sua comunidade.
-              </div>
-
-              <Button
-                variant="success"
-                style={{ marginTop: '20px' }}
-                onClick={() =>
-                  navigate('/crear-comunidad')
-                }
-              >
-                Criar comunidade
-              </Button>
-
-            </Card>
-
-          </Col>
-
-        </Row>
-
-      </Container>
+      </OnboardingLayout>
     );
   }
 
