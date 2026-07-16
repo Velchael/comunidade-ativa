@@ -6,7 +6,13 @@ const CONSTRAINT_NAME = 'interacciones_estado_check';
 module.exports = {
   up: async (queryInterface) => {
     await queryInterface.sequelize.transaction(async (transaction) => {
-      await queryInterface.removeConstraint(TABLE, CONSTRAINT_NAME, { transaction });
+      await queryInterface.sequelize.query(
+        `
+          ALTER TABLE interacciones
+          DROP CONSTRAINT IF EXISTS ${CONSTRAINT_NAME}
+        `,
+        { transaction }
+      );
 
       await queryInterface.sequelize.query(
         `
@@ -30,7 +36,13 @@ module.exports = {
         { transaction }
       );
 
-      await queryInterface.removeConstraint(TABLE, CONSTRAINT_NAME, { transaction });
+      await queryInterface.sequelize.query(
+        `
+          ALTER TABLE interacciones
+          DROP CONSTRAINT IF EXISTS ${CONSTRAINT_NAME}
+        `,
+        { transaction }
+      );
 
       await queryInterface.sequelize.query(
         `

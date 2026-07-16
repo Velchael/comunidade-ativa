@@ -51,6 +51,11 @@ module.exports = (sequelize, DataTypes) => {
       as: 'miembros'
     });
 
+    Comunidad.hasMany(models.ComunidadInvitacion, {
+      foreignKey: 'comunidad_id',
+      as: 'invitaciones'
+    });
+
     Comunidad.belongsToMany(models.User, {
       through: models.ComunidadMiembro,
       foreignKey: 'comunidad_id',

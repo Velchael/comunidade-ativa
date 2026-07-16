@@ -115,6 +115,16 @@ module.exports = (sequelize, DataTypes) => {
       as: 'membresias'
     });
 
+    User.hasMany(models.ComunidadInvitacion, {
+      foreignKey: 'created_by_user_id',
+      as: 'invitacionesCreadas'
+    });
+
+    User.hasMany(models.ComunidadInvitacion, {
+      foreignKey: 'revoked_by_user_id',
+      as: 'invitacionesRevocadas'
+    });
+
     User.belongsToMany(models.Comunidad, {
       through: models.ComunidadMiembro,
       foreignKey: 'user_id',

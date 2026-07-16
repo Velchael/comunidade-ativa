@@ -43,7 +43,10 @@ module.exports = {
         `
           UPDATE ${TABLE} cm
           SET
-            rol_comunidad = 'admin_basic',
+            rol_comunidad = CASE
+              WHEN cm.rol_comunidad = 'admin_total' THEN 'admin_total'
+              ELSE 'admin_basic'
+            END,
             estado = 'activo',
             updated_at = NOW()
           FROM comunidades c
@@ -51,7 +54,7 @@ module.exports = {
             AND c.owner_user_id = cm.user_id
             AND c.id = cm.comunidad_id
             AND (
-              cm.rol_comunidad <> 'admin_basic'
+              cm.rol_comunidad NOT IN ('admin_basic', 'admin_total')
               OR cm.estado <> 'activo'
             )
         `,
