@@ -11,10 +11,15 @@ const allowGestionarRolesComunidad = require('../middleware/allowGestionarRolesC
 const allowGestionarInvitacionesComunidad = require('../middleware/allowGestionarInvitacionesComunidad');
 const invitacionesController = require('../controllers/invitacionesController');
 
+const setNoStore = (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  return next();
+};
+
 router.get('/', controller.listarComunidades); // Público
 router.get('/:id/miembros', verificarToken, allowListarMiembrosComunidad, controller.listarMiembrosComunidad);
 router.patch('/:id/miembros/:userId/rol', verificarToken, allowGestionarRolesComunidad, controller.actualizarRolMiembroComunidad);
-router.post('/:id/invitaciones', verificarToken, allowGestionarInvitacionesComunidad, invitacionesController.crearInvitacion);
+router.post('/:id/invitaciones', setNoStore, verificarToken, allowGestionarInvitacionesComunidad, invitacionesController.crearInvitacion);
 router.get('/:id/invitaciones', verificarToken, allowGestionarInvitacionesComunidad, invitacionesController.listarInvitacionesComunidad);
 router.get('/:id', comunidadController.obtenerComunidadPorId);
 router.post('/onboarding', verificarToken, controller.crearComunidadOnboarding);

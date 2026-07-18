@@ -11,6 +11,13 @@ const setNoStore = (_req, res, next) => {
 // TODO Fase posterior: aplicar rate limiting antes de validar tokens públicos.
 router.get('/validar/:token', controller.validarInvitacion);
 
+router.post(
+  '/:token/aceptar',
+  setNoStore,
+  verificarToken,
+  controller.aceptarInvitacion
+);
+
 router.patch(
   '/:id/revocar',
   setNoStore,

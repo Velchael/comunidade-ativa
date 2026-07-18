@@ -1,4 +1,11 @@
-const { ComunidadInvitacion, Comunidad, sequelize } = require('../models');
+const { QueryTypes } = require('sequelize');
+const {
+  ComunidadInvitacion,
+  ComunidadMiembro,
+  Comunidad,
+  User,
+  sequelize,
+} = require('../models');
 const {
   generateInviteToken,
   hashInviteToken,
@@ -10,8 +17,13 @@ const {
 
 const DEFAULT_EXPIRES_DAYS = 7;
 const MAX_EXPIRES_DAYS = 30;
-const DEFAULT_MAX_USOS = 1;
-const MAX_USOS_LIMIT = 100;
+
+// Política funcional de creación de la V1:
+// toda invitación nueva representa un único enlace individual.
+// La aceptación permanece genérica y sigue respetando el max_usos
+// persistido para invitaciones existentes o futuras.
+const CURRENT_INVITE_CREATION_MAX_USES = 1;
+
 const MAX_TOKEN_CREATE_ATTEMPTS = 3;
 const RFC3339_WITH_TIMEZONE_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
@@ -19,6 +31,16 @@ const RFC3339_WITH_TIMEZONE_PATTERN =
 const PUBLIC_INVALID_RESPONSE = {
   valid: false,
   reason: 'invalid_or_unavailable',
+};
+
+const ACCEPT_INVALID_RESPONSE = {
+  accepted: false,
+  reason: 'invalid_or_unavailable',
+};
+
+const MEMBERSHIP_INACTIVE_RESPONSE = {
+  accepted: false,
+  reason: 'membership_inactive',
 };
 
 const createHttpError = (status, message) => {
@@ -133,10 +155,13 @@ const serializeInviteAdmin = (invitacion, now = new Date()) => {
 
 const parseMaxUsos = (value) => {
   if (value === undefined || value === null) {
-    return DEFAULT_MAX_USOS;
+    return CURRENT_INVITE_CREATION_MAX_USES;
   }
 
-  if (!Number.isInteger(value) || value < 1 || value > MAX_USOS_LIMIT) {
+  if (
+    !Number.isInteger(value) ||
+    value !== CURRENT_INVITE_CREATION_MAX_USES
+  ) {
     return null;
   }
 
@@ -227,7 +252,9 @@ exports.crearInvitacion = async (req, res) => {
     const now = new Date();
     const maxUsos = parseMaxUsos(req.body?.max_usos);
     if (!maxUsos) {
-      return res.status(400).json({ message: 'max_usos deve ser um número inteiro entre 1 e 100' });
+      return res.status(400).json({
+        message: 'max_usos deve ser exatamente 1 nesta versão',
+      });
     }
 
     const expiresAt = parseExpiresAt(req.body?.expires_at, now);
@@ -260,7 +287,6 @@ exports.crearInvitacion = async (req, res) => {
           usos_actuales: 0,
         });
 
-        res.set('Cache-Control', 'no-store');
         return res.status(201).json({
           id: invitacion.id,
           token,
@@ -401,6 +427,281 @@ exports.revocarInvitacion = async (req, res) => {
       error_name: error?.name || 'UnknownError',
     });
     return res.status(500).json({ message: 'Erro ao revogar convite' });
+  }
+};
+
+exports.aceptarInvitacion = async (req, res) => {
+  try {
+    const token = normalizeInviteToken(req.params.token);
+    const tokenHash = token ? hashInviteToken(token) : null;
+    const authenticatedUserId = Number(req.user?.id);
+
+    if (!tokenHash) {
+      return res.status(404).json(ACCEPT_INVALID_RESPONSE);
+    }
+
+    if (!Number.isInteger(authenticatedUserId) || authenticatedUserId <= 0) {
+      return res.status(401).json({
+        accepted: false,
+        reason: 'authentication_required',
+      });
+    }
+
+    const result = await sequelize.transaction(async (transaction) => {
+      // Primer lock de aceptación y revocación: siempre la invitación.
+      const invitacion = await ComunidadInvitacion.findOne({
+        where: { token_hash: tokenHash },
+        attributes: [
+          'id',
+          'comunidad_id',
+          'estado',
+          'expires_at',
+          'max_usos',
+          'usos_actuales',
+          'revoked_at',
+        ],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!invitacion) {
+        return {
+          status: 404,
+          body: ACCEPT_INVALID_RESPONSE,
+        };
+      }
+
+      const comunidad = await Comunidad.findByPk(invitacion.comunidad_id, {
+        attributes: ['id', 'activa'],
+        transaction,
+        lock: transaction.LOCK.SHARE,
+      });
+
+      if (!comunidad || comunidad.activa !== true) {
+        return {
+          status: 404,
+          body: ACCEPT_INVALID_RESPONSE,
+        };
+      }
+
+      // La identidad procede exclusivamente del JWT validado, pero se
+      // confirma que el usuario todavía existe en PostgreSQL.
+      // Este lock también serializa la decisión sobre comunidad principal.
+      const user = await User.findByPk(authenticatedUserId, {
+        attributes: ['id', 'comunidad_id'],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!user) {
+        return {
+          status: 401,
+          body: {
+            accepted: false,
+            reason: 'authentication_required',
+          },
+        };
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(invitacion.expires_at);
+      const revokedOrExpired =
+        invitacion.estado === 'revocada' ||
+        invitacion.revoked_at !== null ||
+        Number.isNaN(expiresAt.getTime()) ||
+        expiresAt <= now;
+
+      if (revokedOrExpired) {
+        return {
+          status: 404,
+          body: ACCEPT_INVALID_RESPONSE,
+        };
+      }
+
+      const existingMembership = await ComunidadMiembro.findOne({
+        where: {
+          comunidad_id: invitacion.comunidad_id,
+          user_id: user.id,
+        },
+        attributes: [
+          'id',
+          'comunidad_id',
+          'user_id',
+          'rol_comunidad',
+          'estado',
+          'es_principal',
+        ],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      // Esta comprobación se realiza antes del rechazo final por cupo:
+      // permite reintentar idempotentemente un enlace que este mismo
+      // usuario agotó en una solicitud anterior.
+      if (existingMembership?.estado === 'activo') {
+        return {
+          status: 200,
+          body: {
+            accepted: true,
+            already_member: true,
+            comunidad_id: invitacion.comunidad_id,
+          },
+        };
+      }
+
+      if (existingMembership?.estado === 'inactivo') {
+        return {
+          status: 409,
+          body: MEMBERSHIP_INACTIVE_RESPONSE,
+        };
+      }
+
+      // No se compara con el literal 1. Las invitaciones existentes con
+      // max_usos mayor siguen siendo procesables.
+      const hasCapacity =
+        invitacion.estado === 'activa' &&
+        Number(invitacion.usos_actuales) < Number(invitacion.max_usos);
+
+      if (!hasCapacity) {
+        return {
+          status: 404,
+          body: ACCEPT_INVALID_RESPONSE,
+        };
+      }
+
+      // La fila de User está bloqueada antes de esta consulta. Dos
+      // aceptaciones concurrentes del mismo usuario no pueden decidir
+      // simultáneamente que ambas membresías deben ser principales.
+      const existingPrimaryMembership = await ComunidadMiembro.findOne({
+        where: {
+          user_id: user.id,
+          es_principal: true,
+        },
+        attributes: ['id', 'comunidad_id'],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      const shouldBecomePrimary =
+        user.comunidad_id === null &&
+        existingPrimaryMembership === null;
+
+      const insertedMemberships = await sequelize.query(
+        `
+          INSERT INTO comunidad_miembros (
+            user_id,
+            comunidad_id,
+            rol_comunidad,
+            estado,
+            es_principal,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            :userId,
+            :comunidadId,
+            'miembro',
+            'activo',
+            :esPrincipal,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (user_id, comunidad_id)
+          DO NOTHING
+          RETURNING
+            id,
+            comunidad_id,
+            user_id,
+            rol_comunidad,
+            estado,
+            es_principal
+        `,
+        {
+          replacements: {
+            userId: user.id,
+            comunidadId: invitacion.comunidad_id,
+            esPrincipal: shouldBecomePrimary,
+          },
+          type: QueryTypes.SELECT,
+          transaction,
+        }
+      );
+
+      // Protege el escenario de dos invitaciones diferentes para la misma
+      // combinación user_id + comunidad_id.
+      if (insertedMemberships.length === 0) {
+        const concurrentMembership = await ComunidadMiembro.findOne({
+          where: {
+            comunidad_id: invitacion.comunidad_id,
+            user_id: user.id,
+          },
+          attributes: ['estado'],
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        if (concurrentMembership?.estado === 'activo') {
+          return {
+            status: 200,
+            body: {
+              accepted: true,
+              already_member: true,
+              comunidad_id: invitacion.comunidad_id,
+            },
+          };
+        }
+
+        if (concurrentMembership?.estado === 'inactivo') {
+          return {
+            status: 409,
+            body: MEMBERSHIP_INACTIVE_RESPONSE,
+          };
+        }
+
+        throw new Error('Membership conflict could not be resolved');
+      }
+
+      if (shouldBecomePrimary) {
+        await user.update({
+          comunidad_id: invitacion.comunidad_id,
+        }, { transaction });
+      }
+
+      const nextUsos = Number(invitacion.usos_actuales) + 1;
+
+      await invitacion.update({
+        usos_actuales: nextUsos,
+        estado:
+          nextUsos >= Number(invitacion.max_usos)
+            ? 'agotada'
+            : 'activa',
+        last_used_at: now,
+      }, { transaction });
+
+      return {
+        status: 201,
+        body: {
+          accepted: true,
+          already_member: false,
+          comunidad_id: invitacion.comunidad_id,
+          membresia: {
+            rol_comunidad: 'miembro',
+            estado: 'activo',
+          },
+        },
+      };
+    });
+
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error('aceptarInvitacion unexpected error', {
+      error_name: error?.name || 'UnknownError',
+    });
+
+    return res.status(500).json({
+      accepted: false,
+      reason: 'internal_error',
+    });
   }
 };
 
