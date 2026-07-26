@@ -1,7 +1,49 @@
 const { Comunidad, User, ComunidadMiembro, sequelize } = require('../models');
 const createToken = require('../utils/createToken');
-const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
+const {
+  lockUserCommunityEligibilityTx
+} = require('../utils/comunidadRoles');
 const { buildAuthUserResponse } = require('../utils/buildAuthUserResponse');
+
+const SESSION_REFRESH_REQUIRED = {
+  reason: 'session_refresh_required',
+  message: 'A operação foi concluída, mas não foi possível atualizar a sessão.'
+};
+
+const ADMIN_COMMUNITY_FIELDS = [
+  'descripcion',
+  'direccion',
+  'telefono',
+  'objetivo',
+  'tipo',
+  'visibilidad',
+  'ciudad',
+  'pais'
+];
+
+const pickFields = (source, fields) => fields.reduce((result, field) => {
+  if (Object.prototype.hasOwnProperty.call(source || {}, field)) {
+    result[field] = source[field];
+  }
+  return result;
+}, {});
+
+const lockUsersByAscendingIdTx = async ({ userIds, transaction }) => {
+  const ids = [...new Set(userIds.map(Number))]
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .sort((left, right) => left - right);
+  const users = new Map();
+
+  for (const id of ids) {
+    const user = await User.findByPk(id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+    if (user) users.set(id, user);
+  }
+
+  return users;
+};
 
 // ✅ Listar comunidades con alias para frontend
 exports.listarComunidades = async (req, res) => {
@@ -27,77 +69,70 @@ exports.listarComunidades = async (req, res) => {
 
 // Crear comunidad
 exports.crearComunidad = async (req, res) => {
-  const transaction = await sequelize.transaction();
-
   try {
-    const { nombre, administrador, ...resto } = req.body;
+    const { nombre, administrador } = req.body;
+    const publicFields = pickFields(req.body, ADMIN_COMMUNITY_FIELDS);
+    const result = await sequelize.transaction(async (transaction) => {
+      const eligibility = await lockUserCommunityEligibilityTx({
+        userId: req.user?.id,
+        transaction
+      });
 
-    const comunidad = await Comunidad.create({
-      nombre_comunidad: nombre,
-      nombre_administrador: administrador,
-      owner_user_id: req.user.id,
-      ...resto
-    }, { transaction });
+      if (!eligibility.user) {
+        return { status: 401, body: { message: 'Não autenticado' } };
+      }
 
-    const ownerMembership = await ComunidadMiembro.findOne({
-      where: {
-        user_id: req.user.id,
-        comunidad_id: comunidad.id
-      },
-      transaction
-    });
+      if (eligibility.user.rol_global !== 'admin_total') {
+        return { status: 403, body: { message: 'Somente admin_total pode acessar' } };
+      }
 
-    const esPrincipal =
-      req.user?.comunidad_id == null
-        ? true
-        : Number(req.user?.comunidad_id) === Number(comunidad.id);
+      if (!eligibility.eligible) {
+        return {
+          status: 409,
+          body: {
+            message: 'O usuário já possui uma comunidade ativa',
+            reason: 'already_has_community'
+          }
+        };
+      }
 
-    if (!ownerMembership) {
+      const comunidad = await Comunidad.create({
+        nombre_comunidad: nombre,
+        nombre_administrador: administrador,
+        ...publicFields,
+        owner_user_id: eligibility.user.id,
+        activa: true
+      }, { transaction });
+
       await ComunidadMiembro.create({
-        user_id: req.user.id,
+        user_id: eligibility.user.id,
         comunidad_id: comunidad.id,
         rol_comunidad: 'admin_basic',
         estado: 'activo',
-        es_principal: esPrincipal
+        es_principal: true
       }, { transaction });
-    } else {
-      await ownerMembership.update({
-        rol_comunidad: 'admin_basic',
-        estado: 'activo'
+
+      await eligibility.user.update({
+        comunidad_id: comunidad.id
       }, { transaction });
-    }
 
-    await transaction.commit();
+      return { status: 201, body: comunidad };
+    });
 
-    res.status(201).json(comunidad);
+    return res.status(result.status).json(result.body);
   } catch (error) {
-    if (!transaction.finished) {
-      await transaction.rollback();
-    }
-    res.status(400).json({ message: error.message });
+    return res.status(400).json({ message: error.message });
   }
 };
 
 // Crear comunidad desde onboarding de usuario autenticado sin comunidad
 exports.crearComunidadOnboarding = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  let committedResult = null;
 
   try {
     const userId = req.user?.id;
     if (!userId) {
-      await transaction.rollback();
       return res.status(401).json({ message: 'Não autenticado' });
-    }
-
-    const user = await User.findByPk(userId, { transaction });
-    if (!user) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
-
-    if (user.comunidad_id) {
-      await transaction.rollback();
-      return res.status(409).json({ message: 'O usuário já possui comunidade atribuída' });
     }
 
     const {
@@ -114,39 +149,70 @@ exports.crearComunidadOnboarding = async (req, res) => {
     } = req.body;
 
     if (!nombre || !String(nombre).trim()) {
-      await transaction.rollback();
       return res.status(400).json({ message: 'O nome da comunidade é obrigatório' });
     }
 
-    const comunidad = await Comunidad.create({
-      nombre_comunidad: String(nombre).trim(),
-      nombre_administrador: administrador || user.username || user.email,
-      descripcion: descripcion || null,
-      direccion: direccion || null,
-      telefono: telefono || null,
-      objetivo: objetivo || null,
-      tipo: tipo || null,
-      visibilidad: visibilidad || 'publica',
-      ciudad: ciudad || null,
-      pais: pais || null,
-      owner_user_id: user.id,
-      activa: true
-    }, { transaction });
+    committedResult = await sequelize.transaction(async (transaction) => {
+      const eligibility = await lockUserCommunityEligibilityTx({
+        userId,
+        transaction
+      });
 
-    await syncUserAndPrimaryMembershipTx({
-      user,
-      nextRol: 'admin_basic',
-      nextComunidadId: comunidad.id,
-      transaction,
-      preserveExistingLocalRole: true,
-      forceRoleSync: true,
-      syncRoleFromUser: true,
-      upsertMembership: true
+      if (!eligibility.user) {
+        return { status: 404, body: { message: 'Usuário não encontrado' } };
+      }
+
+      if (!eligibility.eligible) {
+        return {
+          status: 409,
+          body: {
+            message: 'O usuário já possui uma comunidade ativa',
+            reason: 'already_has_community'
+          }
+        };
+      }
+
+      const user = eligibility.user;
+      const comunidad = await Comunidad.create({
+        nombre_comunidad: String(nombre).trim(),
+        nombre_administrador: administrador || user.username || user.email,
+        descripcion: descripcion || null,
+        direccion: direccion || null,
+        telefono: telefono || null,
+        objetivo: objetivo || null,
+        tipo: tipo || null,
+        visibilidad: visibilidad || 'publica',
+        ciudad: ciudad || null,
+        pais: pais || null,
+        owner_user_id: user.id,
+        activa: true
+      }, { transaction });
+
+      await ComunidadMiembro.create({
+        user_id: user.id,
+        comunidad_id: comunidad.id,
+        rol_comunidad: 'admin_basic',
+        estado: 'activo',
+        es_principal: true
+      }, { transaction });
+      await user.update({
+        rol: 'admin_basic',
+        comunidad_id: comunidad.id
+      }, { transaction });
+
+      return { status: 201, userId: user.id, comunidad };
     });
 
-    await transaction.commit();
+    if (committedResult.body) {
+      return res.status(committedResult.status).json(committedResult.body);
+    }
 
-    const updatedUser = await User.findByPk(user.id, {
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+
+  try {
+    const updatedUser = await User.findByPk(committedResult.userId, {
       attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
@@ -166,67 +232,140 @@ exports.crearComunidadOnboarding = async (req, res) => {
     return res.status(201).json({
       token,
       user: userResponse,
-      comunidad
+      comunidad: committedResult.comunidad
     });
   } catch (error) {
-    if (!transaction.finished) {
-      await transaction.rollback();
-    }
-    return res.status(400).json({ message: error.message });
+    return res.status(500).json(SESSION_REFRESH_REQUIRED);
   }
 };
 
 // Unirse a una comunidad existente desde onboarding social
 exports.unirseComunidad = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  let committedResult = null;
 
   try {
     const userId = req.user?.id;
     const comunidadId = Number(req.params.id);
 
     if (!userId) {
-      await transaction.rollback();
       return res.status(401).json({ message: 'Não autenticado' });
     }
 
     if (!Number.isInteger(comunidadId)) {
-      await transaction.rollback();
       return res.status(400).json({ message: 'Comunidade inválida' });
     }
 
-    const comunidad = await Comunidad.findByPk(comunidadId, { transaction });
-    if (!comunidad || comunidad.activa === false) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Comunidade não encontrada' });
-    }
+    committedResult = await sequelize.transaction(async (transaction) => {
+      const eligibility = await lockUserCommunityEligibilityTx({
+        userId,
+        targetComunidadId: comunidadId,
+        transaction
+      });
 
-    const user = await User.findByPk(userId, { transaction });
-    if (!user) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
+      if (!eligibility.user) {
+        return { status: 404, body: { message: 'Usuário não encontrado' } };
+      }
 
-    if (user.comunidad_id && user.comunidad_id !== comunidad.id) {
-      await transaction.rollback();
-      return res.status(409).json({ message: 'O usuário já pertence a outra comunidade.' });
-    }
+      const comunidad = eligibility.targetCommunity;
+      if (!comunidad || comunidad.activa !== true) {
+        return { status: 404, body: { message: 'Comunidade não encontrada' } };
+      }
 
-    const rol = user.rol === 'admin_total' ? user.rol : 'miembro';
+      if (eligibility.targetActiveMembership) {
+        if (eligibility.hasOtherRelation) {
+          return {
+            status: 409,
+            body: {
+              message: 'O usuário já possui uma comunidade ativa',
+              reason: 'already_has_community'
+            }
+          };
+        }
 
-    await syncUserAndPrimaryMembershipTx({
-      user,
-      nextRol: rol,
-      nextComunidadId: comunidad.id,
-      transaction,
-      preserveExistingLocalRole: true,
-      forceRoleSync: true,
-      syncRoleFromUser: true,
-      upsertMembership: true
+        if (eligibility.targetActiveMembership.es_principal !== true) {
+          await eligibility.targetActiveMembership.update(
+            { es_principal: true },
+            { transaction }
+          );
+        }
+
+        if (!eligibility.assignedToTarget) {
+          await eligibility.user.update(
+            { comunidad_id: comunidad.id },
+            { transaction }
+          );
+        }
+
+        return {
+          status: 200,
+          userId: eligibility.user.id,
+          comunidadId: comunidad.id
+        };
+      }
+
+      if (eligibility.hasOtherRelation) {
+        return {
+          status: 409,
+          body: {
+            message: 'O usuário já possui uma comunidade ativa',
+            reason: 'already_has_community'
+          }
+        };
+      }
+
+      const inactiveMembership = await ComunidadMiembro.findOne({
+        where: {
+          user_id: eligibility.user.id,
+          comunidad_id: comunidad.id,
+          estado: 'inactivo'
+        },
+        attributes: ['id', 'user_id', 'comunidad_id', 'estado', 'es_principal'],
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+
+      if (inactiveMembership) {
+        return {
+          status: 409,
+          body: {
+            message: 'A associação com esta comunidade está inativa',
+            reason: 'membership_inactive'
+          }
+        };
+      }
+
+      const localRole = eligibility.ownsTarget ? 'admin_basic' : 'miembro';
+      await ComunidadMiembro.create({
+        user_id: eligibility.user.id,
+        comunidad_id: comunidad.id,
+        rol_comunidad: localRole,
+        estado: 'activo',
+        es_principal: true
+      }, { transaction });
+
+      const userUpdates = { comunidad_id: comunidad.id };
+      if (eligibility.ownsTarget && eligibility.user.rol !== 'admin_total') {
+        userUpdates.rol = 'admin_basic';
+      }
+      await eligibility.user.update(userUpdates, { transaction });
+
+      return {
+        status: 200,
+        userId: eligibility.user.id,
+        comunidadId: comunidad.id
+      };
     });
 
-    await transaction.commit();
+    if (committedResult.body) {
+      return res.status(committedResult.status).json(committedResult.body);
+    }
 
-    const updatedUser = await User.findByPk(user.id, {
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+
+  try {
+    const updatedUser = await User.findByPk(committedResult.userId, {
       attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
@@ -246,13 +385,10 @@ exports.unirseComunidad = async (req, res) => {
     return res.json({
       token,
       user: userResponse,
-      comunidad
+      comunidad: updatedUser.comunidad
     });
   } catch (error) {
-    if (!transaction.finished) {
-      await transaction.rollback();
-    }
-    return res.status(400).json({ message: error.message });
+    return res.status(500).json(SESSION_REFRESH_REQUIRED);
   }
 };
 
@@ -261,20 +397,45 @@ exports.actualizarComunidad = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const comunidad = await Comunidad.findByPk(id);
-    if (!comunidad) return res.status(404).json({ message: 'Não encontrada' });
+    const result = await sequelize.transaction(async (transaction) => {
+      const actor = await User.findByPk(req.user?.id, {
+        attributes: ['id', 'rol_global'],
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      if (!actor) {
+        return { status: 401, body: { message: 'Não autenticado' } };
+      }
 
-    const { nombre, administrador, ...resto } = req.body;
+      const comunidad = await Comunidad.findByPk(id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      if (!comunidad) {
+        return { status: 404, body: { message: 'Não encontrada' } };
+      }
 
-    await comunidad.update({
-      nombre_comunidad: nombre,
-      nombre_administrador: administrador,
-      ...resto
+      const isOwner = Number(comunidad.owner_user_id) === Number(actor.id);
+      if (!isOwner && actor.rol_global !== 'admin_total') {
+        return {
+          status: 403,
+          body: { message: 'Somente o owner ou admin_total pode realizar esta ação' }
+        };
+      }
+
+      const { nombre, administrador, ...resto } = req.body;
+      await comunidad.update({
+        nombre_comunidad: nombre,
+        nombre_administrador: administrador,
+        ...resto
+      }, { transaction });
+
+      return { status: 200, body: comunidad };
     });
 
-    res.json(comunidad);
+    return res.status(result.status).json(result.body);
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao atualizar comunidade', error: error.message });
+    return res.status(500).json({ message: 'Erro ao atualizar comunidade', error: error.message });
   }
 };
 
@@ -282,10 +443,39 @@ exports.actualizarComunidad = async (req, res) => {
 exports.eliminarComunidad = async (req, res) => {
   const { id } = req.params;
   try {
-    await Comunidad.destroy({ where: { id } });
-    res.json({ message: 'Comunidade excluída' });
+    const result = await sequelize.transaction(async (transaction) => {
+      const actor = await User.findByPk(req.user?.id, {
+        attributes: ['id', 'rol_global'],
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      if (!actor) {
+        return { status: 401, body: { message: 'Não autenticado' } };
+      }
+
+      const comunidad = await Comunidad.findByPk(id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      if (!comunidad) {
+        return { status: 404, body: { message: 'Comunidade não encontrada' } };
+      }
+
+      const isOwner = Number(comunidad.owner_user_id) === Number(actor.id);
+      if (!isOwner && actor.rol_global !== 'admin_total') {
+        return {
+          status: 403,
+          body: { message: 'Somente o owner ou admin_total pode realizar esta ação' }
+        };
+      }
+
+      await comunidad.destroy({ transaction });
+      return { status: 200, body: { message: 'Comunidade excluída' } };
+    });
+
+    return res.status(result.status).json(result.body);
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao excluir comunidade', error: error.message });
+    return res.status(500).json({ message: 'Erro ao excluir comunidade', error: error.message });
   }
 };
 
@@ -377,8 +567,7 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
     const comunidadId = Number(req.params.id);
     const targetUserId = Number(req.params.userId);
     const { rol_comunidad } = req.body || {};
-    const actor = req.user;
-    const comunidad = req.comunidad;
+    const actorId = Number(req.user?.id);
 
     if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
       return res.status(400).json({ message: 'Comunidade inválida' });
@@ -394,66 +583,106 @@ exports.actualizarRolMiembroComunidad = async (req, res) => {
       });
     }
 
-    if (Number(actor?.id) === Number(targetUserId)) {
+    if (actorId === Number(targetUserId)) {
       return res.status(403).json({
         message: 'Você não pode alterar seu próprio papel local nesta fase'
       });
     }
 
-    const targetUser = await User.findByPk(targetUserId, {
-      attributes: ['id', 'username', 'email', 'rol', 'rol_global']
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
-
-    if (Number(comunidad.owner_user_id) === Number(targetUserId)) {
-      return res.status(403).json({
-        message: 'Não é possível modificar o papel local do owner da comunidade'
+    const result = await sequelize.transaction(async (transaction) => {
+      const lockedUsers = await lockUsersByAscendingIdTx({
+        userIds: [actorId, targetUserId],
+        transaction
       });
-    }
+      const actor = lockedUsers.get(actorId);
+      const targetUser = lockedUsers.get(targetUserId);
 
-    const targetMembership = await ComunidadMiembro.findOne({
-      where: {
-        user_id: targetUserId,
-        comunidad_id: comunidadId
-      },
-      attributes: ['user_id', 'comunidad_id', 'rol_comunidad', 'estado', 'es_principal']
-    });
+      if (!actor) {
+        return { status: 401, body: { message: 'Não autenticado' } };
+      }
+      if (!targetUser) {
+        return { status: 404, body: { message: 'Usuário não encontrado' } };
+      }
 
-    if (!targetMembership) {
-      return res.status(404).json({
-        message: 'Associação não encontrada para essa comunidade'
+      const comunidad = await Comunidad.findByPk(comunidadId, {
+        attributes: ['id', 'owner_user_id'],
+        transaction,
+        lock: transaction.LOCK.UPDATE
       });
-    }
+      if (!comunidad) {
+        return { status: 404, body: { message: 'Comunidade não encontrada' } };
+      }
 
-    if (
-      targetUser.rol === 'admin_total' ||
-      targetUser.rol_global === 'admin_total'
-    ) {
-      return res.status(403).json({
-        message: 'Você não pode modificar o papel local de um admin_total'
+      const actorIsOwner = Number(comunidad.owner_user_id) === actorId;
+      const actorMembership = actorIsOwner || actor.rol_global === 'admin_total'
+        ? null
+        : await ComunidadMiembro.findOne({
+            where: {
+              user_id: actorId,
+              comunidad_id: comunidadId,
+              estado: 'activo',
+              rol_comunidad: 'admin_basic'
+            },
+            transaction,
+            lock: transaction.LOCK.UPDATE
+          });
+      if (!actorIsOwner && actor.rol_global !== 'admin_total' && !actorMembership) {
+        return {
+          status: 403,
+          body: { message: 'Você não tem permissão para administrar papéis nesta comunidade' }
+        };
+      }
+
+      if (Number(comunidad.owner_user_id) === Number(targetUserId)) {
+        return {
+          status: 403,
+          body: { message: 'Não é possível modificar o papel local do owner da comunidade' }
+        };
+      }
+
+      const targetMembership = await ComunidadMiembro.findOne({
+        where: { user_id: targetUserId, comunidad_id: comunidadId },
+        attributes: ['user_id', 'comunidad_id', 'rol_comunidad', 'estado', 'es_principal'],
+        transaction,
+        lock: transaction.LOCK.UPDATE
       });
-    }
+      if (!targetMembership) {
+        return {
+          status: 404,
+          body: { message: 'Associação não encontrada para essa comunidade' }
+        };
+      }
 
-    if (targetMembership.rol_comunidad !== rol_comunidad) {
-      await targetMembership.update({ rol_comunidad });
-    }
+      if (targetUser.rol_global === 'admin_total') {
+        return {
+          status: 403,
+          body: { message: 'Você não pode modificar o papel local de um admin_total' }
+        };
+      }
 
-    return res.json({
-      message: 'Papel comunitário atualizado',
-      comunidad_id: comunidadId,
-      miembro: {
-        user_id: targetMembership.user_id,
-        username: targetUser.username || null,
-        email: targetUser.email || null,
-        rol_comunidad,
-        estado: targetMembership.estado,
-        es_principal: targetMembership.es_principal,
-        is_owner: false
+      if (targetMembership.rol_comunidad !== rol_comunidad) {
+        await targetMembership.update({ rol_comunidad }, { transaction });
+      }
+
+      return {
+        status: 200,
+        body: {
+          message: 'Papel comunitário atualizado',
+          comunidad_id: comunidadId,
+          miembro: {
+            user_id: targetMembership.user_id,
+            username: targetUser.username || null,
+            email: targetUser.email || null,
+            rol_comunidad,
+            estado: targetMembership.estado,
+            es_principal: targetMembership.es_principal,
+            is_owner: false
+          }
+        }
       }
     });
+
+    return res.status(result.status).json(result.body);
   } catch (error) {
     return res.status(500).json({
       message: 'Erro ao atualizar papel comunitário',

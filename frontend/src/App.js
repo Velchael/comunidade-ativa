@@ -21,6 +21,7 @@ import Interacciones from './Screens/Interacciones';
 import CrearComunidad from './Screens/CrearComunidad';
 import SeleccionarComunidad from './Screens/SeleccionarComunidad';
 import OnboardingConfirmacion from './Screens/OnboardingConfirmacion';
+import Convite from './Screens/Convite';
 
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
@@ -35,7 +36,9 @@ import {
 
 function Header({ toggleSidebar }) {
   const { user, token, logout, isHydrating, refreshAuthSession } = useContext(UserContext);
+  const { pathname } = useLocation();
   const navigate = useNavigate();
+  const isInvitationRoute = pathname.startsWith('/convite/');
 
   useEffect(() => {
     if (!token) return;
@@ -55,6 +58,18 @@ function Header({ toggleSidebar }) {
   const shouldShowConfigMenu =
     !isHydrating &&
     (isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel);
+
+  if (isInvitationRoute) {
+    return (
+      <header className="invitation-header">
+        <img
+          src={logo_large1}
+          alt="COMUVA"
+          className="invitation-header__logo"
+        />
+      </header>
+    );
+  }
 
   return (
     <header>
@@ -229,12 +244,13 @@ function Header({ toggleSidebar }) {
 
 function AppRoutes() {
   const { pathname } = useLocation();
-  const isOnboardingRoute = [
-    '/Seinscrever',
-    '/crear-comunidad',
-    '/seleccionar-comunidad',
-    '/onboarding-confirmacion'
-  ].includes(pathname);
+  const isOnboardingRoute =
+    [
+      '/Seinscrever',
+      '/crear-comunidad',
+      '/seleccionar-comunidad',
+      '/onboarding-confirmacion'
+    ].includes(pathname) || pathname.startsWith('/convite/');
 
   const routes = (
     <Routes>
@@ -251,7 +267,12 @@ function AppRoutes() {
 
       <Route
         path="/Seinscrever"
-        element={<Seinscrever />}
+        element={<Seinscrever mode="direct" />}
+      />
+
+      <Route
+        path="/convite/:token"
+        element={<Convite />}
       />
 
       <Route
@@ -321,9 +342,6 @@ export default function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isHome =
-    window.location.pathname === "/";
-
   return (
     <UserProvider>
 
@@ -331,16 +349,38 @@ export default function App() {
 
         <BrowserRouter>
 
+          <AppLayout
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+          />
+
+        </BrowserRouter>
+
+      </HelmetProvider>
+
+    </UserProvider>
+  );
+}
+
+function AppLayout({ sidebarOpen, setSidebarOpen }) {
+  const { pathname } = useLocation();
+  const isInvitationRoute = pathname.startsWith('/convite/');
+  const isHome = pathname === "/";
+
+  return (
+
           <div className='d-flex flex-column site-container'>
 
             <Helmet>
               <title>Comunidade Ativa</title>
             </Helmet>
 
-            <Sidebar
-              isOpen={sidebarOpen}
-              toggle={() => setSidebarOpen(!sidebarOpen)}
-            />
+            {!isInvitationRoute && (
+              <Sidebar
+                isOpen={sidebarOpen}
+                toggle={() => setSidebarOpen(!sidebarOpen)}
+              />
+            )}
 
             <Header
               toggleSidebar={() =>
@@ -390,11 +430,5 @@ export default function App() {
             </footer>
 
           </div>
-
-        </BrowserRouter>
-
-      </HelmetProvider>
-
-    </UserProvider>
   );
 }

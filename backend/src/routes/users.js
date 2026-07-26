@@ -8,7 +8,11 @@ const { onlyAdminTotal } = require('../middleware/roles');
 // Rutas públicas
 router.post('/register', usersController.createUser);
 router.post('/login', usersController.getUserByEmail);
-router.post('/google/complete', usersController.completeGoogleProfile);
+router.post(
+  '/google/complete',
+  verificarToken,
+  usersController.completeGoogleProfile
+);
 router.get('/:email', usersController.getUserByEmail);
 
 // ✅ Nueva ruta: actualizar perfil (cualquier usuario autenticado)

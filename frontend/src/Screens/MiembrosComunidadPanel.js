@@ -1,6 +1,16 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Alert, Badge, Button, Container, Spinner, Table } from 'react-bootstrap';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Container,
+  Form,
+  InputGroup,
+  Spinner,
+  Table
+} from 'react-bootstrap';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../UserContext';
 import {
@@ -9,7 +19,8 @@ import {
   isAdminTotalGlobal
 } from '../utils/permissions';
 
-const API_URL = `${process.env.REACT_APP_API_URL}/api/comunidades`;
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_URL = `${API_BASE}/api/comunidades`;
 
 const fetchMiembrosComunidad = async (comunidadId, token) => {
   axios.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -29,7 +40,7 @@ const getLocalRoleLabel = (rolComunidad) => {
 };
 
 const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre: comunidadNombreProp }) => {
-  const { user, logout } = useContext(UserContext);
+  const { user, token: authToken, logout } = useContext(UserContext);
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -46,6 +57,10 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [miembros, setMiembros] = useState([]);
   const [total, setTotal] = useState(0);
+  const [creatingInvitation, setCreatingInvitation] = useState(false);
+  const [invitationUrl, setInvitationUrl] = useState('');
+  const [invitationError, setInvitationError] = useState('');
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
 
   const isAdminTotal = isAdminTotalGlobal(user);
   const canManageLocalCommunity = canManageCommunity(user);
@@ -169,6 +184,8 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     return userComunidadId === comunidadId;
   }, [user, isAdminTotal, canManageLocalCommunity, userComunidadId, comunidadId]);
 
+  const canManageInvitations = canManageRoles;
+
   const canEditMember = (miembro) => {
     if (!canManageRoles) return false;
     if (!miembro) return false;
@@ -259,6 +276,66 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     }
   };
 
+  const handleCreateInvitation = async () => {
+    if (creatingInvitation || !authToken) return;
+
+    setCreatingInvitation(true);
+    setInvitationUrl('');
+    setInvitationError('');
+    setCopyConfirmed(false);
+
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/${comunidadId}/invitaciones`,
+        { max_usos: 1 },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }
+      );
+
+      if (!data?.url) {
+        throw new Error('missing_invitation_url');
+      }
+
+      setInvitationUrl(data.url);
+    } catch (err) {
+      const status = err.response?.status;
+
+      if (status === 401) {
+        setInvitationError('Sua sessão expirou. Entre novamente.');
+        logout?.();
+        navigate('/Seinscrever');
+      } else if (status === 403) {
+        setInvitationError('Você não tem permissão para criar convites.');
+      } else if (status === 409) {
+        setInvitationError(
+          err.response?.data?.message || 'A comunidade não está disponível.'
+        );
+      } else {
+        setInvitationError(
+          err.response?.data?.message || 'Não foi possível criar o convite.'
+        );
+      }
+    } finally {
+      setCreatingInvitation(false);
+    }
+  };
+
+  const handleCopyInvitation = async () => {
+    if (!invitationUrl || creatingInvitation) return;
+
+    try {
+      await navigator.clipboard.writeText(invitationUrl);
+      setCopyConfirmed(true);
+    } catch {
+      setInvitationError(
+        'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.'
+      );
+    }
+  };
+
   return (
     <Container className="mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -275,6 +352,60 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       </div>
 
       {actionError && <Alert variant="danger">{actionError}</Alert>}
+
+      {canManageInvitations && (
+        <Card className="community-invitation-manager mb-4">
+          <Card.Body>
+            <div className="community-invitation-manager__header">
+              <div>
+                <Card.Title>Convidar uma pessoa</Card.Title>
+                <Card.Text>
+                  Cada link pode ser utilizado uma única vez.
+                </Card.Text>
+              </div>
+
+              <Button
+                disabled={creatingInvitation || !authToken}
+                onClick={handleCreateInvitation}
+              >
+                {creatingInvitation ? 'Gerando...' : 'Gerar convite'}
+              </Button>
+            </div>
+
+            {invitationError && (
+              <Alert variant="danger" aria-live="polite">
+                {invitationError}
+              </Alert>
+            )}
+
+            {invitationUrl && (
+              <>
+                <InputGroup>
+                  <Form.Control
+                    readOnly
+                    aria-label="Link do convite"
+                    value={invitationUrl}
+                    onFocus={(event) => event.target.select()}
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    disabled={creatingInvitation}
+                    onClick={handleCopyInvitation}
+                  >
+                    {copyConfirmed ? 'Copiado' : 'Copiar'}
+                  </Button>
+                </InputGroup>
+
+                <div className="small text-muted mt-2" aria-live="polite">
+                  {copyConfirmed
+                    ? 'Link copiado. Você pode gerar outro convite a qualquer momento.'
+                    : 'Você pode gerar outro link individual a qualquer momento.'}
+                </div>
+              </>
+            )}
+          </Card.Body>
+        </Card>
+      )}
 
       {loading ? (
         <div className="text-center py-5">

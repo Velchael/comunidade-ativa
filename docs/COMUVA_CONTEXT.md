@@ -99,7 +99,7 @@ Rol de la tabla:
 
 - identidad del usuario
 - rol global persistido
-- comunidad principal actual
+- única comunidad activa actual; el campo conserva compatibilidad con la futura selección de comunidad principal
 - compatibilidad con flujos legacy
 
 Estado:
@@ -151,7 +151,7 @@ Rol de la tabla:
 - relación usuario-comunidad
 - rol local
 - membresía activa/inactiva
-- comunidad principal del usuario
+- comunidad activa única del usuario en la fase actual; `es_principal` queda preparado para una futura capacidad multi-comunidad
 
 Estado:
 
@@ -162,14 +162,14 @@ Estado:
 
 ### `users` -> `comunidades`
 
-- `users.comunidad_id` apunta a la comunidad principal actual del usuario
+- `users.comunidad_id` apunta a la única comunidad activa actual del usuario; la noción de comunidad principal entre varias queda reservada para una fase futura
 - esta relación sigue existiendo por compatibilidad y navegación operativa
 
 ### `users` <-> `comunidades` vía `comunidad_miembros`
 
 - relación muchos a muchos
-- representa la membresía real
-- permite evolución futura a multi-comunidad
+- representa la membresía real, limitada en la fase actual a una sola comunidad activa por usuario
+- permite evolución futura a multi-comunidad, pero no habilita esa capacidad durante la Fase 4C
 
 ### `comunidades.owner_user_id` -> `users.id`
 
@@ -500,7 +500,7 @@ Protección:
 
 Puede crear:
 
-- solo `admin_total`
+- solo `admin_total`, siempre que no cree ni obtenga para sí una segunda comunidad activa
 
 No puede crear:
 
@@ -513,7 +513,7 @@ Efectos:
 
 - crea comunidad
 - asigna `owner_user_id`
-- crea o corrige membresía del creador como `admin_basic` local
+- crea o corrige membresía del creador como `admin_basic` local sin permitir una membresía secundaria; cualquier comportamiento previo que la haya permitido durante la Fase 4C fue una omisión del requisito original y debe corregirse
 
 Estado:
 
@@ -552,7 +552,7 @@ Estado:
 
 La creación de comunidades hoy tiene dos carriles:
 
-- carril administrativo global para `admin_total`
+- carril administrativo global para `admin_total`, sujeto a la regla actual de una sola comunidad activa por usuario
 - carril de onboarding para primer ingreso sin comunidad
 
 La creación multi-comunidad aún no está implementada.
@@ -615,6 +615,18 @@ Para autorización local:
 - backend consolidado como fuente de verdad
 - frontend dejó de ser autoridad sobre permisos locales
 - cambios de rol/comunidad se reflejan sin exigir relogin duro en cada caso
+
+## Requisito correcto de la Fase 4C
+
+**Objetivo de las invitaciones en la Fase 4C:** facilitar la incorporación inicial de personas nuevas a una comunidad específica, evitando que tengan que buscarla manualmente durante el onboarding.
+
+En la fase actual, cada usuario solamente puede crear o pertenecer a una comunidad activa. Una invitación sólo puede ser aceptada por un usuario sin comunidad asignada, sin membresías activas y sin comunidades propias.
+
+La participación, creación o administración de varias comunidades por un mismo usuario queda reservada para una fase futura, cuando COMUVA disponga de selección de comunidad activa y toda la aplicación esté preparada para operar con múltiples contextos comunitarios.
+
+El backend y PostgreSQL RDS deben aplicar esta restricción como fuente de verdad. El frontend únicamente debe representar la decisión devuelta por el backend y no debe crear, inferir ni asignar membresías o comunidades manualmente.
+
+Cualquier implementación que haya permitido crear una membresía secundaria durante la Fase 4C fue una omisión del requisito original y debe corregirse. La estructura relacional y los campos de comunidad principal se conservan como historial técnico y preparación para la capacidad futura, no como habilitación multi-comunidad actual.
 
 ---
 

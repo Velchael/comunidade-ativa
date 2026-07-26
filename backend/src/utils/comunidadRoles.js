@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Comunidad, ComunidadMiembro } = require('../models');
+const { Comunidad, ComunidadMiembro, User } = require('../models');
 
 const ROLES = {
   ADMIN_TOTAL: 'admin_total',
@@ -23,68 +23,6 @@ const normalizeRoles = (rolesPermitidos = []) => {
   if (typeof rolesPermitidos === 'string') return [rolesPermitidos];
   if (Array.isArray(rolesPermitidos)) return rolesPermitidos;
   return [];
-};
-
-const getMembershipTx = async ({ userId, comunidadId, transaction, lock }) => {
-  const normalizedUserId = normalizeId(userId);
-  const normalizedComunidadId = normalizeId(comunidadId);
-
-  if (!normalizedUserId || !normalizedComunidadId) {
-    return null;
-  }
-
-  return ComunidadMiembro.findOne({
-    where: {
-      user_id: normalizedUserId,
-      comunidad_id: normalizedComunidadId
-    },
-    transaction,
-    lock
-  });
-};
-
-const createMembershipTx = async ({
-  userId,
-  comunidadId,
-  rolComunidad = ROLES.MIEMBRO,
-  transaction
-}) => {
-  return ComunidadMiembro.create({
-    user_id: userId,
-    comunidad_id: comunidadId,
-    rol_comunidad: rolComunidad,
-    estado: ESTADOS.ACTIVO,
-    es_principal: true
-  }, { transaction });
-};
-
-const deactivateOtherPrimaryMembershipsTx = async ({
-  userId,
-  keepComunidadId,
-  transaction
-}) => {
-  const normalizedUserId = normalizeId(userId);
-  const normalizedKeepComunidadId = normalizeId(keepComunidadId);
-
-  if (!normalizedUserId) {
-    return;
-  }
-
-  const where = {
-    user_id: normalizedUserId,
-    es_principal: true
-  };
-
-  if (normalizedKeepComunidadId) {
-    where.comunidad_id = {
-      [Op.ne]: normalizedKeepComunidadId
-    };
-  }
-
-  await ComunidadMiembro.update(
-    { es_principal: false },
-    { where, transaction }
-  );
 };
 
 const getMembresiaActiva = async (userId, comunidadId) => {
@@ -215,155 +153,161 @@ const ensureComunidadMiembroFromLegacy = async (user) => {
   return membresia;
 };
 
-const syncUserAndPrimaryMembershipTx = async ({
-  user,
-  nextRol,
-  nextComunidadId,
-  transaction,
-  forceRoleSync = false,
-  preserveExistingLocalRole = true,
-  syncRoleFromUser = false,
-  upsertMembership = true,
-  deactivatePreviousPrimary = true
+const lockUserCommunityEligibilityTx = async ({
+  userId,
+  targetComunidadId = null,
+  transaction
 }) => {
-  if (!user?.id) {
-    throw new Error('syncUserAndPrimaryMembershipTx requer um usuário válido');
-  }
-
   if (!transaction) {
-    throw new Error('syncUserAndPrimaryMembershipTx requer transaction');
+    throw new Error('lockUserCommunityEligibilityTx requer transaction');
   }
 
-  const previousComunidadId = normalizeId(user.comunidad_id);
-  const finalComunidadId = normalizeId(
-    nextComunidadId !== undefined ? nextComunidadId : user.comunidad_id
-  );
-  const finalRol = nextRol !== undefined ? nextRol : user.rol;
+  const normalizedUserIdCandidate = normalizeId(userId);
+  const normalizedTargetComunidadIdCandidate = normalizeId(targetComunidadId);
+  const normalizedUserId = normalizedUserIdCandidate > 0
+    ? normalizedUserIdCandidate
+    : null;
+  const normalizedTargetComunidadId = normalizedTargetComunidadIdCandidate > 0
+    ? normalizedTargetComunidadIdCandidate
+    : null;
 
-  const userUpdates = {};
-  if (nextRol !== undefined && user.rol !== finalRol) {
-    userUpdates.rol = finalRol;
-  }
-  if (nextComunidadId !== undefined && user.comunidad_id !== finalComunidadId) {
-    userUpdates.comunidad_id = finalComunidadId;
-  }
-
-  if (Object.keys(userUpdates).length > 0) {
-    await user.update(userUpdates, { transaction });
-  }
-
-  let previousMembership = null;
-  let targetMembership = null;
-  let membershipCreated = false;
-  let roleSyncApplied = false;
-
-  if (previousComunidadId) {
-    previousMembership = await getMembershipTx({
-      userId: user.id,
-      comunidadId: previousComunidadId,
-      transaction
-    });
-  }
-
-  if (!finalComunidadId) {
-    if (previousMembership && previousMembership.es_principal) {
-      await previousMembership.update({ es_principal: false }, { transaction });
-    }
-
-    await deactivateOtherPrimaryMembershipsTx({
-      userId: user.id,
-      keepComunidadId: null,
-      transaction
-    });
-
-    return {
-      user,
-      previousComunidadId,
-      finalComunidadId,
-      finalRol,
-      targetMembership: null,
-      previousMembership,
-      roleSyncApplied,
-      membershipCreated
-    };
-  }
-
-  targetMembership = await getMembershipTx({
-    userId: user.id,
-    comunidadId: finalComunidadId,
-    transaction
-  });
-
-  if (!targetMembership && upsertMembership) {
-    const initialRolComunidad = syncRoleFromUser ? finalRol : ROLES.MIEMBRO;
-
-    targetMembership = await createMembershipTx({
-      userId: user.id,
-      comunidadId: finalComunidadId,
-      rolComunidad: initialRolComunidad,
-      transaction
-    });
-
-    membershipCreated = true;
-    roleSyncApplied = syncRoleFromUser;
-  }
-
-  if (targetMembership) {
-    const membershipUpdates = {};
-
-    if (targetMembership.estado !== ESTADOS.ACTIVO) {
-      membershipUpdates.estado = ESTADOS.ACTIVO;
-    }
-
-    if (targetMembership.es_principal !== true) {
-      membershipUpdates.es_principal = true;
-    }
-
-    const shouldSyncRole =
-      forceRoleSync ||
-      (
-        syncRoleFromUser &&
-        (
-          !targetMembership.rol_comunidad ||
-          !preserveExistingLocalRole ||
-          targetMembership.rol_comunidad === user.rol
-        )
-      );
-
-    if (shouldSyncRole && targetMembership.rol_comunidad !== finalRol) {
-      membershipUpdates.rol_comunidad = finalRol;
-      roleSyncApplied = true;
-    }
-
-    if (Object.keys(membershipUpdates).length > 0) {
-      await targetMembership.update(membershipUpdates, { transaction });
-    }
+  if (!normalizedUserId) {
+    throw new Error('lockUserCommunityEligibilityTx requer userId válido');
   }
 
   if (
-    deactivatePreviousPrimary &&
-    previousComunidadId &&
-    previousComunidadId !== finalComunidadId &&
-    previousMembership
+    targetComunidadId !== null &&
+    targetComunidadId !== undefined &&
+    !normalizedTargetComunidadId
   ) {
-    await previousMembership.update({ es_principal: false }, { transaction });
+    throw new Error('lockUserCommunityEligibilityTx recebeu targetComunidadId inválido');
   }
 
-  await deactivateOtherPrimaryMembershipsTx({
-    userId: user.id,
-    keepComunidadId: finalComunidadId,
-    transaction
+  const user = await User.findByPk(normalizedUserId, {
+    attributes: [
+      'id',
+      'email',
+      'username',
+      'googleId',
+      'rol',
+      'rol_global',
+      'comunidad_id'
+    ],
+    transaction,
+    lock: transaction.LOCK.UPDATE
   });
+
+  if (!user) {
+    return {
+      user: null,
+      targetCommunity: null,
+      assignedComunidadId: null,
+      activeMemberships: [],
+      ownedCommunities: [],
+      targetActiveMembership: null,
+      ownsTarget: false,
+      assignedToTarget: false,
+      otherActiveMemberships: [],
+      otherOwnedCommunities: [],
+      hasOtherRelation: false,
+      hasAnyRelation: false,
+      eligible: false
+    };
+  }
+
+  const communityWhere = normalizedTargetComunidadId
+    ? {
+        [Op.or]: [
+          { id: normalizedTargetComunidadId },
+          { owner_user_id: normalizedUserId, activa: true }
+        ]
+      }
+    : { owner_user_id: normalizedUserId, activa: true };
+
+  const lockedCommunities = await Comunidad.findAll({
+    where: communityWhere,
+    attributes: ['id', 'activa', 'owner_user_id'],
+    order: [['id', 'ASC']],
+    transaction,
+    lock: transaction.LOCK.UPDATE
+  });
+
+  const targetCommunity = normalizedTargetComunidadId
+    ? lockedCommunities.find(
+      (comunidad) => normalizeId(comunidad.id) === normalizedTargetComunidadId
+    ) || null
+    : null;
+  const ownedCommunities = lockedCommunities.filter(
+    (comunidad) =>
+      comunidad.activa === true &&
+      normalizeId(comunidad.owner_user_id) === normalizedUserId
+  );
+
+  const activeMemberships = await ComunidadMiembro.findAll({
+    where: {
+      user_id: normalizedUserId,
+      estado: ESTADOS.ACTIVO
+    },
+    attributes: [
+      'id',
+      'user_id',
+      'comunidad_id',
+      'rol_comunidad',
+      'estado',
+      'es_principal'
+    ],
+    order: [['user_id', 'ASC'], ['comunidad_id', 'ASC']],
+    transaction,
+    lock: transaction.LOCK.UPDATE
+  });
+
+  const assignedComunidadId = normalizeId(user.comunidad_id);
+  const targetActiveMembership = normalizedTargetComunidadId
+    ? activeMemberships.find(
+      (membership) => normalizeId(membership.comunidad_id) === normalizedTargetComunidadId
+    ) || null
+    : null;
+  const ownsTarget = Boolean(
+    normalizedTargetComunidadId &&
+    ownedCommunities.some(
+      (comunidad) => normalizeId(comunidad.id) === normalizedTargetComunidadId
+    )
+  );
+  const assignedToTarget = Boolean(
+    normalizedTargetComunidadId &&
+    assignedComunidadId === normalizedTargetComunidadId
+  );
+  const otherActiveMemberships = activeMemberships.filter(
+    (membership) => normalizeId(membership.comunidad_id) !== normalizedTargetComunidadId
+  );
+  const otherOwnedCommunities = ownedCommunities.filter(
+    (comunidad) => normalizeId(comunidad.id) !== normalizedTargetComunidadId
+  );
+  const hasOtherRelation = Boolean(
+    (assignedComunidadId && assignedComunidadId !== normalizedTargetComunidadId) ||
+    otherActiveMemberships.length > 0 ||
+    otherOwnedCommunities.length > 0
+  );
+  const hasAnyRelation = Boolean(
+    assignedComunidadId ||
+    activeMemberships.length > 0 ||
+    ownedCommunities.length > 0
+  );
 
   return {
     user,
-    previousComunidadId,
-    finalComunidadId,
-    finalRol,
-    targetMembership,
-    previousMembership,
-    roleSyncApplied,
-    membershipCreated
+    targetCommunity,
+    assignedComunidadId,
+    activeMemberships,
+    ownedCommunities,
+    targetActiveMembership,
+    ownsTarget,
+    assignedToTarget,
+    otherActiveMemberships,
+    otherOwnedCommunities,
+    hasOtherRelation,
+    hasAnyRelation,
+    eligible: !hasAnyRelation
   };
 };
 
@@ -374,5 +318,5 @@ module.exports = {
   resolveRolComunidadHibrido,
   tieneRolComunidad,
   ensureComunidadMiembroFromLegacy,
-  syncUserAndPrimaryMembershipTx
+  lockUserCommunityEligibilityTx
 };

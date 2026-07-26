@@ -14,6 +14,9 @@ const {
 const {
   resolveGestionInvitacionesComunidad,
 } = require('../middleware/allowGestionarInvitacionesComunidad');
+const {
+  lockUserCommunityEligibilityTx,
+} = require('../utils/comunidadRoles');
 
 const DEFAULT_EXPIRES_DAYS = 7;
 const MAX_EXPIRES_DAYS = 30;
@@ -41,6 +44,11 @@ const ACCEPT_INVALID_RESPONSE = {
 const MEMBERSHIP_INACTIVE_RESPONSE = {
   accepted: false,
   reason: 'membership_inactive',
+};
+
+const ALREADY_HAS_COMMUNITY_RESPONSE = {
+  accepted: false,
+  reason: 'already_has_community',
 };
 
 const createHttpError = (status, message) => {
@@ -368,10 +376,26 @@ exports.revocarInvitacion = async (req, res) => {
       return res.status(400).json({ message: 'Convite inválido' });
     }
 
-    let serializedInvitacion = null;
+    const initialInvitacion = await ComunidadInvitacion.findByPk(inviteId, {
+      attributes: ['id'],
+    });
 
-    await sequelize.transaction(async (transaction) => {
-      const invitacion = await ComunidadInvitacion.findByPk(inviteId, {
+    if (!initialInvitacion) {
+      throw createHttpError(404, 'Convite não encontrado');
+    }
+
+    const serializedInvitacion = await sequelize.transaction(async (transaction) => {
+      const actor = await User.findByPk(req.user?.id, {
+        attributes: ['id'],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!actor) {
+        throw createHttpError(401, 'Usuário autenticado não encontrado');
+      }
+
+      const invitacion = await ComunidadInvitacion.findByPk(initialInvitacion.id, {
         attributes: [
           'id',
           'comunidad_id',
@@ -411,7 +435,7 @@ exports.revocarInvitacion = async (req, res) => {
         }, { transaction });
       }
 
-      serializedInvitacion = serializeInviteAdmin(invitacion);
+      return serializeInviteAdmin(invitacion);
     });
 
     return res.json({
@@ -447,8 +471,35 @@ exports.aceptarInvitacion = async (req, res) => {
       });
     }
 
+    // Esta lectura sólo resuelve los recursos. Toda decisión se repite bajo
+    // lock dentro de la transacción.
+    const initialInvitacion = await ComunidadInvitacion.findOne({
+      where: { token_hash: tokenHash },
+      attributes: ['id', 'comunidad_id'],
+    });
+
+    if (!initialInvitacion) {
+      return res.status(404).json(ACCEPT_INVALID_RESPONSE);
+    }
+
     const result = await sequelize.transaction(async (transaction) => {
-      // Primer lock de aceptación y revocación: siempre la invitación.
+      // El usuario es el mutex de elegibilidad para todos los flujos.
+      const lockedUser = await User.findByPk(authenticatedUserId, {
+        attributes: ['id', 'comunidad_id'],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!lockedUser) {
+        return {
+          status: 401,
+          body: {
+            accepted: false,
+            reason: 'authentication_required',
+          },
+        };
+      }
+
       const invitacion = await ComunidadInvitacion.findOne({
         where: { token_hash: tokenHash },
         attributes: [
@@ -471,38 +522,6 @@ exports.aceptarInvitacion = async (req, res) => {
         };
       }
 
-      const comunidad = await Comunidad.findByPk(invitacion.comunidad_id, {
-        attributes: ['id', 'activa'],
-        transaction,
-        lock: transaction.LOCK.SHARE,
-      });
-
-      if (!comunidad || comunidad.activa !== true) {
-        return {
-          status: 404,
-          body: ACCEPT_INVALID_RESPONSE,
-        };
-      }
-
-      // La identidad procede exclusivamente del JWT validado, pero se
-      // confirma que el usuario todavía existe en PostgreSQL.
-      // Este lock también serializa la decisión sobre comunidad principal.
-      const user = await User.findByPk(authenticatedUserId, {
-        attributes: ['id', 'comunidad_id'],
-        transaction,
-        lock: transaction.LOCK.UPDATE,
-      });
-
-      if (!user) {
-        return {
-          status: 401,
-          body: {
-            accepted: false,
-            reason: 'authentication_required',
-          },
-        };
-      }
-
       const now = new Date();
       const expiresAt = new Date(invitacion.expires_at);
       const revokedOrExpired =
@@ -518,10 +537,25 @@ exports.aceptarInvitacion = async (req, res) => {
         };
       }
 
-      const existingMembership = await ComunidadMiembro.findOne({
+      const eligibility = await lockUserCommunityEligibilityTx({
+        userId: lockedUser.id,
+        targetComunidadId: invitacion.comunidad_id,
+        transaction,
+      });
+      const comunidad = eligibility.targetCommunity;
+
+      if (!comunidad || comunidad.activa !== true) {
+        return {
+          status: 404,
+          body: ACCEPT_INVALID_RESPONSE,
+        };
+      }
+
+      const inactiveMembership = await ComunidadMiembro.findOne({
         where: {
           comunidad_id: invitacion.comunidad_id,
-          user_id: user.id,
+          user_id: eligibility.user.id,
+          estado: 'inactivo',
         },
         attributes: [
           'id',
@@ -535,10 +569,27 @@ exports.aceptarInvitacion = async (req, res) => {
         lock: transaction.LOCK.UPDATE,
       });
 
-      // Esta comprobación se realiza antes del rechazo final por cupo:
-      // permite reintentar idempotentemente un enlace que este mismo
-      // usuario agotó en una solicitud anterior.
-      if (existingMembership?.estado === 'activo') {
+      // La idempotencia de la misma comunidad se resuelve antes del cupo.
+      if (eligibility.targetActiveMembership) {
+        const hasNoOtherActiveRelation =
+          eligibility.otherActiveMemberships.length === 0 &&
+          eligibility.otherOwnedCommunities.length === 0 &&
+          !eligibility.hasOtherRelation;
+
+        if (hasNoOtherActiveRelation) {
+          if (!eligibility.assignedToTarget) {
+            await eligibility.user.update({
+              comunidad_id: invitacion.comunidad_id,
+            }, { transaction });
+          }
+
+          if (eligibility.targetActiveMembership.es_principal !== true) {
+            await eligibility.targetActiveMembership.update({
+              es_principal: true,
+            }, { transaction });
+          }
+        }
+
         return {
           status: 200,
           body: {
@@ -549,10 +600,28 @@ exports.aceptarInvitacion = async (req, res) => {
         };
       }
 
-      if (existingMembership?.estado === 'inactivo') {
+      if (inactiveMembership) {
         return {
           status: 409,
           body: MEMBERSHIP_INACTIVE_RESPONSE,
+        };
+      }
+
+      if (eligibility.ownsTarget) {
+        return {
+          status: 200,
+          body: {
+            accepted: true,
+            already_member: true,
+            comunidad_id: invitacion.comunidad_id,
+          },
+        };
+      }
+
+      if (eligibility.hasOtherRelation) {
+        return {
+          status: 409,
+          body: ALREADY_HAS_COMMUNITY_RESPONSE,
         };
       }
 
@@ -568,23 +637,6 @@ exports.aceptarInvitacion = async (req, res) => {
           body: ACCEPT_INVALID_RESPONSE,
         };
       }
-
-      // La fila de User está bloqueada antes de esta consulta. Dos
-      // aceptaciones concurrentes del mismo usuario no pueden decidir
-      // simultáneamente que ambas membresías deben ser principales.
-      const existingPrimaryMembership = await ComunidadMiembro.findOne({
-        where: {
-          user_id: user.id,
-          es_principal: true,
-        },
-        attributes: ['id', 'comunidad_id'],
-        transaction,
-        lock: transaction.LOCK.UPDATE,
-      });
-
-      const shouldBecomePrimary =
-        user.comunidad_id === null &&
-        existingPrimaryMembership === null;
 
       const insertedMemberships = await sequelize.query(
         `
@@ -602,7 +654,7 @@ exports.aceptarInvitacion = async (req, res) => {
             :comunidadId,
             'miembro',
             'activo',
-            :esPrincipal,
+            TRUE,
             NOW(),
             NOW()
           )
@@ -618,22 +670,21 @@ exports.aceptarInvitacion = async (req, res) => {
         `,
         {
           replacements: {
-            userId: user.id,
+            userId: eligibility.user.id,
             comunidadId: invitacion.comunidad_id,
-            esPrincipal: shouldBecomePrimary,
           },
           type: QueryTypes.SELECT,
           transaction,
         }
       );
 
-      // Protege el escenario de dos invitaciones diferentes para la misma
-      // combinación user_id + comunidad_id.
+      // La elegibilidad ya fue comprobada bajo el lock del usuario. El
+      // conflicto sólo protege la clave única, no sustituye esa decisión.
       if (insertedMemberships.length === 0) {
         const concurrentMembership = await ComunidadMiembro.findOne({
           where: {
             comunidad_id: invitacion.comunidad_id,
-            user_id: user.id,
+            user_id: eligibility.user.id,
           },
           attributes: ['estado'],
           transaction,
@@ -661,11 +712,9 @@ exports.aceptarInvitacion = async (req, res) => {
         throw new Error('Membership conflict could not be resolved');
       }
 
-      if (shouldBecomePrimary) {
-        await user.update({
-          comunidad_id: invitacion.comunidad_id,
-        }, { transaction });
-      }
+      await eligibility.user.update({
+        comunidad_id: invitacion.comunidad_id,
+      }, { transaction });
 
       const nextUsos = Number(invitacion.usos_actuales) + 1;
 

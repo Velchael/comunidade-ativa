@@ -1,11 +1,26 @@
 // src/middleware/roles.js
+const { User } = require('../models');
 
-exports.onlyAdminTotal = (req, res, next) => {
-  const user = req.user;
-  if (!user || (user.rol !== 'admin_total' && user.rol_global !== 'admin_total')) {
+exports.onlyAdminTotal = async (req, res, next) => {
+  const actorId = Number(req.user?.id);
+
+  if (!Number.isInteger(actorId) || actorId <= 0) {
     return res.status(403).json({ message: 'Somente admin_total pode acessar' });
   }
-  next();
+
+  try {
+    const actor = await User.findByPk(actorId, {
+      attributes: ['id', 'rol_global']
+    });
+
+    if (actor?.rol_global !== 'admin_total') {
+      return res.status(403).json({ message: 'Somente admin_total pode acessar' });
+    }
+
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao verificar autorização' });
+  }
 };
 
 exports.allowAdmins = (req, res, next) => {

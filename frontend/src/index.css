@@ -17,6 +17,35 @@ header {
   overflow: visible;
 }
 
+.invitation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 5rem;
+  padding: 0.75rem 1rem;
+  overflow: hidden;
+}
+
+.invitation-header__logo {
+  width: auto;
+  height: 50px;
+  max-width: min(55vw, 260px);
+  object-fit: contain;
+}
+
+@media (max-width: 480px) {
+  .invitation-header {
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .invitation-header__logo {
+    max-width: 42vw;
+  }
+
+}
+
 .user-info-bar {
   background-color: #f8f9fa;
   padding: 0.5rem 1rem;
@@ -140,6 +169,65 @@ main {
   max-width: 600px;
 }
 
+.invitation-page {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: clamp(1rem, 5vw, 4rem) 0.75rem;
+}
+
+.invitation-card {
+  border: 1px solid rgba(67, 26, 3, 0.16);
+  border-radius: 12px;
+  box-shadow: 0 16px 45px rgba(31, 41, 51, 0.1);
+}
+
+.invitation-card .card-body {
+  padding: clamp(1.25rem, 5vw, 3rem);
+}
+
+.invitation-card h1 {
+  overflow-wrap: anywhere;
+  color: #1f2933;
+}
+
+.invitation-eyebrow {
+  margin-bottom: 0.5rem;
+  color: #8a5d08;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.invitation-location {
+  color: #6b7280;
+}
+
+.invitation-status {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.invitation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.community-invitation-manager {
+  border-color: rgba(67, 26, 3, 0.16);
+}
+
+.community-invitation-manager__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
 .onboarding-layout {
   width: min(100%, 1040px);
   margin: 0 auto;
@@ -221,6 +309,64 @@ main {
   justify-content: flex-end;
   gap: 0.75rem;
   margin-top: 1.25rem;
+}
+
+.onboarding-actions--centered {
+  justify-content: center;
+}
+
+.onboarding-status {
+  text-align: center;
+  border-top: 6px solid #2563eb;
+}
+
+.onboarding-status--success { border-top-color: #16803c; }
+.onboarding-status--warning { border-top-color: #d97706; }
+.onboarding-status--error { border-top-color: #b42318; }
+.onboarding-status--loading { border-top-color: #2563eb; }
+
+.onboarding-status__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  background: #e8f1ff;
+  color: #174ea6;
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.onboarding-status--success .onboarding-status__icon { background: #e8f7ed; color: #16803c; }
+.onboarding-status--warning .onboarding-status__icon { background: #fff4d6; color: #9a4d00; }
+.onboarding-status--error .onboarding-status__icon { background: #feeceb; color: #b42318; }
+
+.onboarding-status__content,
+.invitation-intro {
+  overflow-wrap: anywhere;
+}
+
+.invitation-intro {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.invitation-stage-labels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: -1rem 0 1rem;
+  color: #5f4b32;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.onboarding-inline-error {
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: #feeceb;
+  color: #8f1d18 !important;
 }
 
 .onboarding-choice-card,
@@ -402,6 +548,10 @@ footer {
     width: 100%;
   }
 
+  .invitation-stage-labels {
+    font-size: 0.68rem;
+  }
+
   .community-result-card__header {
     flex-direction: column;
   }
@@ -409,6 +559,17 @@ footer {
   .community-result-card__details {
     grid-template-columns: 1fr;
     gap: 0.1rem;
+  }
+
+  .invitation-actions,
+  .community-invitation-manager__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .invitation-actions .btn,
+  .community-invitation-manager__header .btn {
+    width: 100%;
   }
 }
 

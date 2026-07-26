@@ -1,5 +1,4 @@
 const { User, Comunidad, sequelize } = require('../models');
-const { syncUserAndPrimaryMembershipTx } = require('../utils/comunidadRoles');
 const { buildAuthUserResponse } = require('../utils/buildAuthUserResponse');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
@@ -49,6 +48,26 @@ const SELF_UPDATE_FIELDS = [
   'foto_perfil',
 ];
 
+const lockActorAndTargetUsersTx = async ({ actorId, targetId, transaction }) => {
+  const ids = [...new Set([Number(actorId), Number(targetId)])]
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .sort((left, right) => left - right);
+  const lockedUsers = new Map();
+
+  for (const id of ids) {
+    const user = await User.findByPk(id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+    if (user) lockedUsers.set(id, user);
+  }
+
+  return {
+    actor: lockedUsers.get(Number(actorId)) || null,
+    target: lockedUsers.get(Number(targetId)) || null
+  };
+};
+
 // Crear usuario
 const createUser = async (req, res) => {
   try {
@@ -91,18 +110,25 @@ const getUserByEmail = async (req, res) => {
 
 // Completar perfil Google
 const completeGoogleProfile = async (req, res) => {
-  const { email, googleId } = req.body;
   const data = pickAllowedFields(req.body, GOOGLE_PROFILE_FIELDS);
 
   try {
-    const user = await User.findOne({ where: { email } });
+    const authenticatedUserId = Number(req.user?.id);
+
+    if (!Number.isInteger(authenticatedUserId) || authenticatedUserId <= 0) {
+      return res.status(401).json({ message: 'Não autenticado' });
+    }
+
+    const user = await User.findByPk(authenticatedUserId);
 
     if (!user) {
       return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
-    if (user.googleId && user.googleId !== String(googleId)) {
-      return res.status(403).json({ message: 'Google ID não corresponde' });
+    if (!user.googleId) {
+      return res.status(403).json({
+        message: 'Conta autenticada não está vinculada ao Google'
+      });
     }
 
     if (data.username && user.username && user.username !== data.username) {
@@ -154,58 +180,67 @@ const getAllUsers = async (req, res) => {
 
 // ✅ NUEVA FUNCIÓN: Actualizar usuario completo
 const updateUser = async (req, res) => {
-  const transaction = await sequelize.transaction();
-
   try {
     const { id } = req.params;   // usuario que será editado
     const data = pickAllowedFields(req.body, SELF_UPDATE_FIELDS);
     const loggedUser = req.user; // viene del middleware verificarToken
 
-    const user = await User.findByPk(id, { transaction });
-    if (!user) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
-
-    if (loggedUser.rol === 'admin_total') {
-      const adminOnlyData = pickAllowedFields(req.body, ['comunidad_id', 'rol']);
-      Object.assign(data, adminOnlyData);
-    }
-
-    // ⚠️ Si el usuario intenta editar otro usuario y NO es admin_total
-    if (loggedUser.rol !== 'admin_total' && loggedUser.id !== user.id) {
-      await transaction.rollback();
-      return res.status(403).json({ message: 'Você não tem permissão para editar outros usuários' });
-    }
-
-    const updatesMembershipState =
-      Object.prototype.hasOwnProperty.call(data, 'rol') ||
-      Object.prototype.hasOwnProperty.call(data, 'comunidad_id');
-
-    if (updatesMembershipState) {
-      await syncUserAndPrimaryMembershipTx({
-        user,
-        nextRol: Object.prototype.hasOwnProperty.call(data, 'rol') ? data.rol : undefined,
-        nextComunidadId: Object.prototype.hasOwnProperty.call(data, 'comunidad_id') ? data.comunidad_id : undefined,
-        transaction,
-        preserveExistingLocalRole: true,
-        forceRoleSync: false,
-        syncRoleFromUser: false,
-        upsertMembership: true
+    const result = await sequelize.transaction(async (transaction) => {
+      const { actor, target: user } = await lockActorAndTargetUsersTx({
+        actorId: loggedUser?.id,
+        targetId: id,
+        transaction
       });
 
-      const profileOnlyData = { ...data };
-      delete profileOnlyData.rol;
-      delete profileOnlyData.comunidad_id;
-
-      if (Object.keys(profileOnlyData).length > 0) {
-        await user.update(profileOnlyData, { transaction });
+      if (!actor) {
+        return { status: 401, body: { message: 'Não autenticado' } };
       }
-    } else {
-      await user.update(data, { transaction });
-    }
 
-    await transaction.commit();
+      if (!user) {
+        return { status: 404, body: { message: 'Usuário não encontrado' } };
+      }
+
+      // ⚠️ Si el usuario intenta editar otro usuario y NO es admin_total
+      const isAdminTotal = actor.rol_global === 'admin_total';
+      if (!isAdminTotal && Number(actor.id) !== Number(user.id)) {
+        return {
+          status: 403,
+          body: { message: 'Você não tem permissão para editar outros usuários' }
+        };
+      }
+
+      if (isAdminTotal) {
+        Object.assign(data, pickAllowedFields(req.body, ['comunidad_id', 'rol']));
+      }
+
+      if (Object.prototype.hasOwnProperty.call(data, 'comunidad_id')) {
+        const currentComunidadId = user.comunidad_id === null
+          ? null
+          : Number(user.comunidad_id);
+        const requestedComunidadId = data.comunidad_id === null || data.comunidad_id === ''
+          ? null
+          : Number(data.comunidad_id);
+
+        if (currentComunidadId !== requestedComunidadId) {
+          return {
+            status: 409,
+            body: {
+              message: 'A comunidade deve ser alterada por um fluxo comunitário específico',
+              reason: 'community_change_not_supported'
+            }
+          };
+        }
+
+        delete data.comunidad_id;
+      }
+
+      await user.update(data, { transaction });
+      return { status: 200 };
+    });
+
+    if (result.body) {
+      return res.status(result.status).json(result.body);
+    }
 
     const updated = await User.findByPk(id, {
       attributes: { exclude: ['password'] },
@@ -214,9 +249,6 @@ const updateUser = async (req, res) => {
 
     return res.json(updated);
   } catch (err) {
-    if (!transaction.finished) {
-      await transaction.rollback();
-    }
     console.error('❌ Error al actualizar usuario:', err);
     return res.status(500).json({ message: 'Erro ao atualizar usuário' });
   }
@@ -226,7 +258,6 @@ const updateUser = async (req, res) => {
 const updateUserRole = async (req, res) => {
   const { id } = req.params;
   const { rol } = req.body;
-  const transaction = await sequelize.transaction();
 
   const validRoles = ['miembro', 'admin_basic', 'admin_total'];
   if (!validRoles.includes(rol)) {
@@ -234,32 +265,32 @@ const updateUserRole = async (req, res) => {
   }
 
   try {
-    const user = await User.findByPk(id, { transaction });
-    if (!user) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
+    const result = await sequelize.transaction(async (transaction) => {
+      const { actor, target: user } = await lockActorAndTargetUsersTx({
+        actorId: req.user?.id,
+        targetId: id,
+        transaction
+      });
 
-    await syncUserAndPrimaryMembershipTx({
-      user,
-      nextRol: rol,
-      nextComunidadId: user.comunidad_id,
-      transaction,
-      preserveExistingLocalRole: true,
-      forceRoleSync: false,
-      syncRoleFromUser: false,
-      upsertMembership: true
+      if (!actor || actor.rol_global !== 'admin_total') {
+        return { status: 403, body: { message: 'Somente admin_total pode acessar' } };
+      }
+      if (!user) {
+        return { status: 404, body: { message: 'Usuário não encontrado' } };
+      }
+
+      await user.update({ rol }, { transaction });
+      return { status: 200 };
     });
 
-    await transaction.commit();
-
-    res.status(200).json({ message: 'Papel atualizado com sucesso' });
-  } catch (error) {
-    if (!transaction.finished) {
-      await transaction.rollback();
+    if (result.body) {
+      return res.status(result.status).json(result.body);
     }
+
+    return res.status(200).json({ message: 'Papel atualizado com sucesso' });
+  } catch (error) {
     console.error('❌ Error al actualizar rol:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    return res.status(500).json({ message: 'Erro interno do servidor' });
   }
 };
 
@@ -267,14 +298,25 @@ const updateUserRole = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findByPk(id);
+    const result = await sequelize.transaction(async (transaction) => {
+      const { actor, target } = await lockActorAndTargetUsersTx({
+        actorId: req.user?.id,
+        targetId: id,
+        transaction
+      });
 
-    if (!user) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
-    }
+      if (!actor || actor.rol_global !== 'admin_total') {
+        return { status: 403, body: { message: 'Somente admin_total pode acessar' } };
+      }
+      if (!target) {
+        return { status: 404, body: { message: 'Usuário não encontrado' } };
+      }
 
-    await user.destroy();
-    res.json({ message: 'Usuário excluído com sucesso' });
+      await target.destroy({ transaction });
+      return { status: 200, body: { message: 'Usuário excluído com sucesso' } };
+    });
+
+    return res.status(result.status).json(result.body);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir usuário' });
   }

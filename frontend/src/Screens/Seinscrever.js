@@ -1,12 +1,9 @@
 // src/Screens/Seinscrever.js
 
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useCallback, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Container,
-  Form,
   Button,
-  Alert,
   Card,
   Row,
   Col,
@@ -18,10 +15,14 @@ import { UserContext } from '../UserContext';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import OnboardingLayout from '../components/OnboardingLayout';
+import GoogleAuthStep from '../components/GoogleAuthStep';
+import ProfileCompletionForm from '../components/ProfileCompletionForm';
+import OnboardingStatusCard from '../components/OnboardingStatusCard';
+import { getPendingInvitation } from '../utils/invitationSession';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
-export default function Seinscrever() {
+export default function Seinscrever({ mode = 'direct' }) {
 
   const { setUser, login } = useContext(UserContext) || {};
   const navigate = useNavigate();
@@ -52,6 +53,17 @@ export default function Seinscrever() {
 
   const [submitting, setSubmitting] = useState(false);
   const [startMode, setStartMode] = useState('existente');
+  const [pendingInvitation] = useState(() => getPendingInvitation());
+  const effectiveMode = mode === 'invitation' || pendingInvitation
+    ? 'invitation'
+    : 'direct';
+
+  const returnToPendingInvitation = useCallback(() => {
+    if (!pendingInvitation) return false;
+
+    navigate(pendingInvitation, { replace: true });
+    return true;
+  }, [navigate, pendingInvitation]);
 
   // =====================================================
   // 🔹 LOGIN GOOGLE
@@ -108,9 +120,8 @@ export default function Seinscrever() {
 
         setGoogleUser(sessionUser);
 
-        if (window.location.pathname !== '/Seinscrever') {
-          navigate('/Seinscrever', { replace: true });
-        }
+        // Retira o JWT da query string sem perder o convite da sessão da aba.
+        navigate('/Seinscrever', { replace: true });
       } else {
         // 🔹 RESTAURA LOGIN SI YA EXISTE
         const savedUser = localStorage.getItem('user');
@@ -163,6 +174,10 @@ export default function Seinscrever() {
 
         if (data && data.apellido) {
 
+          if (returnToPendingInvitation()) {
+            return;
+          }
+
           // =============================================
           // 🔹 NUEVA LÓGICA SOCIAL
           // =============================================
@@ -201,7 +216,7 @@ export default function Seinscrever() {
 
     checkIfProfileCompleted();
 
-  }, [googleUser, navigate, setUser]);
+  }, [googleUser, navigate, returnToPendingInvitation, setUser]);
 
   // =====================================================
   // 🔹 MANEJO INPUTS
@@ -312,11 +327,11 @@ export default function Seinscrever() {
       // 🔥 mostrar opciones comunidad
       setShowProfileForm(false);
 
-      setShowCommunityOptions(true);
+      if (!returnToPendingInvitation()) {
+        setShowCommunityOptions(true);
+      }
 
     } catch (error) {
-
-      console.error(error);
 
       const msg =
         error?.response?.data?.message ||
@@ -356,9 +371,7 @@ export default function Seinscrever() {
           <title>Verificando perfil...</title>
         </Helmet>
 
-        <div className="onboarding-panel">
-          <h1>Verificando perfil...</h1>
-        </div>
+        <OnboardingStatusCard status="loading" title="Verificando perfil..." />
 
       </OnboardingLayout>
     );
@@ -372,29 +385,18 @@ export default function Seinscrever() {
 
     return (
 
-      <Container className="small-container text-center mt-5">
+      <OnboardingLayout step={effectiveMode === 'invitation' ? 2 : 1} maxWidth="600px">
 
         <Helmet>
           <title>Login</title>
         </Helmet>
 
-        <h2>Entrar com Google</h2>
-
-        <p>
-          COMUVA conecta pessoas e comunidades reais.
-        </p>
-
-        <Button
-          size="lg"
-          onClick={() =>
-            window.location.href =
-              `${API_BASE}/api/auth/google`
-          }
-        >
-          Continuar com Google
-        </Button>
-
-      </Container>
+        <GoogleAuthStep
+          mode={effectiveMode}
+          message={message}
+          onContinue={() => { window.location.href = `${API_BASE}/api/auth/google`; }}
+        />
+      </OnboardingLayout>
     );
   }
 
@@ -406,79 +408,21 @@ export default function Seinscrever() {
 
     return (
 
-      <OnboardingLayout step={1} maxWidth="600px">
+      <OnboardingLayout step={effectiveMode === 'invitation' ? 2 : 1} maxWidth="600px">
 
         <Helmet>
           <title>Completar perfil</title>
         </Helmet>
 
-        <div className="onboarding-panel">
-          <h1>
-            {googleUser?.username
-              ? `Bem-vindo, ${googleUser.username}`
-              : 'Bem-vindo ao COMUVA'}
-          </h1>
-
-          <p>
-            Complete seus dados básicos para continuar com segurança.
-          </p>
-
-          {message.text && (
-            <Alert variant={message.type}>
-              {message.text}
-            </Alert>
-          )}
-
-          <Form onSubmit={handleCompleteProfile}>
-
-            {/* APELLIDO */}
-
-            <Form.Group className="mb-3">
-
-              <Form.Label>
-                Sobrenome <span className="text-danger">*</span>
-              </Form.Label>
-
-              <Form.Control
-                type="text"
-                required
-                name="apellido"
-                value={formData.apellido}
-                onChange={handleChange}
-                placeholder="Digite seu sobrenome"
-              />
-
-            </Form.Group>
-
-            {/* TELÉFONO */}
-
-            <Form.Group className="mb-3">
-
-              <Form.Label>
-                Telefone
-              </Form.Label>
-
-              <Form.Control
-                type="tel"
-                name="telefono"
-                value={formData.telefono}
-                onChange={handleChange}
-                placeholder="+55 71 9xxxx-xxxx"
-              />
-
-            </Form.Group>
-
-            <Button
-              type="submit"
-              disabled={submitting}
-            >
-              {submitting
-                ? 'Salvando...'
-                : 'Continuar'}
-            </Button>
-
-          </Form>
-        </div>
+        <ProfileCompletionForm
+          mode={effectiveMode}
+          username={googleUser?.username}
+          values={formData}
+          message={message}
+          loading={submitting}
+          onChange={handleChange}
+          onSubmit={handleCompleteProfile}
+        />
 
       </OnboardingLayout>
     );
@@ -488,7 +432,7 @@ export default function Seinscrever() {
   // 🔹 NUEVA PANTALLA SOCIAL
   // =====================================================
 
-  if (showCommunityOptions) {
+  if (showCommunityOptions && effectiveMode === 'direct') {
 
     return (
 
