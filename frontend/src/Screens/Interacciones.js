@@ -3,6 +3,7 @@ import { Container, Button, Form, Card, Alert } from "react-bootstrap";
 import axios from "axios";
 import { UserContext } from "../UserContext";
 import PrimarySelectorBar from "../components/PrimarySelectorBar";
+import UserAvatar from "../components/UserAvatar";
 
 const TIPO_OPTIONS = [
   { value: "necesidad", label: "Necessidade" },
@@ -200,7 +201,11 @@ export default function Interacciones() {
       descripcion: texto,
       visibilidad,
       urgencia: urgenciaFinal,
-      usuario: { username: user.username },
+      usuario: {
+        id: user.id,
+        username: user.username,
+        foto_perfil: user.foto_perfil || null
+      },
       comunidad: {
         nombre_comunidad: user.comunidadNombre
       },
@@ -251,7 +256,7 @@ export default function Interacciones() {
     try {
       const token = localStorage.getItem("token");
 
-      await axios.post(
+      const response = await axios.post(
         `${API_BASE}/api/respuestas`,
         {
           interaccion_id: id,
@@ -265,6 +270,37 @@ export default function Interacciones() {
         }
       );
 
+      const createdResponse = response.data || {};
+      const optimisticResponse = {
+        ...createdResponse,
+        id: createdResponse.id || Date.now(),
+        interaccion_id: createdResponse.interaccion_id || id,
+        user_id: createdResponse.user_id || user.id,
+        mensaje: createdResponse.mensaje || mensaje,
+        estado: createdResponse.estado || "activa",
+        usuario: {
+          id: createdResponse.usuario?.id || user.id,
+          username: createdResponse.usuario?.username || user.username,
+          foto_perfil:
+            createdResponse.usuario?.foto_perfil ||
+            user.foto_perfil ||
+            null
+        }
+      };
+
+      setLista((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                respuestas: [
+                  ...(item.respuestas || []),
+                  optimisticResponse
+                ]
+              }
+            : item
+        )
+      );
       cargarInteracciones();
     } catch (error) {
       console.error("Error respondiendo", error);
@@ -710,10 +746,20 @@ export default function Interacciones() {
               </span>
             </div>
 
-            <div className="interaccion-meta">
-              👤 {item.usuario?.username}
-              {" - "}
-              🏘️ {item.comunidad?.nombre_comunidad}
+            <div className="interaccion-author">
+              <UserAvatar
+                src={item.usuario?.foto_perfil}
+                name={item.usuario?.username}
+                size="publication"
+              />
+              <div className="interaccion-author-text">
+                <strong className="interaccion-author-name">
+                  {item.usuario?.username || "Usuário"}
+                </strong>
+                <span className="interaccion-meta">
+                  🏘️ {item.comunidad?.nombre_comunidad}
+                </span>
+              </div>
             </div>
 
             <div className="interaccion-support">
@@ -791,20 +837,26 @@ export default function Interacciones() {
                     key={r.id}
                     className={`respuesta-item ${r.estado === "oculta" ? "is-hidden" : ""}`}
                   >
-                    <div className="respuesta-content">
+                    <div className="respuesta-row">
                       <span className="respuesta-arrow">↳</span>
-                      <p className="respuesta-text">
-                        <strong>
-                          {r.usuario?.username}:
+                      <UserAvatar
+                        src={r.usuario?.foto_perfil}
+                        name={r.usuario?.username}
+                        size="reply"
+                      />
+                      <div className="respuesta-content">
+                        <strong className="respuesta-author-name">
+                          {r.usuario?.username || "Usuário"}
                         </strong>
-                        {" "}
-                        {r.mensaje}
+                        <p className="respuesta-text">
+                          {r.mensaje}
+                        </p>
                         {r.estado === "oculta" && (
                           <small className="respuesta-hidden-label">
                             Oculta
                           </small>
                         )}
-                      </p>
+                      </div>
                     </div>
 
                     {puedeModerarInteraccion(item) && (

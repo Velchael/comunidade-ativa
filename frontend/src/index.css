@@ -1533,10 +1533,62 @@ footer {
   letter-spacing: 0.02em;
 }
 
+.interaccion-author {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+.interaccion-author-text {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.interaccion-author-name,
+.respuesta-author-name {
+  min-width: 0;
+  color: #342414;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.interaccion-author-name {
+  font-size: 0.96rem;
+}
+
 .interaccion-meta {
   color: #6b6256;
   font-size: 0.84rem;
-  margin-bottom: 0.55rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.user-avatar {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1f6f62;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.user-avatar--publication {
+  width: 40px;
+  height: 40px;
+  font-size: 0.88rem;
+}
+
+.user-avatar--reply {
+  width: 30px;
+  height: 30px;
+  font-size: 0.72rem;
 }
 
 .interaccion-support {
@@ -1627,10 +1679,11 @@ footer {
   border-color: rgba(176, 42, 55, 0.18);
 }
 
-.respuesta-content {
-  display: flex;
-  gap: 0.55rem;
+.respuesta-row {
+  display: grid;
+  grid-template-columns: auto 30px minmax(0, 1fr);
   align-items: flex-start;
+  gap: 0.55rem;
 }
 
 .respuesta-arrow {
@@ -1639,16 +1692,21 @@ footer {
   line-height: 1.5;
 }
 
+.respuesta-content {
+  min-width: 0;
+}
+
 .respuesta-text {
   margin: 0;
   color: #5f5a53;
   font-size: 0.9rem;
   line-height: 1.5;
-  flex: 1;
+  overflow-wrap: anywhere;
 }
 
 .respuesta-hidden-label {
-  margin-left: 0.5rem;
+  display: inline-block;
+  margin-top: 0.15rem;
   color: #b02a37;
   font-weight: 700;
 }
@@ -1683,6 +1741,15 @@ footer {
   .filtros-heading {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .interaccion-author {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .user-avatar--publication {
+    width: 36px;
+    height: 36px;
   }
 
   .control-label {

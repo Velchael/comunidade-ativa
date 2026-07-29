@@ -93,7 +93,7 @@ exports.listar = async (req, res) => {
         {
           model: User,
           as: "usuario",
-          attributes: ["id", "username"]
+          attributes: ["id", "username", "foto_perfil"]
         },
         {
           model: Comunidad,
@@ -107,7 +107,7 @@ exports.listar = async (req, res) => {
             {
               model: User,
               as: "usuario",
-              attributes: ["id", "username"]
+              attributes: ["id", "username", "foto_perfil"]
             }
           ]
         }
