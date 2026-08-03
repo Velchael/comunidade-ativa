@@ -16,7 +16,6 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import OnboardingLayout from '../components/OnboardingLayout';
 import GoogleAuthStep from '../components/GoogleAuthStep';
-import ProfileCompletionForm from '../components/ProfileCompletionForm';
 import OnboardingStatusCard from '../components/OnboardingStatusCard';
 import { getPendingInvitation } from '../utils/invitationSession';
 
@@ -31,27 +30,13 @@ export default function Seinscrever({ mode = 'direct' }) {
   // 🔹 ESTADOS
   // =====================================================
 
-  const [formData, setFormData] = useState({
-    apellido: '',
-    telefono: ''
-  });
-
   const [googleUser, setGoogleUser] = useState(null);
-
-  // 🔹 controla si muestra formulario perfil
-  const [showProfileForm, setShowProfileForm] = useState(false);
 
   // 🔹 nuevo flujo social
   const [showCommunityOptions, setShowCommunityOptions] = useState(false);
 
   const [checkingProfile, setCheckingProfile] = useState(true);
 
-  const [message, setMessage] = useState({
-    type: '',
-    text: ''
-  });
-
-  const [submitting, setSubmitting] = useState(false);
   const [startMode, setStartMode] = useState('existente');
   const [pendingInvitation] = useState(() => getPendingInvitation());
   const effectiveMode = mode === 'invitation' || pendingInvitation
@@ -150,203 +135,34 @@ export default function Seinscrever({ mode = 'direct' }) {
   }, [login, navigate, setUser]);
 
   // =====================================================
-  // 🔹 VERIFICAR PERFIL COMPLETADO
+  // 🔹 CONTINUAR FLUJO CON SESIÓN HIDRATADA
   // =====================================================
 
   useEffect(() => {
 
-    const checkIfProfileCompleted = async () => {
+    const continueAuthenticatedFlow = () => {
 
       if (!googleUser?.email) {
         setCheckingProfile(false);
         return;
       }
 
-      try {
-
-        const { data } = await axios.get(
-          `${API_BASE}/api/users/${googleUser.email}`
-        );
-
-        // =================================================
-        // 🔹 SI YA TIENE PERFIL COMPLETO
-        // =================================================
-
-        if (data && data.apellido) {
-
-          if (returnToPendingInvitation()) {
-            return;
-          }
-
-          // =============================================
-          // 🔹 NUEVA LÓGICA SOCIAL
-          // =============================================
-
-          // SI YA TIENE COMUNIDAD → entra directo
-          if (data.comunidad_id) {
-
-            navigate('/interacciones');
-
-          } else {
-
-            // SI NO TIENE COMUNIDAD
-            // mostrar opciones sociales
-
-            setShowCommunityOptions(true);
-          }
-
-        } else {
-
-          // 🔹 MOSTRAR FORMULARIO PERFIL
-
-          setShowProfileForm(true);
-        }
-
-      } catch (error) {
-
-        console.warn('Não foi possível verificar o perfil');
-
-        setShowProfileForm(true);
-
-      } finally {
-
-        setCheckingProfile(false);
-      }
-    };
-
-    checkIfProfileCompleted();
-
-  }, [googleUser, navigate, returnToPendingInvitation, setUser]);
-
-  // =====================================================
-  // 🔹 MANEJO INPUTS
-  // =====================================================
-
-  const handleChange = (e) => {
-
-    const { name, value } = e.target;
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // =====================================================
-  // 🔹 COMPLETAR PERFIL BÁSICO
-  // =====================================================
-
-  const handleCompleteProfile = async (e) => {
-
-    e.preventDefault();
-
-    setMessage({
-      type: '',
-      text: ''
-    });
-
-    // =================================================
-    // 🔹 SOLO APELLIDO OBLIGATORIO
-    // =================================================
-
-    if (!formData.apellido) {
-
-      setMessage({
-        type: 'danger',
-        text: 'Por favor, preencha seu sobrenome.'
-      });
-
-      return;
-    }
-
-    setSubmitting(true);
-
-    // =================================================
-    // 🔹 NUEVO PAYLOAD
-    // 🔥 comunidad_id REMOVIDO
-    // =================================================
-
-    const payload = {
-
-      apellido: formData.apellido.trim(),
-
-      telefono:
-        formData.telefono.trim() || null,
-
-      email: googleUser?.email,
-
-      googleId: googleUser?.googleId,
-
-      foto_perfil:
-        googleUser?.avatar || null
-    };
-
-    try {
-
-      // =================================================
-      // 🔹 COMPLETAR PERFIL
-      // =================================================
-
-      const res = await axios.post(
-        `${API_BASE}/api/users/google/complete`,
-        payload
-      );
-
-      const { token: newToken, user: savedUser } = res.data || {};
-
-      // =================================================
-      // 🔹 LOGIN CONTEXTO
-      // =================================================
-
-      const sessionToken = newToken || localStorage.getItem('token');
-
-      if (sessionToken && typeof login === 'function') {
-        await login(sessionToken, savedUser || null);
+      if (returnToPendingInvitation()) {
+        return;
       }
 
-      if (savedUser) {
-        if (typeof setUser === 'function') {
-          setUser(savedUser);
-        }
-
-        setGoogleUser((prev) => ({
-          ...(prev || {}),
-          ...savedUser
-        }));
-      }
-
-      // =================================================
-      // 🔹 NUEVO FLUJO SOCIAL
-      // =================================================
-
-      setMessage({
-        type: 'success',
-        text: 'Perfil concluído com sucesso.'
-      });
-
-      // 🔥 mostrar opciones comunidad
-      setShowProfileForm(false);
-
-      if (!returnToPendingInvitation()) {
+      if (googleUser.comunidad_id || googleUser.comunidadId) {
+        navigate('/interacciones');
+      } else {
         setShowCommunityOptions(true);
       }
 
-    } catch (error) {
+      setCheckingProfile(false);
+    };
 
-      const msg =
-        error?.response?.data?.message ||
-        'Erro ao salvar o perfil';
+    continueAuthenticatedFlow();
 
-      setMessage({
-        type: 'danger',
-        text: msg
-      });
-
-    } finally {
-
-      setSubmitting(false);
-    }
-  };
+  }, [googleUser, navigate, returnToPendingInvitation, setUser]);
 
   const handleContinueCommunityChoice = () => {
     if (startMode === 'crear') {
@@ -393,37 +209,8 @@ export default function Seinscrever({ mode = 'direct' }) {
 
         <GoogleAuthStep
           mode={effectiveMode}
-          message={message}
           onContinue={() => { window.location.href = `${API_BASE}/api/auth/google`; }}
         />
-      </OnboardingLayout>
-    );
-  }
-
-  // =====================================================
-  // 🔹 FORMULARIO PERFIL
-  // =====================================================
-
-  if (showProfileForm) {
-
-    return (
-
-      <OnboardingLayout step={effectiveMode === 'invitation' ? 2 : 1} maxWidth="600px">
-
-        <Helmet>
-          <title>Completar perfil</title>
-        </Helmet>
-
-        <ProfileCompletionForm
-          mode={effectiveMode}
-          username={googleUser?.username}
-          values={formData}
-          message={message}
-          loading={submitting}
-          onChange={handleChange}
-          onSubmit={handleCompleteProfile}
-        />
-
       </OnboardingLayout>
     );
   }
