@@ -1,5 +1,6 @@
 const { User, Comunidad, sequelize } = require('../models');
 const { buildAuthUserResponse } = require('../utils/buildAuthUserResponse');
+const { buildUserProfileResponse } = require('../utils/buildUserProfileResponse');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -105,6 +106,47 @@ const getUserByEmail = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: 'Erro do servidor', error: err.message });
+  }
+};
+
+// Obtener el perfil del usuario autenticado
+const getMyProfile = async (req, res) => {
+  try {
+    const authenticatedUserId = Number(req.user?.id);
+
+    if (!Number.isInteger(authenticatedUserId) || authenticatedUserId <= 0) {
+      return res.status(401).json({ message: 'Não autenticado' });
+    }
+
+    const user = await User.findByPk(authenticatedUserId, {
+      attributes: [
+        'id',
+        'username',
+        'apellido',
+        'email',
+        'fecha_nacimiento',
+        'telefono',
+        'direccion',
+        'foto_perfil',
+        'rol',
+        'rol_global',
+        'comunidad_id'
+      ],
+      include: [{
+        model: Comunidad,
+        as: 'comunidad',
+        attributes: ['id', 'nombre_comunidad', 'owner_user_id']
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    return res.json(await buildUserProfileResponse(user));
+  } catch (error) {
+    console.error('❌ Erro ao obter perfil:', error);
+    return res.status(500).json({ message: 'Erro ao obter perfil' });
   }
 };
 
@@ -324,6 +366,7 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   createUser,
+  getMyProfile,
   getUserByEmail,
   completeGoogleProfile,
   getAllUsers,

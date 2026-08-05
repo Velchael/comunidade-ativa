@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const SIZE_CLASS_BY_NAME = {
   publication: "user-avatar--publication",
-  reply: "user-avatar--reply"
+  reply: "user-avatar--reply",
+  profile: "user-avatar--profile"
 };
 
 const SIZE_PIXELS_BY_NAME = {
   publication: 40,
-  reply: 30
+  reply: 30,
+  profile: 112
 };
 
 const isHttpsUrl = (value) => {

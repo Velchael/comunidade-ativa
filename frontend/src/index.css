@@ -108,6 +108,8 @@ main {
 
 .sidebar-menu-button {
   margin-right: 10px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0.1rem 0.35rem;
   border: none;
   background: transparent;
@@ -622,6 +624,17 @@ footer {
 
 .sidebar a:hover {
   color: #fdbb05;
+}
+
+.sidebar a:focus-visible,
+.close-btn:focus-visible {
+  outline: 3px solid #fdbb05;
+  outline-offset: 3px;
+}
+
+.sidebar a {
+  min-height: 44px;
+  padding: 0.65rem 0.25rem;
 }
 
 /* COMUVA Home */
@@ -1157,6 +1170,8 @@ footer {
 }
 
 .close-btn {
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: none;
   color: white;
@@ -1589,6 +1604,211 @@ footer {
   width: 30px;
   height: 30px;
   font-size: 0.72rem;
+}
+
+.user-avatar--profile {
+  width: 112px;
+  height: 112px;
+  border: 4px solid #ffffff;
+  box-shadow: 0 8px 24px rgba(31, 41, 51, 0.18);
+  font-size: 2rem;
+}
+
+/* Meu Perfil */
+.meu-perfil {
+  box-sizing: border-box;
+  width: min(100%, 960px);
+  margin: clamp(1.25rem, 4vw, 3rem) auto;
+  color: #292018;
+  overflow-wrap: anywhere;
+}
+
+.meu-perfil__header {
+  display: flex;
+  align-items: center;
+  gap: clamp(1.25rem, 3vw, 2rem);
+  min-width: 0;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(135deg, #f7e5b9, #fdf8ed);
+  border: 1px solid rgba(67, 26, 3, 0.14);
+}
+
+.meu-perfil__heading {
+  min-width: 0;
+}
+
+.meu-perfil__heading h1,
+.meu-perfil--state h1 {
+  margin: 0;
+  color: #431a03;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.meu-perfil__heading p {
+  margin: 0.4rem 0 0;
+}
+
+.meu-perfil__heading .meu-perfil__eyebrow {
+  margin: 0 0 0.25rem;
+  color: #765018;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meu-perfil__data {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border: solid rgba(67, 26, 3, 0.14);
+  border-width: 0 1px 1px;
+  border-radius: 0 0 18px 18px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.meu-perfil__field {
+  min-width: 0;
+  padding: 1.15rem clamp(1rem, 3vw, 1.5rem);
+  border-bottom: 1px solid rgba(67, 26, 3, 0.1);
+}
+
+.meu-perfil__field:nth-child(odd) {
+  border-right: 1px solid rgba(67, 26, 3, 0.1);
+}
+
+.meu-perfil__field dt {
+  margin-bottom: 0.3rem;
+  color: #765018;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.meu-perfil__field dd {
+  margin: 0;
+  color: #292018;
+  line-height: 1.45;
+}
+
+.meu-perfil--state {
+  display: flex;
+  min-height: 280px;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  border: 1px solid rgba(67, 26, 3, 0.14);
+  border-radius: 18px;
+  background: #ffffff;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.meu-perfil__state-text {
+  max-width: 42rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.meu-perfil--state .btn {
+  min-height: 44px;
+  padding-inline: 1.25rem;
+}
+
+.meu-perfil--state .btn:focus-visible {
+  outline: 3px solid #1f6f62;
+  outline-offset: 3px;
+}
+
+.meu-perfil__spinner {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 0.75rem;
+  border: 4px solid #ead8b4;
+  border-top-color: #765018;
+  border-radius: 50%;
+  animation: meu-perfil-spin 0.8s linear infinite;
+}
+
+@keyframes meu-perfil-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meu-perfil__spinner { animation: none; }
+}
+
+@media (max-width: 768px) {
+  .meu-perfil {
+    margin-block: 1rem;
+  }
+
+  .meu-perfil__header {
+    align-items: flex-start;
+  }
+
+  .user-avatar--profile {
+    width: 88px;
+    height: 88px;
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .meu-perfil__header {
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .meu-perfil__data {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meu-perfil__field:nth-child(odd) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 320px) {
+  .meu-perfil__header,
+  .meu-perfil--state {
+    padding: 1rem 0.75rem;
+  }
+
+  .meu-perfil__field {
+    padding: 0.9rem 0.75rem;
+  }
+
+  .user-avatar--profile {
+    width: 76px;
+    height: 76px;
+    font-size: 1.35rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .meu-perfil {
+    margin-block: 0.75rem;
+  }
+
+  .meu-perfil__header {
+    align-items: center;
+    flex-direction: row;
+    padding-block: 0.9rem;
+    text-align: left;
+  }
+
+  .user-avatar--profile {
+    width: 72px;
+    height: 72px;
+    font-size: 1.25rem;
+  }
+
+  .meu-perfil--state {
+    min-height: 190px;
+  }
 }
 
 .interaccion-support {

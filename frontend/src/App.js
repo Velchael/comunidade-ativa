@@ -22,9 +22,11 @@ import CrearComunidad from './Screens/CrearComunidad';
 import SeleccionarComunidad from './Screens/SeleccionarComunidad';
 import OnboardingConfirmacion from './Screens/OnboardingConfirmacion';
 import Convite from './Screens/Convite';
+import MeuPerfil from './Screens/MeuPerfil';
 
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
+import RequireAuth from './components/RequireAuth';
 
 // Context
 import { UserProvider, UserContext } from './UserContext';
@@ -289,6 +291,10 @@ function AppRoutes() {
         path="/onboarding-confirmacion"
         element={<OnboardingConfirmacion />}
       />
+
+      <Route element={<RequireAuth />}>
+        <Route path="/meu-perfil" element={<MeuPerfil />} />
+      </Route>
 
       <Route
         path="/TaskList"

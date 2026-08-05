@@ -13,6 +13,7 @@ router.post(
   verificarToken,
   usersController.completeGoogleProfile
 );
+router.get('/me', verificarToken, usersController.getMyProfile);
 router.get('/:email', usersController.getUserByEmail);
 
 // ✅ Nueva ruta: actualizar perfil (cualquier usuario autenticado)
@@ -25,4 +26,3 @@ router.put('/:id/rol', verificarToken, onlyAdminTotal, usersController.updateUse
 router.delete('/:id', verificarToken, onlyAdminTotal, usersController.deleteUser);
 
 module.exports = router;
-
