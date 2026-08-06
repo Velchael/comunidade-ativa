@@ -6,7 +6,7 @@ export default function RequireAuth() {
   const { user, token, isHydrating } = useContext(UserContext);
   const location = useLocation();
 
-  if (isHydrating) {
+  if (isHydrating && (!user || !token)) {
     return (
       <div role="status" aria-live="polite">
         Carregando sessão...
