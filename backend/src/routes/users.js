@@ -14,6 +14,7 @@ router.post(
   usersController.completeGoogleProfile
 );
 router.get('/me', verificarToken, usersController.getMyProfile);
+router.patch('/me', verificarToken, usersController.updateMyProfile);
 router.get('/:email', usersController.getUserByEmail);
 
 // ✅ Nueva ruta: actualizar perfil (cualquier usuario autenticado)

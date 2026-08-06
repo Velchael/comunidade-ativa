@@ -49,6 +49,139 @@ const SELF_UPDATE_FIELDS = [
   'foto_perfil',
 ];
 
+const MY_PROFILE_UPDATE_FIELDS = [
+  'username',
+  'apellido',
+  'fecha_nacimiento',
+  'telefono',
+  'direccion',
+];
+
+const MY_PROFILE_STRING_LIMITS = {
+  apellido: 255,
+  telefono: 30,
+  direccion: 255,
+};
+
+const normalizeNullableString = (value, field) => {
+  if (value === null) return { value: null };
+  if (typeof value !== 'string') {
+    return { error: `${field} deve ser um texto ou null` };
+  }
+
+  const normalized = value.trim();
+  if (!normalized) return { value: null };
+
+  if (normalized.length > MY_PROFILE_STRING_LIMITS[field]) {
+    return {
+      error: `${field} deve ter no máximo ${MY_PROFILE_STRING_LIMITS[field]} caracteres`
+    };
+  }
+
+  return { value: normalized };
+};
+
+const normalizeBirthDate = (value) => {
+  if (value === null) return { value: null };
+  if (typeof value !== 'string') {
+    return { error: 'fecha_nacimiento deve ser uma data válida ou null' };
+  }
+
+  const normalized = value.trim();
+  if (!normalized) return { value: null };
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+  if (!match) {
+    return { error: 'fecha_nacimiento deve ser uma data válida no formato YYYY-MM-DD' };
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  const isValid = date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+
+  if (!isValid) {
+    return { error: 'fecha_nacimiento deve ser uma data válida' };
+  }
+
+  const today = new Date();
+  const todayUtc = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  );
+  if (date.getTime() > todayUtc) {
+    return { error: 'fecha_nascimento não pode ser futura' };
+  }
+
+  return { value: normalized };
+};
+
+const buildMyProfileUpdate = (body) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'O corpo da solicitação deve ser um objeto' };
+  }
+
+  const receivedFields = Object.keys(body);
+  const unknownFields = receivedFields.filter(
+    (field) => !MY_PROFILE_UPDATE_FIELDS.includes(field)
+  );
+
+  if (unknownFields.length) {
+    return {
+      error: 'A solicitação contém campos não permitidos',
+      fields: unknownFields
+    };
+  }
+
+  if (!receivedFields.length) {
+    return { error: 'Informe ao menos um campo para atualizar' };
+  }
+
+  const data = {};
+  for (const field of receivedFields) {
+    if (field === 'username') {
+      data.username = body.username;
+      continue;
+    }
+
+    const normalized = field === 'fecha_nacimiento'
+      ? normalizeBirthDate(body[field])
+      : normalizeNullableString(body[field], field);
+
+    if (normalized.error) return normalized;
+    data[field] = normalized.value;
+  }
+
+  return { data };
+};
+
+const MY_PROFILE_QUERY = {
+  attributes: [
+    'id',
+    'username',
+    'apellido',
+    'email',
+    'fecha_nacimiento',
+    'telefono',
+    'direccion',
+    'foto_perfil',
+    'rol',
+    'rol_global',
+    'comunidad_id'
+  ],
+  include: [{
+    model: Comunidad,
+    as: 'comunidad',
+    attributes: ['id', 'nombre_comunidad', 'owner_user_id']
+  }]
+};
+
 const lockActorAndTargetUsersTx = async ({ actorId, targetId, transaction }) => {
   const ids = [...new Set([Number(actorId), Number(targetId)])]
     .filter((id) => Number.isInteger(id) && id > 0)
@@ -118,26 +251,7 @@ const getMyProfile = async (req, res) => {
       return res.status(401).json({ message: 'Não autenticado' });
     }
 
-    const user = await User.findByPk(authenticatedUserId, {
-      attributes: [
-        'id',
-        'username',
-        'apellido',
-        'email',
-        'fecha_nacimiento',
-        'telefono',
-        'direccion',
-        'foto_perfil',
-        'rol',
-        'rol_global',
-        'comunidad_id'
-      ],
-      include: [{
-        model: Comunidad,
-        as: 'comunidad',
-        attributes: ['id', 'nombre_comunidad', 'owner_user_id']
-      }]
-    });
+    const user = await User.findByPk(authenticatedUserId, MY_PROFILE_QUERY);
 
     if (!user) {
       return res.status(404).json({ message: 'Usuário não encontrado' });
@@ -147,6 +261,42 @@ const getMyProfile = async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao obter perfil:', error);
     return res.status(500).json({ message: 'Erro ao obter perfil' });
+  }
+};
+
+// Atualizar parcialmente o perfil do usuário autenticado
+const updateMyProfile = async (req, res) => {
+  try {
+    const authenticatedUserId = Number(req.user?.id);
+
+    if (!Number.isInteger(authenticatedUserId) || authenticatedUserId <= 0) {
+      return res.status(401).json({ message: 'Não autenticado' });
+    }
+
+    const normalized = buildMyProfileUpdate(req.body);
+    if (normalized.error) {
+      return res.status(400).json({
+        message: normalized.error,
+        ...(normalized.fields ? { fields: normalized.fields } : {})
+      });
+    }
+
+    const user = await User.findByPk(authenticatedUserId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    await user.update(normalized.data);
+
+    const updatedUser = await User.findByPk(authenticatedUserId, MY_PROFILE_QUERY);
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    return res.json(await buildUserProfileResponse(updatedUser));
+  } catch (error) {
+    console.error('❌ Erro ao atualizar perfil:', error);
+    return res.status(500).json({ message: 'Erro ao atualizar perfil' });
   }
 };
 
@@ -367,6 +517,7 @@ const deleteUser = async (req, res) => {
 module.exports = {
   createUser,
   getMyProfile,
+  updateMyProfile,
   getUserByEmail,
   completeGoogleProfile,
   getAllUsers,
