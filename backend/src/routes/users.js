@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 
 const usersController = require('../controllers/usersController');
+const avatarController = require('../controllers/avatarController');
 const { verificarToken } = require('../middleware/authMiddleware');
+const { receiveAvatar, validateAvatar } = require('../middleware/avatarUpload');
 const { onlyAdminTotal } = require('../middleware/roles');
 
 // Rutas públicas
@@ -15,6 +17,13 @@ router.post(
 );
 router.get('/me', verificarToken, usersController.getMyProfile);
 router.patch('/me', verificarToken, usersController.updateMyProfile);
+router.post(
+  '/me/avatar',
+  verificarToken,
+  receiveAvatar,
+  validateAvatar,
+  avatarController.uploadMyAvatar
+);
 router.get('/:email', usersController.getUserByEmail);
 
 // ✅ Nueva ruta: actualizar perfil (cualquier usuario autenticado)

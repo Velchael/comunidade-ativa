@@ -7,6 +7,8 @@ import UserAvatar from '../components/UserAvatar';
 
 const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3000') + '/api';
 const NOT_INFORMED = 'Não informado';
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const displayValue = (value) => {
   if (value === null || value === undefined) return NOT_INFORMED;
@@ -117,6 +119,113 @@ export default function MeuPerfil() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [saveError, setSaveError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [isChangingAvatar, setIsChangingAvatar] = useState(false);
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
+  const [avatarError, setAvatarError] = useState('');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+  const avatarPreviewUrlRef = useRef('');
+  const isUploadingAvatarRef = useRef(false);
+
+  const releaseAvatarPreview = useCallback(() => {
+    if (avatarPreviewUrlRef.current) {
+      URL.revokeObjectURL(avatarPreviewUrlRef.current);
+      avatarPreviewUrlRef.current = '';
+    }
+    setAvatarPreviewUrl('');
+  }, []);
+
+  const clearAvatarSelection = useCallback(() => {
+    releaseAvatarPreview();
+    setSelectedAvatarFile(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  }, [releaseAvatarPreview]);
+
+  useEffect(() => () => {
+    if (avatarPreviewUrlRef.current) {
+      URL.revokeObjectURL(avatarPreviewUrlRef.current);
+      avatarPreviewUrlRef.current = '';
+    }
+  }, []);
+
+  const handleStartAvatarChange = () => {
+    if (isUploadingAvatarRef.current || isEditing) return;
+
+    setAvatarError('');
+    setSuccessMessage('');
+    setIsChangingAvatar(true);
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarSelection = (event) => {
+    if (isUploadingAvatarRef.current) return;
+
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError('');
+    setSuccessMessage('');
+
+    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+      clearAvatarSelection();
+      setAvatarError('Selecione uma imagem JPEG, PNG ou WebP.');
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      clearAvatarSelection();
+      setAvatarError('A imagem deve ter no máximo 5 MiB.');
+      return;
+    }
+
+    releaseAvatarPreview();
+    const nextPreviewUrl = URL.createObjectURL(file);
+    avatarPreviewUrlRef.current = nextPreviewUrl;
+    setAvatarPreviewUrl(nextPreviewUrl);
+    setSelectedAvatarFile(file);
+    setIsChangingAvatar(true);
+  };
+
+  const handleCancelAvatar = () => {
+    if (isUploadingAvatarRef.current) return;
+
+    clearAvatarSelection();
+    setAvatarError('');
+    setIsChangingAvatar(false);
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!selectedAvatarFile || isUploadingAvatarRef.current) return;
+
+    isUploadingAvatarRef.current = true;
+    setIsUploadingAvatar(true);
+    setAvatarError('');
+    setSuccessMessage('');
+
+    const formData = new FormData();
+    formData.append('avatar', selectedAvatarFile);
+
+    try {
+      const response = await axios.post(`${API_BASE}/users/me/avatar`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      profileRef.current = response.data;
+      setProfile(response.data);
+      clearAvatarSelection();
+      setIsChangingAvatar(false);
+      setSuccessMessage('Foto atualizada com sucesso.');
+    } catch (error) {
+      setAvatarError(
+        error.response?.data?.message
+        || 'Não foi possível atualizar a foto. Tente novamente.'
+      );
+    } finally {
+      isUploadingAvatarRef.current = false;
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleEdit = () => {
     setDraft(createProfileDraft(profile));
@@ -322,17 +431,86 @@ export default function MeuPerfil() {
   return (
     <section className="meu-perfil" aria-labelledby="meu-perfil-title">
       <header className="meu-perfil__header">
-        <UserAvatar
-          src={profile.foto_perfil}
-          name={avatarName}
-          size="profile"
-        />
+        <div className="meu-perfil__avatar-current">
+          <UserAvatar
+            src={profile.foto_perfil}
+            name={avatarName}
+            size="profile"
+          />
+          <Button
+            type="button"
+            variant="outline-primary"
+            className="meu-perfil__avatar-trigger"
+            onClick={handleStartAvatarChange}
+            disabled={isEditing || isSaving || isUploadingAvatar}
+          >
+            Alterar foto
+          </Button>
+        </div>
         <div className="meu-perfil__heading">
           <p className="meu-perfil__eyebrow">Conta pessoal</p>
           <h1 id="meu-perfil-title">Meu Perfil</h1>
           <p>Seus dados cadastrados na Comunidade Ativa.</p>
         </div>
       </header>
+
+      <input
+        ref={avatarInputRef}
+        className="meu-perfil__avatar-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleAvatarSelection}
+        disabled={isUploadingAvatar}
+        aria-label="Selecionar nova foto de perfil"
+      />
+
+      {isChangingAvatar && (
+        <section className="meu-perfil__avatar-editor" aria-labelledby="meu-perfil-avatar-title">
+          <div className="meu-perfil__avatar-preview">
+            {avatarPreviewUrl ? (
+              <img src={avatarPreviewUrl} alt="Prévia da nova foto de perfil" />
+            ) : (
+              <div className="meu-perfil__avatar-placeholder">
+                Nenhuma imagem selecionada
+              </div>
+            )}
+          </div>
+          <div className="meu-perfil__avatar-controls">
+            <div>
+              <h2 id="meu-perfil-avatar-title">Nova foto de perfil</h2>
+              <p>JPEG, PNG ou WebP, com no máximo 5 MiB.</p>
+              {selectedAvatarFile && (
+                <p className="meu-perfil__avatar-file">{selectedAvatarFile.name}</p>
+              )}
+            </div>
+            <div className="meu-perfil__avatar-actions">
+              <Button
+                type="button"
+                variant="outline-primary"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+              >
+                Selecionar imagem
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAvatarUpload}
+                disabled={!selectedAvatarFile || isUploadingAvatar}
+              >
+                {isUploadingAvatar ? 'Salvando...' : 'Salvar foto'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleCancelAvatar}
+                disabled={isUploadingAvatar}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="meu-perfil__messages" aria-live="polite" aria-atomic="true">
         {successMessage && (
@@ -343,6 +521,11 @@ export default function MeuPerfil() {
         {saveError && (
           <div className="meu-perfil__message meu-perfil__message--error" role="alert">
             {saveError}
+          </div>
+        )}
+        {avatarError && (
+          <div className="meu-perfil__message meu-perfil__message--error" role="alert">
+            {avatarError}
           </div>
         )}
       </div>
@@ -473,7 +656,7 @@ export default function MeuPerfil() {
             ))}
           </dl>
           <div className="meu-perfil__actions meu-perfil__actions--reading">
-            <Button type="button" onClick={handleEdit}>
+            <Button type="button" onClick={handleEdit} disabled={isChangingAvatar || isUploadingAvatar}>
               Editar
             </Button>
           </div>

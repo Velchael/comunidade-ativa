@@ -1,5 +1,6 @@
 const { Interaccion, Respuesta, User, Comunidad } = require("../models");
 const { Op, Sequelize } = require("sequelize");
+const { resolveInteractionPhotos } = require("../utils/resolveInteractionPhotos");
 const ESTADOS_PERMITIDOS = ["abierto", "cerrado", "en_proceso", "oculto"];
 const resolveComunidadId = (req) => {
   const candidates = [
@@ -128,7 +129,7 @@ exports.listar = async (req, res) => {
       ]
     });
 
-    const items = data.map((item) => {
+    const items = await Promise.all(data.map(async (item) => {
       const plain = item.toJSON();
       const puedeVerRespuestasOcultas =
         isAdminTotalGlobal ||
@@ -139,7 +140,7 @@ exports.listar = async (req, res) => {
 
       if (!Array.isArray(plain.respuestas)) {
         plain.respuestas = [];
-        return plain;
+        return resolveInteractionPhotos(plain);
       }
 
       plain.respuestas = puedeVerRespuestasOcultas
@@ -148,8 +149,8 @@ exports.listar = async (req, res) => {
             (respuesta) => respuesta.estado !== "oculta"
           );
 
-      return plain;
-    });
+      return resolveInteractionPhotos(plain);
+    }));
 
     return res.json({
       items,

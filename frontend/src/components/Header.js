@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { Navbar, Container, Button } from "react-bootstrap";
 import { NavLink, useNavigate } from "react-router-dom";
 import { UserContext } from "../UserContext";
+import UserAvatar from "./UserAvatar";
 
 export default function Header({ toggleSidebar }) {
   const { user, setUser } = useContext(UserContext);
@@ -32,6 +33,11 @@ export default function Header({ toggleSidebar }) {
 
             {user && (
               <>
+                <UserAvatar
+                  src={user.foto_perfil}
+                  name={user.username || user.email}
+                  size="publication"
+                />
                 <span>{user.username}</span>
                 <Button size="sm" onClick={handleLogout}>
                   Sair

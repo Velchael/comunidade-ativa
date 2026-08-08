@@ -337,7 +337,17 @@ const completeGoogleProfile = async (req, res) => {
     await user.update(data);
 
     const updatedUser = await User.findByPk(user.id, {
-      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'googleId', 'comunidad_id'],
+      attributes: [
+        'id',
+        'email',
+        'rol',
+        'rol_global',
+        'username',
+        'apellido',
+        'googleId',
+        'foto_perfil',
+        'comunidad_id'
+      ],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 

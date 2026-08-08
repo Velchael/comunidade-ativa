@@ -61,13 +61,15 @@ export const UserProvider = ({ children }) => {
 
   const persistSessionUser = useCallback((jwt, authUser) => {
     const normalizedUser = normalizeUser(authUser);
+    const persistableUser = { ...normalizedUser };
+    delete persistableUser.foto_perfil;
 
     setUser(normalizedUser);
     setToken(jwt);
     tokenRef.current = jwt;
 
     localStorage.setItem("token", jwt);
-    localStorage.setItem("user", JSON.stringify(normalizedUser));
+    localStorage.setItem("user", JSON.stringify(persistableUser));
 
     axios.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
     setIsHydrating(false);
@@ -188,7 +190,9 @@ export const UserProvider = ({ children }) => {
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
-          setUser(normalizeUser(parsed));
+          const safeStoredUser = { ...parsed };
+          delete safeStoredUser.foto_perfil;
+          setUser(normalizeUser(safeStoredUser));
         } catch {
           setUser(null);
         }

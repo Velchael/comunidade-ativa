@@ -1,5 +1,6 @@
 const { Comunidad } = require('../models');
 const { ROLES, resolveRolComunidadHibrido } = require('./comunidadRoles');
+const { resolveProfilePhoto } = require('./resolveProfilePhoto');
 
 const ensureUserWithComunidad = async (user) => {
   if (!user?.id) {
@@ -11,7 +12,16 @@ const ensureUserWithComunidad = async (user) => {
   }
 
   return user.constructor.findByPk(user.id, {
-    attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
+    attributes: [
+      'id',
+      'email',
+      'rol',
+      'rol_global',
+      'username',
+      'apellido',
+      'foto_perfil',
+      'comunidad_id'
+    ],
     include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
   });
 };
@@ -44,7 +54,10 @@ const buildLocalCommunityContext = async (user) => {
   };
 };
 
-const buildAuthUserResponse = async (user) => {
+const buildAuthUserResponse = async (
+  user,
+  { photoResolver = resolveProfilePhoto } = {}
+) => {
   const localContext = await buildLocalCommunityContext(user);
   const hydratedUser = localContext.user || user;
 
@@ -57,6 +70,7 @@ const buildAuthUserResponse = async (user) => {
     comunidad_id: hydratedUser.comunidad_id,
     comunidadNombre: hydratedUser.comunidad ? hydratedUser.comunidad.nombre_comunidad : null,
     apellido: hydratedUser.apellido || null,
+    foto_perfil: await photoResolver(hydratedUser.foto_perfil),
     rol_comunidad: localContext.rol_comunidad,
     is_owner: localContext.is_owner,
     can_manage_comunidad: localContext.can_manage_comunidad

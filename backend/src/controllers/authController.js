@@ -79,7 +79,9 @@ const getMe = async (req, res) => {
     if (!userId) return res.status(401).json({ message: 'Não autenticado' });
 
     const user = await User.findByPk(userId, {
-      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
+      attributes: [
+        'id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'foto_perfil', 'comunidad_id'
+      ],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
@@ -121,7 +123,9 @@ const refreshToken = async (req, res) => {
 
     // Obtener usuario actual desde DB (para reflejar cambios de rol/comunidad)
     const user = await User.findByPk(payload.id, {
-      attributes: ['id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'comunidad_id'],
+      attributes: [
+        'id', 'email', 'rol', 'rol_global', 'username', 'apellido', 'foto_perfil', 'comunidad_id'
+      ],
       include: [{ model: Comunidad, as: 'comunidad', attributes: ['id', 'nombre_comunidad', 'owner_user_id'] }]
     });
 
