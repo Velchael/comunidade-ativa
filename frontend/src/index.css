@@ -8,6 +8,9 @@ body {
 }
 header {
   box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 900;
   background-color: #ca932b;
   padding: 1rem;
   max-width: 100%;
@@ -79,12 +82,89 @@ main {
   font-weight: bold;
 }
 
+.header-top {
+  min-width: 0;
+}
+
+.header-logo-col {
+  flex: 0 0 auto;
+}
+
+.header-logo {
+  display: block;
+  width: auto;
+  height: 50px;
+  max-width: min(32vw, 260px);
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.header-identity-col {
+  min-width: 0;
+}
+
+.header-session {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  min-width: 0;
+}
+
 .header-user-summary {
-  display: inline-flex;
+  display: flex;
+  min-width: 0;
   flex-direction: column;
   align-items: flex-end;
   color: #000;
   line-height: 1.15;
+}
+
+.header-community-name {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.header-user-greeting {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.2rem;
+  color: #241707;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.header-user-avatar.user-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 0.8rem;
+}
+
+.header-user-greeting-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.55rem;
+  white-space: nowrap;
 }
 
 .menu-header {
@@ -92,18 +172,6 @@ main {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
   clear: both;
-}
-
-.header-ecg {
-  width: min(260px, 100%);
-  height: 24px;
-  margin-top: 2px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
 }
 
 .sidebar-menu-button {
@@ -492,6 +560,11 @@ footer {
     padding: 0.75rem 0.75rem 0.85rem;
   }
 
+  .header-top {
+    --bs-gutter-x: 0.75rem;
+    flex-wrap: nowrap;
+  }
+
   header .row {
     row-gap: 0.5rem;
   }
@@ -501,15 +574,37 @@ footer {
     justify-content: flex-end;
   }
 
-  .header-user-summary {
-    max-width: 58vw;
-    align-items: flex-end;
-    font-size: 0.86rem;
+  .header-logo {
+    height: 44px;
+    max-width: 30vw;
   }
 
-  .header-ecg {
-    width: min(210px, 100%);
-    height: 20px;
+  .header-session {
+    column-gap: 0.45rem;
+  }
+
+  .header-user-summary {
+    max-width: 100%;
+    align-items: flex-end;
+  }
+
+  .header-community-name {
+    font-size: 0.96rem;
+  }
+
+  .header-user-greeting {
+    gap: 0.35rem;
+    font-size: 0.82rem;
+  }
+
+  .header-user-avatar.user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.72rem;
+  }
+
+  .header-actions {
+    gap: 0.35rem;
   }
 
   .menu-header {

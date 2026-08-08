@@ -27,6 +27,7 @@ import MeuPerfil from './Screens/MeuPerfil';
 // Components
 import SocialMediaButtons from './components/SocialMediaButtons';
 import RequireAuth from './components/RequireAuth';
+import UserAvatar from './components/UserAvatar';
 
 // Context
 import { UserProvider, UserContext } from './UserContext';
@@ -57,6 +58,7 @@ function Header({ toggleSidebar }) {
   const canManageLocalCommunity = canManageCommunity(user);
   const canAccessMembersPanel = canViewCommunityMembers(user);
   const userCommunityName = user?.comunidadNombre || 'Sem comunidade';
+  const userDisplayName = user?.username || user?.email || 'Usuário';
   const shouldShowConfigMenu =
     !isHydrating &&
     (isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel);
@@ -78,98 +80,87 @@ function Header({ toggleSidebar }) {
 
       {/* Header superior */}
 
-      <Row className="justify-content-between align-items-center mb-2">
+      <Row className="header-top justify-content-between align-items-center mb-2">
 
         {/* ESQUERDA → LOGO */}
 
-        <Col xs="auto">
+        <Col xs="auto" className="header-logo-col">
           <img
             src={logo_large1}
             alt="logo"
+            className="header-logo"
             onClick={() => {
               // toggleSidebar(false);
               navigate("/");
               // window.scrollTo(0, 0);
-            }}
-            style={{
-              height: "50px",
-              objectFit: "contain"
             }}
           />
         </Col>
 
         {/* DIREITA → USUÁRIO */}
 
-        <Col xs="auto">
+        <Col xs className="header-identity-col">
           {user ? (
-            <div
-              className="d-flex align-items-center"
-              style={{
-                gap: "10px",
-                fontWeight: "bold"
-              }}
-            >
+            <div className="header-session">
               <div className="header-user-summary">
-                <span>{userCommunityName} - Olá: {user.username}</span>
-                <svg
-                  className="header-ecg"
-                  viewBox="0 0 360 32"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path d="
-                    M2 20
-                    H120
-                    L128 20 L133 17 L138 23 L143 20
-                    H195
-                    L204 20 L212 12 L221 28 L230 20
-                    H270
-                    L280 20 L292 6 L306 31 L320 20
-                    H358
-                  "></path>
-                </svg>
+                <span className="header-community-name" title={userCommunityName}>
+                  {userCommunityName}
+                </span>
+                <span className="header-user-greeting" title={userDisplayName}>
+                  <UserAvatar
+                    src={user.foto_perfil}
+                    name={userDisplayName}
+                    size="publication"
+                    className="header-user-avatar"
+                  />
+                  <span className="header-user-greeting-text">
+                    Olá, {userDisplayName}
+                  </span>
+                </span>
               </div>
 
-              {shouldShowConfigMenu && (
-                <NavDropdown title="⚙️" id="config-dropdown">
+              <div className="header-actions">
+                {shouldShowConfigMenu && (
+                  <NavDropdown title="⚙" id="config-dropdown">
 
-                  {isGlobalAdmin && (
-                    <NavDropdown.Item
-                      as={NavLink}
-                      to="/configuracion/panel"
-                    >
-                      Usuários
-                    </NavDropdown.Item>
-                  )}
+                    {isGlobalAdmin && (
+                      <NavDropdown.Item
+                        as={NavLink}
+                        to="/configuracion/panel"
+                      >
+                        Usuários
+                      </NavDropdown.Item>
+                    )}
 
-                  {canManageLocalCommunity && (
-                    <NavDropdown.Item
-                      as={NavLink}
-                      to="/configuracion/comunidades"
-                    >
-                      Comunidade
-                    </NavDropdown.Item>
-                  )}
+                    {canManageLocalCommunity && (
+                      <NavDropdown.Item
+                        as={NavLink}
+                        to="/configuracion/comunidades"
+                      >
+                        Comunidade
+                      </NavDropdown.Item>
+                    )}
 
-                  {canAccessMembersPanel && (user?.comunidadId || user?.comunidad_id) && (
-                    <NavDropdown.Item
-                      as={NavLink}
-                      to={`/configuracion/comunidades/${user?.comunidadId || user?.comunidad_id}/miembros`}
-                    >
-                      Membros
-                    </NavDropdown.Item>
-                  )}
+                    {canAccessMembersPanel && (user?.comunidadId || user?.comunidad_id) && (
+                      <NavDropdown.Item
+                        as={NavLink}
+                        to={`/configuracion/comunidades/${user?.comunidadId || user?.comunidad_id}/miembros`}
+                      >
+                        Membros
+                      </NavDropdown.Item>
+                    )}
 
-                </NavDropdown>
-              )}
+                  </NavDropdown>
+                )}
 
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={handleLogout}
-              >
-              Sair
-              </Button>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={handleLogout}
+                >
+                Sair
+                </Button>
+              </div>
             </div>
           ) : (
             <Button
