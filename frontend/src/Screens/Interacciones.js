@@ -62,6 +62,7 @@ export default function Interacciones() {
   const [accionEstadoRespuestaId, setAccionEstadoRespuestaId] = useState(null);
   const [accionEstadoId, setAccionEstadoId] = useState(null);
   const [interaccionesAuth, setInteraccionesAuth] = useState(null);
+  const [respuestasExpandidasPorId, setRespuestasExpandidasPorId] = useState({});
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
@@ -86,6 +87,13 @@ export default function Interacciones() {
       tieneRolModeradorLocal &&
       Number(item?.comunidad?.id || item?.comunidad_id || 0) === comunidadAuthId
     );
+  };
+
+  const toggleRespuestas = (interaccionId) => {
+    setRespuestasExpandidasPorId((prev) => ({
+      ...prev,
+      [interaccionId]: !prev[interaccionId]
+    }));
   };
 
   // 🔄 CARGAR INTERACCIONES
@@ -830,63 +838,89 @@ export default function Interacciones() {
               </div>
             )}
 
-            {item.respuestas?.length > 0 && (
-              <div className="respuestas-list">
-                {item.respuestas.map((r) => (
-                  <div
-                    key={r.id}
-                    className={`respuesta-item ${r.estado === "oculta" ? "is-hidden" : ""}`}
+            {(() => {
+              const respuestas = Array.isArray(item.respuestas)
+                ? item.respuestas
+                : [];
+              const respuestasCount = respuestas.length;
+              const respuestasExpandidas = respuestasExpandidasPorId[item.id] === true;
+              const respuestasListId = `respuestas-list-${item.id}`;
+
+              if (respuestasCount === 0) return null;
+
+              return (
+                <>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="respuestas-toggle"
+                    aria-expanded={respuestasExpandidas}
+                    aria-controls={respuestasListId}
+                    onClick={() => toggleRespuestas(item.id)}
                   >
-                    <div className="respuesta-row">
-                      <span className="respuesta-arrow">↳</span>
-                      <UserAvatar
-                        src={r.usuario?.foto_perfil}
-                        name={r.usuario?.username}
-                        size="reply"
-                      />
-                      <div className="respuesta-content">
-                        <strong className="respuesta-author-name">
-                          {r.usuario?.username || "Usuário"}
-                        </strong>
-                        <p className="respuesta-text">
-                          {r.mensaje}
-                        </p>
-                        {r.estado === "oculta" && (
-                          <small className="respuesta-hidden-label">
-                            Oculta
-                          </small>
-                        )}
-                      </div>
-                    </div>
+                    💬 {respuestasExpandidas ? "Ocultar respostas" : "Ver respostas"} ({respuestasCount})
+                  </Button>
 
-                    {puedeModerarInteraccion(item) && (
-                      <div className="respuesta-actions">
-                        <Button
-                          size="sm"
-                          variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
-                          className="moderation-button"
-                          disabled={accionEstadoRespuestaId === r.id}
-                          onClick={() =>
-                            cambiarEstadoRespuesta(
-                              r.id,
-                              r.estado === "oculta" ? "activa" : "oculta"
-                            )
-                          }
+                  {respuestasExpandidas && (
+                    <div id={respuestasListId} className="respuestas-list">
+                      {respuestas.map((r) => (
+                        <div
+                          key={r.id}
+                          className={`respuesta-item ${r.estado === "oculta" ? "is-hidden" : ""}`}
                         >
-                          {r.estado === "oculta" ? "Ativar" : "Ocultar"}
-                        </Button>
-                      </div>
-                    )}
+                          <div className="respuesta-row">
+                            <span className="respuesta-arrow">↳</span>
+                            <UserAvatar
+                              src={r.usuario?.foto_perfil}
+                              name={r.usuario?.username}
+                              size="reply"
+                            />
+                            <div className="respuesta-content">
+                              <strong className="respuesta-author-name">
+                                {r.usuario?.username || "Usuário"}
+                              </strong>
+                              <p className="respuesta-text">
+                                {r.mensaje}
+                              </p>
+                              {r.estado === "oculta" && (
+                                <small className="respuesta-hidden-label">
+                                  Oculta
+                                </small>
+                              )}
+                            </div>
+                          </div>
 
-                    {estadoErroresRespuestaPorId[r.id] && (
-                      <div className="inline-error small">
-                        {estadoErroresRespuestaPorId[r.id]}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                          {puedeModerarInteraccion(item) && (
+                            <div className="respuesta-actions">
+                              <Button
+                                size="sm"
+                                variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
+                                className="moderation-button"
+                                disabled={accionEstadoRespuestaId === r.id}
+                                onClick={() =>
+                                  cambiarEstadoRespuesta(
+                                    r.id,
+                                    r.estado === "oculta" ? "activa" : "oculta"
+                                  )
+                                }
+                              >
+                                {r.estado === "oculta" ? "Ativar" : "Ocultar"}
+                              </Button>
+                            </div>
+                          )}
+
+                          {estadoErroresRespuestaPorId[r.id] && (
+                            <div className="inline-error small">
+                              {estadoErroresRespuestaPorId[r.id]}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <Form
               className="respuesta-form"

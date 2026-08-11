@@ -2239,6 +2239,34 @@ footer {
   margin-bottom: 0;
 }
 
+.respuestas-toggle {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0.35rem 0;
+  margin: 0 0 0.75rem;
+  color: #6f4a12;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+}
+
+.respuestas-toggle:hover,
+.respuestas-toggle:focus {
+  color: #431a03;
+  text-decoration: underline;
+}
+
+.respuestas-toggle:focus-visible {
+  outline: 3px solid rgba(202, 147, 43, 0.42);
+  outline-offset: 3px;
+}
+
 .respuestas-list {
   display: grid;
   gap: 0.7rem;
