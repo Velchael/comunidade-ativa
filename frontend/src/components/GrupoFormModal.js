@@ -1,5 +1,5 @@
 // src/components/GrupoFormModal.js
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { UserContext } from '../UserContext';
@@ -8,6 +8,8 @@ const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
 const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
   const { user } = useContext(UserContext);
+  const comunidadIdRef = useRef('');
+  comunidadIdRef.current = user?.comunidad_id || '';
 
   const [formData, setFormData] = useState({
     comunidad_id: '',
@@ -20,10 +22,12 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!show) return;
+
     if (grupo) {
       // ---- MODO EDICIÓN ----
       setFormData({
-        comunidad_id: grupo.comunidad_id || user?.comunidad_id || '',
+        comunidad_id: grupo.comunidad_id || comunidadIdRef.current,
         colider_nombre: grupo.colider_nombre || '',
         anfitrion_nombre: grupo.anfitrion_nombre || '',
         direccion_grupo: grupo.direccion_grupo || ''
@@ -31,13 +35,13 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
     } else {
       // ---- MODO CREACIÓN ----
       setFormData({
-        comunidad_id: user?.comunidad_id || '',
+        comunidad_id: comunidadIdRef.current,
         colider_nombre: '',
         anfitrion_nombre: '',
         direccion_grupo: ''
       });
     }
-  }, [grupo, user]);
+  }, [show, grupo]);
 
   const handleChange = (e) => {
     setFormData({
