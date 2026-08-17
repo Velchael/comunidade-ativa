@@ -2,6 +2,10 @@ const router = require("express").Router();
 const controller = require("../controllers/interaccionesController");
 const { verificarToken } = require("../middleware/authMiddleware");
 const verificarRolComunidad = require("../middleware/verificarRolComunidad");
+const {
+  receiveInteractionImage,
+  validateInteractionImage
+} = require("../middleware/interactionImageUpload");
 const db = require("../models");
 
 const allowCrearInteraccion = verificarRolComunidad({
@@ -40,7 +44,14 @@ const allowModerarInteraccion = verificarRolComunidad({
   permitirAdminTotalGlobal: true
 });
 
-router.post("/", verificarToken, allowCrearInteraccion, controller.crear);
+router.post(
+  "/",
+  verificarToken,
+  receiveInteractionImage,
+  validateInteractionImage,
+  allowCrearInteraccion,
+  controller.crear
+);
 router.get("/:comunidad_id", verificarToken, allowListarInteraccion, controller.listar);
 router.patch("/:id/estado", verificarToken, cargarInteraccion, allowModerarInteraccion, controller.actualizarEstado);
 

@@ -38,6 +38,10 @@ module.exports = (sequelize, DataTypes) => {
     imagen_url: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    imagen_key: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: "interacciones",

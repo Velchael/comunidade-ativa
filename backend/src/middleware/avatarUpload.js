@@ -1,35 +1,12 @@
 const multer = require('multer');
+const {
+  ALLOWED_IMAGE_MIME_TYPES,
+  MAX_IMAGE_SIZE,
+  detectImageType,
+  validateImageUpload
+} = require('../utils/imageValidation');
 
-const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-
-const detectImageType = (buffer) => {
-  if (!Buffer.isBuffer(buffer)) return null;
-
-  if (
-    buffer.length >= 3
-    && buffer[0] === 0xff
-    && buffer[1] === 0xd8
-    && buffer[2] === 0xff
-  ) {
-    return { contentType: 'image/jpeg', extension: 'jpg' };
-  }
-
-  const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(pngSignature)) {
-    return { contentType: 'image/png', extension: 'png' };
-  }
-
-  if (
-    buffer.length >= 12
-    && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
-    && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
-  ) {
-    return { contentType: 'image/webp', extension: 'webp' };
-  }
-
-  return null;
-};
+const MAX_AVATAR_SIZE = MAX_IMAGE_SIZE;
 
 const multerUpload = multer({
   storage: multer.memoryStorage(),
@@ -39,7 +16,7 @@ const multerUpload = multer({
     fields: 0
   },
   fileFilter: (req, file, callback) => {
-    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(file.mimetype)) {
       const error = new Error('Tipo MIME não permitido. Use JPEG, PNG ou WebP');
       error.code = 'INVALID_AVATAR_MIME';
       return callback(error);
@@ -74,19 +51,20 @@ const validateAvatar = (req, res, next) => {
     return res.status(400).json({ message: 'Envie exatamente um arquivo no campo avatar' });
   }
 
-  const detectedType = detectImageType(req.file.buffer);
-  if (!detectedType || detectedType.contentType !== req.file.mimetype) {
+  try {
+    req.avatar = validateImageUpload({
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+  } catch (error) {
+    if (error.code !== 'INVALID_IMAGE_SIGNATURE') return next(error);
+
     return res.status(415).json({
       message: 'O conteúdo do arquivo não corresponde a um JPEG, PNG ou WebP válido'
     });
   }
 
-  req.avatar = {
-    buffer: req.file.buffer,
-    size: req.file.size,
-    contentType: detectedType.contentType,
-    extension: detectedType.extension
-  };
   return next();
 };
 

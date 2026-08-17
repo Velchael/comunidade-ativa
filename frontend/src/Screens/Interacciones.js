@@ -35,16 +35,34 @@ const FILTER_VISIBILIDAD_OPTIONS = [
   ...VISIBILIDAD_OPTIONS
 ];
 
+const MAX_INTERACTION_IMAGE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_INTERACTION_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp"
+]);
+
 const normalizeCategoria = (categoriaActual) =>
   categoriaActual === "serviço" ? "servicio" : categoriaActual;
 
 const getOptionLabel = (options, value) =>
   options.find((option) => option.value === value)?.label || String(value || "");
 
+const isHttpsUrl = (value) => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:";
+  } catch (_error) {
+    return false;
+  }
+};
+
 export default function Interacciones() {
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
   const pollingIntervalRef = useRef(null);
   const isFetchingRef = useRef(false);
+  const imageInputRef = useRef(null);
+  const imagePreviewUrlRef = useRef("");
 
   const { user } = useContext(UserContext);
   const userId = user?.id || null;
@@ -53,9 +71,8 @@ export default function Interacciones() {
   const [tipo, setTipo] = useState("ayuda");
   const [categoria, setCategoria] = useState("servicio");
   const [texto, setTexto] = useState("");
-  const [visibilidad, setVisibilidad] = useState("global");
+  const [visibilidad, setVisibilidad] = useState("comunidad");
   const [lista, setLista] = useState([]);
-  const [urgencia, setUrgencia] = useState("normal");
   const [estadoErrorGeneral, setEstadoErrorGeneral] = useState("");
   const [estadoErroresPorId, setEstadoErroresPorId] = useState({});
   const [estadoErroresRespuestaPorId, setEstadoErroresRespuestaPorId] = useState({});
@@ -63,10 +80,15 @@ export default function Interacciones() {
   const [accionEstadoId, setAccionEstadoId] = useState(null);
   const [interaccionesAuth, setInteraccionesAuth] = useState(null);
   const [respuestasExpandidasPorId, setRespuestasExpandidasPorId] = useState({});
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [imageError, setImageError] = useState("");
+  const [publishError, setPublishError] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
-  const [filtroVisibilidad, setFiltroVisibilidad] = useState("todas");
+  const [filtroVisibilidad, setFiltroVisibilidad] = useState("comunidad");
   const [selectorAberto, setSelectorAberto] = useState(null);
 
   const puedeModerar =
@@ -94,6 +116,63 @@ export default function Interacciones() {
       ...prev,
       [interaccionId]: !prev[interaccionId]
     }));
+  };
+
+  const clearSelectedImage = useCallback(() => {
+    setSelectedImage(null);
+    setImageError("");
+
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+      imagePreviewUrlRef.current = "";
+    }
+
+    setImagePreviewUrl("");
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+      imagePreviewUrlRef.current = "";
+    }
+  }, []);
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setImageError("");
+    setPublishError("");
+
+    if (!file) {
+      clearSelectedImage();
+      return;
+    }
+
+    if (!ALLOWED_INTERACTION_IMAGE_TYPES.has(file.type)) {
+      clearSelectedImage();
+      setImageError("Formato não suportado. Use JPG, PNG ou WebP.");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_INTERACTION_IMAGE_SIZE) {
+      clearSelectedImage();
+      setImageError("A imagem deve ter no máximo 5 MB.");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      return;
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(file);
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+    }
+
+    imagePreviewUrlRef.current = nextPreviewUrl;
+    setSelectedImage(file);
+    setImagePreviewUrl(nextPreviewUrl);
   };
 
   // 🔄 CARGAR INTERACCIONES
@@ -189,7 +268,8 @@ export default function Interacciones() {
 
   // 🔥 PUBLICAR
   const publicar = async () => {
-    if (!texto || !user) return;
+    if (!texto || !user || isPublishing) return;
+    if (imageError) return;
 
     const comunidadIdActual = user.comunidadId || user.comunidad_id;
 
@@ -198,62 +278,91 @@ export default function Interacciones() {
       return;
     }
 
-    // ✅ Si es ayuda, urgencia siempre normal
-    const urgenciaFinal =
-      tipo === "ayuda" ? "normal" : urgencia;
+    setPublishError("");
+    setImageError("");
+    setIsPublishing(true);
 
-    const nueva = {
-      id: Date.now(),
-      tipo,
-      categoria,
-      descripcion: texto,
-      visibilidad,
-      urgencia: urgenciaFinal,
-      usuario: {
-        id: user.id,
-        username: user.username,
-        foto_perfil: user.foto_perfil || null
-      },
-      comunidad: {
-        nombre_comunidad: user.comunidadNombre
-      },
-      respuestas: []
-    };
+    if (!selectedImage) {
+      const nueva = {
+        id: Date.now(),
+        tipo,
+        categoria,
+        descripcion: texto,
+        visibilidad,
+        imagen_url: null,
+        usuario: {
+          id: user.id,
+          username: user.username,
+          foto_perfil: user.foto_perfil || null
+        },
+        comunidad: {
+          nombre_comunidad: user.comunidadNombre
+        },
+        respuestas: []
+      };
 
-    // ⚡ UI optimista
-    setLista((prev) => [nueva, ...prev]);
+      // UI optimista
+      setLista((prev) => [nueva, ...prev]);
+    }
 
     try {
       const token = localStorage.getItem("token");
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
 
-      await axios.post(
-        `${API_BASE}/api/interacciones`,
-        {
-          user_id: user.id,
-          comunidad_id: comunidadIdActual,
-          tipo,
-          categoria,
-          descripcion: texto,
-          visibilidad,
-          urgencia: urgenciaFinal
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+      if (selectedImage) {
+        const formData = new FormData();
+        formData.append("comunidad_id", String(comunidadIdActual));
+        formData.append("tipo", tipo);
+        formData.append("categoria", categoria);
+        formData.append("descripcion", texto);
+        formData.append("visibilidad", visibilidad);
+        formData.append("imagen", selectedImage);
+
+        await axios.post(
+          `${API_BASE}/api/interacciones`,
+          formData,
+          { headers }
+        );
+      } else {
+        await axios.post(
+          `${API_BASE}/api/interacciones`,
+          {
+            user_id: user.id,
+            comunidad_id: comunidadIdActual,
+            tipo,
+            categoria,
+            descripcion: texto,
+            visibilidad
+          },
+          {
+            headers
           }
-        }
-      );
+        );
+      }
 
       setTexto("");
       setTipo("ayuda");
-      setUrgencia("normal");
+      setVisibilidad("comunidad");
+      clearSelectedImage();
 
-      cargarInteracciones();
+      await cargarInteracciones();
     } catch (error) {
       console.error("Error publicando", error);
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error;
+
+      setPublishError(
+        backendMessage || "Não foi possível publicar agora. Tente novamente."
+      );
+
       if (error.response?.status === 401 || error.response?.status === 403) {
-        alert(error.response?.data?.message || error.response?.data?.error || "Não autorizado");
+        alert(backendMessage || "Não autorizado");
       }
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -318,35 +427,13 @@ export default function Interacciones() {
     }
   };
 
-  const handleTipoChange = (nextTipo) => {
-    setTipo(nextTipo);
-
-    if (nextTipo === "ayuda") {
-      setUrgencia("normal");
-    }
-  };
-
   const handlePrimarySelect = (field, value) => {
-    if (field === "tipo") handleTipoChange(value);
+    if (field === "tipo") setTipo(value);
     if (field === "categoria") setCategoria(value);
     if (field === "visibilidad") setVisibilidad(value);
     if (field === "filtroTipo") setFiltroTipo(value);
     if (field === "filtroCategoria") setFiltroCategoria(value);
     if (field === "filtroVisibilidad") setFiltroVisibilidad(value);
-  };
-
-  // 🎨 ESTILO BOTONES ACTIVOS
-  const getActiveStyle = (activo) => {
-    return activo
-      ? {
-          transform: "scale(1.10)",
-          boxShadow: "0 0 13px rgba(0,0,0,0.50)",
-          border: "2px solid #000",
-          transition: "all 0.2s ease"
-        }
-      : {
-          transition: "all 0.2s ease"
-        };
   };
 
   // 🎨 COLOR TARJETA
@@ -543,7 +630,7 @@ export default function Interacciones() {
   const hasActiveFilters =
     filtroTipo !== "todos" ||
     filtroCategoria !== "todos" ||
-    filtroVisibilidad !== "todas";
+    filtroVisibilidad !== "comunidad";
 
   const listaFiltrada = lista.filter((item) => {
     return (
@@ -603,52 +690,6 @@ export default function Interacciones() {
             ]}
           />
 
-          {tipo === "necesidad" && (
-            <div className="composer-row">
-              <strong className="control-label">Urgência</strong>
-              <div className="control-actions">
-                <Button
-                  variant={
-                    urgencia === "normal"
-                      ? "success"
-                      : "outline-success"
-                  }
-                  className="chip-button"
-                  style={getActiveStyle(urgencia === "normal")}
-                  onClick={() => setUrgencia("normal")}
-                >
-                  🟢 Normal
-                </Button>
-
-                <Button
-                  variant={
-                    urgencia === "alta"
-                      ? "warning"
-                      : "outline-warning"
-                  }
-                  className="chip-button"
-                  style={getActiveStyle(urgencia === "alta")}
-                  onClick={() => setUrgencia("alta")}
-                >
-                  🟠 Alta
-                </Button>
-
-                <Button
-                  variant={
-                    urgencia === "critica"
-                      ? "danger"
-                      : "outline-danger"
-                  }
-                  className="chip-button"
-                  style={getActiveStyle(urgencia === "critica")}
-                  onClick={() => setUrgencia("critica")}
-                >
-                  🔴 Crítica
-                </Button>
-              </div>
-            </div>
-          )}
-
           <Form.Control
             className="composer-input"
             placeholder="Do que você precisa ou o que pode oferecer?"
@@ -656,12 +697,63 @@ export default function Interacciones() {
             onChange={(e) => setTexto(e.target.value)}
           />
 
+          <div className="interaction-image-picker">
+            <div className="interaction-image-picker__controls">
+              <Form.Control
+                ref={imageInputRef}
+                id="interaction-image-input"
+                type="file"
+                className="interaction-image-picker__input"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageChange}
+              />
+              <Form.Label
+                htmlFor="interaction-image-input"
+                className="interaction-image-picker__button"
+              >
+                Adicionar imagem
+              </Form.Label>
+              {selectedImage && (
+                <Button
+                  type="button"
+                  variant="link"
+                  className="interaction-image-picker__remove"
+                  onClick={clearSelectedImage}
+                >
+                  Remover imagem
+                </Button>
+              )}
+            </div>
+
+            {imageError && (
+              <div className="inline-error interaction-image-picker__error">
+                {imageError}
+              </div>
+            )}
+
+            {imagePreviewUrl && (
+              <div className="interaction-image-preview">
+                <img
+                  src={imagePreviewUrl}
+                  alt="Prévia da imagem selecionada"
+                />
+              </div>
+            )}
+          </div>
+
+          {publishError && (
+            <div className="inline-error publish-error">
+              {publishError}
+            </div>
+          )}
+
           <div className="composer-actions">
             <Button
               onClick={publicar}
               className="composer-submit"
+              disabled={isPublishing || !texto.trim()}
             >
-              Publicar
+              {isPublishing ? "Publicando..." : "Publicar"}
             </Button>
           </div>
         </Card.Body>
@@ -687,7 +779,7 @@ export default function Interacciones() {
             onClear={() => {
               setFiltroTipo("todos");
               setFiltroCategoria("todos");
-              setFiltroVisibilidad("todas");
+              setFiltroVisibilidad("comunidad");
               setSelectorAberto(null);
             }}
             items={[
@@ -733,10 +825,7 @@ export default function Interacciones() {
           className="interaccion-card"
           style={{
             backgroundColor: getCardColor(item.tipo),
-            border:
-              item.urgencia === "critica"
-                ? "2px solid #dc3545"
-                : "1px solid rgba(202, 147, 43, 0.18)"
+            border: "1px solid rgba(202, 147, 43, 0.18)"
           }}
         >
           <Card.Body>
@@ -747,11 +836,25 @@ export default function Interacciones() {
                 {" | "}
                 {getCategoriaLabel(item.categoria)}
               </strong>
-              <span className="status-pill subtle">
-                {item.visibilidad === "global"
-                  ? "🌍 Global"
-                  : "🏘️ Comunidade"}
-              </span>
+              <div className="interaction-badge-group" aria-label="Resumo da publicação">
+                <span className="interaction-badge interaction-badge--visibility">
+                  {item.visibilidad === "global"
+                    ? "🌍 Global"
+                    : "🏘️ Comunidade"}
+                </span>
+                {Array.isArray(item.respuestas) && item.respuestas.length > 0 ? (
+                  <span className="interaction-badge interaction-badge--help">
+                    🤝 Com ajuda
+                  </span>
+                ) : (
+                  <span className="interaction-badge interaction-badge--no-help">
+                    🆘 Sem respostas
+                  </span>
+                )}
+                <span className="interaction-badge interaction-badge--state">
+                  Estado: {getEstadoLabel(item.estado)}
+                </span>
+              </div>
             </div>
 
             <div className="interaccion-author">
@@ -770,71 +873,17 @@ export default function Interacciones() {
               </div>
             </div>
 
-            <div className="interaccion-support">
-              {item.respuestas?.length === 0 && (
-                <span className="support-status empty">
-                  🆘 Sem respostas
-                </span>
-              )}
-
-              {item.respuestas?.length > 0 && (
-                <span className="support-status active">
-                  🤝 Com ajuda
-                </span>
-              )}
-            </div>
-
-            <div className="interaccion-tags">
-              <small className="meta-tag">
-                Estado: {getEstadoLabel(item.estado)}
-              </small>
-              <small
-                className="meta-tag urgency-tag"
-                style={{
-                  color:
-                    item.urgencia === "critica"
-                      ? "#dc3545"
-                      : item.urgencia === "alta"
-                      ? "#c97f10"
-                      : "#2f8f4e"
-                }}
-              >
-                ⚡ {item.urgencia?.toUpperCase() || "NORMAL"}
-              </small>
-            </div>
-
             <p className="interaccion-body">
               {item.descripcion}
             </p>
 
-            {puedeModerarInteraccion(item) &&
-              getModerationActions(item.estado).length > 0 && (
-                <div className="moderation-actions">
-                  {getModerationActions(item.estado).map(
-                    (action) => (
-                      <Button
-                        key={`${item.id}-${action.nextEstado}`}
-                        size="sm"
-                        variant={action.variant}
-                        className="moderation-button"
-                        disabled={accionEstadoId === item.id}
-                        onClick={() =>
-                          cambiarEstadoInteraccion(
-                            item.id,
-                            action.nextEstado
-                          )
-                        }
-                      >
-                        {action.label}
-                      </Button>
-                    )
-                  )}
-                </div>
-              )}
-
-            {estadoErroresPorId[item.id] && (
-              <div className="inline-error">
-                {estadoErroresPorId[item.id]}
+            {isHttpsUrl(item.imagen_url) && (
+              <div className="interaccion-media">
+                <img
+                  src={item.imagen_url}
+                  alt="Imagem da publicação"
+                  loading="lazy"
+                />
               </div>
             )}
 
@@ -845,23 +894,55 @@ export default function Interacciones() {
               const respuestasCount = respuestas.length;
               const respuestasExpandidas = respuestasExpandidasPorId[item.id] === true;
               const respuestasListId = `respuestas-list-${item.id}`;
-
-              if (respuestasCount === 0) return null;
+              const moderationActions = puedeModerarInteraccion(item)
+                ? getModerationActions(item.estado)
+                : [];
+              const hasActions = moderationActions.length > 0 || respuestasCount > 0;
 
               return (
                 <>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="respuestas-toggle"
-                    aria-expanded={respuestasExpandidas}
-                    aria-controls={respuestasListId}
-                    onClick={() => toggleRespuestas(item.id)}
-                  >
-                    💬 {respuestasExpandidas ? "Ocultar respostas" : "Ver respostas"} ({respuestasCount})
-                  </Button>
+                  {hasActions && (
+                    <div className="interaction-actions-row">
+                      {moderationActions.map((action) => (
+                        <Button
+                          key={`${item.id}-${action.nextEstado}`}
+                          size="sm"
+                          variant={action.variant}
+                          className="moderation-button"
+                          disabled={accionEstadoId === item.id}
+                          onClick={() =>
+                            cambiarEstadoInteraccion(
+                              item.id,
+                              action.nextEstado
+                            )
+                          }
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
 
-                  {respuestasExpandidas && (
+                      {respuestasCount > 0 && (
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="respuestas-toggle"
+                          aria-expanded={respuestasExpandidas}
+                          aria-controls={respuestasListId}
+                          onClick={() => toggleRespuestas(item.id)}
+                        >
+                          💬 {respuestasExpandidas ? "Ocultar respostas" : "Ver respostas"} ({respuestasCount})
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {estadoErroresPorId[item.id] && (
+                    <div className="inline-error">
+                      {estadoErroresPorId[item.id]}
+                    </div>
+                  )}
+
+                  {respuestasCount > 0 && respuestasExpandidas && (
                     <div id={respuestasListId} className="respuestas-list">
                       {respuestas.map((r) => (
                         <div
