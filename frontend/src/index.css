@@ -298,6 +298,115 @@ main {
   gap: 1rem;
 }
 
+.community-invitation-manager__active,
+.community-invitation-manager__share {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.community-invitation-manager__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.community-invitation-manager__metadata > div {
+  min-width: 7rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(67, 26, 3, 0.14);
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.community-invitation-manager__metadata span,
+.community-invitation-manager__metadata strong {
+  display: block;
+}
+
+.community-invitation-manager__link {
+  min-width: 0;
+  width: 100%;
+  align-items: stretch;
+}
+
+.community-invitation-manager__link .btn {
+  flex: 0 0 auto;
+}
+
+.community-invitation-manager__url {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--bs-body-color);
+  background-color: var(--bs-body-bg);
+  background-clip: padding-box;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.community-invitation-manager__link .form-control:not(.community-invitation-manager__url) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-invitation-manager__qr {
+  position: relative;
+  justify-self: center;
+  width: min(100%, 280px);
+  max-width: 100%;
+  padding: 1rem;
+  text-align: center;
+}
+
+.community-invitation-manager__qr canvas {
+  display: block;
+  width: min(100%, 232px) !important;
+  height: auto !important;
+  margin: 0 auto;
+}
+
+.community-invitation-manager__qr-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: -webkit-box;
+  max-width: 42%;
+  padding: 0.2rem 0.35rem;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  border-radius: 4px;
+  background: #fff;
+  color: #1f2933;
+  font-size: clamp(0.68rem, 2.8vw, 0.86rem);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.community-invitation-manager__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .onboarding-layout {
   width: min(100%, 1040px);
   margin: 0 auto;
@@ -667,6 +776,38 @@ footer {
   .invitation-actions .btn,
   .community-invitation-manager__header .btn {
     width: 100%;
+  }
+
+  .community-invitation-manager__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .community-invitation-manager__actions .btn {
+    width: 100%;
+  }
+
+  .community-invitation-manager__link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .community-invitation-manager__url {
+    width: 100%;
+  }
+
+  .community-invitation-manager__link .btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: 0.375rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .community-invitation-manager__url {
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 }
 

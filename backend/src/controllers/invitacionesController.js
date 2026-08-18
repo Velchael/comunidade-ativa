@@ -18,18 +18,7 @@ const {
   lockUserCommunityEligibilityTx,
 } = require('../utils/comunidadRoles');
 
-const DEFAULT_EXPIRES_DAYS = 7;
-const MAX_EXPIRES_DAYS = 30;
-
-// Política funcional de creación de la V1:
-// toda invitación nueva representa un único enlace individual.
-// La aceptación permanece genérica y sigue respetando el max_usos
-// persistido para invitaciones existentes o futuras.
-const CURRENT_INVITE_CREATION_MAX_USES = 1;
-
 const MAX_TOKEN_CREATE_ATTEMPTS = 3;
-const RFC3339_WITH_TIMEZONE_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
 
 const PUBLIC_INVALID_RESPONSE = {
   valid: false,
@@ -59,85 +48,37 @@ const createHttpError = (status, message) => {
   return error;
 };
 
-const addDays = (date, days) => {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
+const isUnlimitedInvite = (invitacion) => {
+  return invitacion?.max_usos === null;
 };
 
-const getTimezoneOffsetMinutes = (value) => {
-  if (value.endsWith('Z')) return 0;
+const hasInviteCapacity = (invitacion) => {
+  if (!invitacion || invitacion.estado !== 'activa') return false;
+  if (isUnlimitedInvite(invitacion)) return true;
 
-  const match = value.match(/([+-])(\d{2}):(\d{2})$/);
-  if (!match) return null;
-
-  const sign = match[1] === '+' ? 1 : -1;
-  const hours = Number(match[2]);
-  const minutes = Number(match[3]);
-
-  if (hours > 23 || minutes > 59) return null;
-
-  return sign * ((hours * 60) + minutes);
+  return Number(invitacion.usos_actuales) < Number(invitacion.max_usos);
 };
 
-const hasValidCalendarComponents = (value, parsedDate) => {
-  const match = value.match(
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(?:Z|[+-]\d{2}:\d{2})$/
-  );
+const isInviteExpired = (invitacion, now = new Date()) => {
+  if (!invitacion?.expires_at) return false;
 
-  if (!match) return false;
-
-  const [, yearRaw, monthRaw, dayRaw, hourRaw, minuteRaw, secondRaw, millisecondRaw] = match;
-  const expected = {
-    year: Number(yearRaw),
-    month: Number(monthRaw),
-    day: Number(dayRaw),
-    hour: Number(hourRaw),
-    minute: Number(minuteRaw),
-    second: Number(secondRaw),
-    millisecond: Number((millisecondRaw || '0').padEnd(3, '0')),
-  };
-
-  if (
-    expected.month < 1 ||
-    expected.month > 12 ||
-    expected.hour > 23 ||
-    expected.minute > 59 ||
-    expected.second > 59
-  ) {
-    return false;
-  }
-
-  const offsetMinutes = getTimezoneOffsetMinutes(value);
-  if (offsetMinutes === null) return false;
-
-  const localTimestamp = parsedDate.getTime() + (offsetMinutes * 60 * 1000);
-  const localDate = new Date(localTimestamp);
-
-  return (
-    localDate.getUTCFullYear() === expected.year &&
-    localDate.getUTCMonth() + 1 === expected.month &&
-    localDate.getUTCDate() === expected.day &&
-    localDate.getUTCHours() === expected.hour &&
-    localDate.getUTCMinutes() === expected.minute &&
-    localDate.getUTCSeconds() === expected.second &&
-    localDate.getUTCMilliseconds() === expected.millisecond
-  );
+  const expiresAt = new Date(invitacion.expires_at);
+  return Number.isNaN(expiresAt.getTime()) || expiresAt <= now;
 };
 
 const getEstadoEfectivo = (invitacion, now = new Date()) => {
   if (!invitacion) return null;
   if (invitacion.estado === 'revocada') return 'revocada';
+  if (invitacion.estado === 'agotada') return 'agotada';
 
   if (
-    invitacion.estado === 'agotada' ||
+    !isUnlimitedInvite(invitacion) &&
     Number(invitacion.usos_actuales) >= Number(invitacion.max_usos)
   ) {
     return 'agotada';
   }
 
-  const expiresAt = new Date(invitacion.expires_at);
-  if (Number.isNaN(expiresAt.getTime()) || expiresAt <= now) {
+  if (isInviteExpired(invitacion, now)) {
     return 'expirada';
   }
 
@@ -159,54 +100,6 @@ const serializeInviteAdmin = (invitacion, now = new Date()) => {
     revoked_by_user_id: invitacion.revoked_by_user_id,
     last_used_at: invitacion.last_used_at,
   };
-};
-
-const parseMaxUsos = (value) => {
-  if (value === undefined || value === null) {
-    return CURRENT_INVITE_CREATION_MAX_USES;
-  }
-
-  if (
-    !Number.isInteger(value) ||
-    value !== CURRENT_INVITE_CREATION_MAX_USES
-  ) {
-    return null;
-  }
-
-  return value;
-};
-
-const parseExpiresAt = (value, now = new Date()) => {
-  if (value === undefined || value === null) {
-    return addDays(now, DEFAULT_EXPIRES_DAYS);
-  }
-
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  if (!RFC3339_WITH_TIMEZONE_PATTERN.test(value)) {
-    return null;
-  }
-
-  const expiresAt = new Date(value);
-  if (Number.isNaN(expiresAt.getTime())) {
-    return null;
-  }
-
-  if (!hasValidCalendarComponents(value, expiresAt)) {
-    return null;
-  }
-
-  if (expiresAt <= now) {
-    return null;
-  }
-
-  if (expiresAt > addDays(now, MAX_EXPIRES_DAYS)) {
-    return 'too_far';
-  }
-
-  return expiresAt;
 };
 
 const getPublicFrontendBaseUrl = () => {
@@ -257,23 +150,6 @@ exports.crearInvitacion = async (req, res) => {
       return res.status(500).json({ message: 'Erro ao criar convite' });
     }
 
-    const now = new Date();
-    const maxUsos = parseMaxUsos(req.body?.max_usos);
-    if (!maxUsos) {
-      return res.status(400).json({
-        message: 'max_usos deve ser exatamente 1 nesta versão',
-      });
-    }
-
-    const expiresAt = parseExpiresAt(req.body?.expires_at, now);
-    if (!expiresAt) {
-      return res.status(400).json({ message: 'expires_at deve ser uma string ISO futura válida' });
-    }
-
-    if (expiresAt === 'too_far') {
-      return res.status(400).json({ message: 'expires_at não pode exceder 30 dias' });
-    }
-
     for (let attempt = 1; attempt <= MAX_TOKEN_CREATE_ATTEMPTS; attempt += 1) {
       const token = generateInviteToken();
       const tokenHash = hashInviteToken(token);
@@ -285,14 +161,46 @@ exports.crearInvitacion = async (req, res) => {
       }
 
       try {
-        const invitacion = await ComunidadInvitacion.create({
-          token_hash: tokenHash,
-          comunidad_id: comunidad.id,
-          created_by_user_id: actor.id,
-          estado: 'activa',
-          expires_at: expiresAt,
-          max_usos: maxUsos,
-          usos_actuales: 0,
+        const invitacion = await sequelize.transaction(async (transaction) => {
+          const lockedComunidad = await Comunidad.findByPk(comunidad.id, {
+            attributes: ['id', 'activa'],
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+
+          if (!lockedComunidad || lockedComunidad.activa === false) {
+            throw createHttpError(409, 'Comunidade inativa');
+          }
+
+          const activeInvitaciones = await ComunidadInvitacion.findAll({
+            where: {
+              comunidad_id: lockedComunidad.id,
+              estado: 'activa',
+            },
+            attributes: ['id', 'estado'],
+            order: [['id', 'ASC']],
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+
+          const now = new Date();
+          await Promise.all(activeInvitaciones.map((activeInvitacion) => (
+            activeInvitacion.update({
+              estado: 'revocada',
+              revoked_at: now,
+              revoked_by_user_id: actor.id,
+            }, { transaction })
+          )));
+
+          return ComunidadInvitacion.create({
+            token_hash: tokenHash,
+            comunidad_id: lockedComunidad.id,
+            created_by_user_id: actor.id,
+            estado: 'activa',
+            expires_at: null,
+            max_usos: null,
+            usos_actuales: 0,
+          }, { transaction });
         });
 
         return res.status(201).json({
@@ -307,6 +215,10 @@ exports.crearInvitacion = async (req, res) => {
           created_at: invitacion.created_at,
         });
       } catch (error) {
+        if (error?.isHttpError) {
+          return res.status(error.status).json({ message: error.publicMessage });
+        }
+
         if (isUniqueTokenHashError(error)) {
           console.error('Invite token hash collision', { attempt });
           continue;
@@ -523,12 +435,10 @@ exports.aceptarInvitacion = async (req, res) => {
       }
 
       const now = new Date();
-      const expiresAt = new Date(invitacion.expires_at);
       const revokedOrExpired =
         invitacion.estado === 'revocada' ||
         invitacion.revoked_at !== null ||
-        Number.isNaN(expiresAt.getTime()) ||
-        expiresAt <= now;
+        isInviteExpired(invitacion, now);
 
       if (revokedOrExpired) {
         return {
@@ -627,9 +537,7 @@ exports.aceptarInvitacion = async (req, res) => {
 
       // No se compara con el literal 1. Las invitaciones existentes con
       // max_usos mayor siguen siendo procesables.
-      const hasCapacity =
-        invitacion.estado === 'activa' &&
-        Number(invitacion.usos_actuales) < Number(invitacion.max_usos);
+      const hasCapacity = hasInviteCapacity(invitacion);
 
       if (!hasCapacity) {
         return {
@@ -721,6 +629,7 @@ exports.aceptarInvitacion = async (req, res) => {
       await invitacion.update({
         usos_actuales: nextUsos,
         estado:
+          !isUnlimitedInvite(invitacion) &&
           nextUsos >= Number(invitacion.max_usos)
             ? 'agotada'
             : 'activa',
@@ -814,11 +723,10 @@ exports.validarInvitacion = async (req, res) => {
 
 module.exports.getEstadoEfectivo = getEstadoEfectivo;
 module.exports.__testables = {
-  addDays,
   buildInviteUrl,
   getEstadoEfectivo,
   getPublicFrontendBaseUrl,
-  hasValidCalendarComponents,
-  parseExpiresAt,
-  parseMaxUsos,
+  hasInviteCapacity,
+  isInviteExpired,
+  isUnlimitedInvite,
 };

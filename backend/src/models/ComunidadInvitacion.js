@@ -33,17 +33,21 @@ module.exports = (sequelize, DataTypes) => {
     },
     expires_at: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
       field: 'expires_at',
     },
     max_usos: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       defaultValue: 1,
       field: 'max_usos',
       validate: {
-        min: 1,
-        max: 100,
+        isNullOrAllowedRange(value) {
+          if (value === null) return;
+          if (!Number.isInteger(value) || value < 1 || value > 100) {
+            throw new Error('max_usos deve ser null ou um inteiro entre 1 e 100');
+          }
+        },
       },
     },
     usos_actuales: {

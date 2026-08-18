@@ -1,12 +1,12 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { QRCodeCanvas } from 'qrcode.react';
 import {
   Alert,
   Badge,
   Button,
   Card,
   Container,
-  Form,
   InputGroup,
   Spinner,
   Table
@@ -39,6 +39,67 @@ const getLocalRoleLabel = (rolComunidad) => {
   return 'Membro';
 };
 
+const getShortCommunityName = (nome) => {
+  const normalizedName = String(nome || '').trim().replace(/\s+/g, ' ');
+  if (!normalizedName) return 'COMUVA';
+
+  const selectedWords = normalizedName.split(' ').slice(0, 2);
+  const shortName = selectedWords.join(' ');
+
+  if (shortName.length <= 20) {
+    return shortName;
+  }
+
+  if (selectedWords.length > 1 && selectedWords[0].length <= 20) {
+    return selectedWords[0];
+  }
+
+  return shortName.slice(0, 20).trim();
+};
+
+const normalizeCommunityName = (nome) => String(nome || '').trim().replace(/\s+/g, ' ');
+
+const getCommunityNameFromPayload = (payload = {}) => {
+  const source = payload || {};
+
+  return normalizeCommunityName(
+    source.comunidadNombre ||
+    source.nombreComunidad ||
+    source.nomeComunidade ||
+    source.communityName ||
+    source.nombre ||
+    source.nome ||
+    source.nombre_comunidad ||
+    source.comunidad?.nombre ||
+    source.comunidad?.nome ||
+    source.comunidad?.nombre_comunidad
+  );
+};
+
+const getFallbackCommunityName = (comunidadId) => (
+  Number.isInteger(comunidadId) && comunidadId > 0
+    ? `Comunidade #${comunidadId}`
+    : 'Comunidade'
+);
+
+const getCommunitySlug = (nome) => {
+  const normalizedName = String(nome || 'comunidade')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalizedName || 'comunidade';
+};
+
+const getMostRecentActiveInvitation = (invitaciones = []) => (
+  invitaciones.find((invitacion) => (
+    invitacion?.estado === 'activa' && invitacion?.estado_efectivo === 'activa'
+  )) || null
+);
+
 const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre: comunidadNombreProp }) => {
   const { user, token: authToken, logout } = useContext(UserContext);
   const navigate = useNavigate();
@@ -46,10 +107,6 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   const params = useParams();
 
   const comunidadId = Number(comunidadIdProp || params.id);
-  const comunidadNombre =
-    comunidadNombreProp ||
-    location.state?.comunidadNombre ||
-    `Comunidad #${comunidadId}`;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,15 +115,45 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   const [miembros, setMiembros] = useState([]);
   const [total, setTotal] = useState(0);
   const [creatingInvitation, setCreatingInvitation] = useState(false);
+  const [loadingInvitation, setLoadingInvitation] = useState(false);
+  const [revokingInvitation, setRevokingInvitation] = useState(false);
+  const [activeInvitation, setActiveInvitation] = useState(null);
   const [invitationUrl, setInvitationUrl] = useState('');
+  const [invitationToken, setInvitationToken] = useState('');
   const [invitationError, setInvitationError] = useState('');
   const [copyConfirmed, setCopyConfirmed] = useState(false);
+  const [invitationNotice, setInvitationNotice] = useState('');
+  const [fetchedCommunityName, setFetchedCommunityName] = useState('');
+  const qrCanvasRef = useRef(null);
 
   const isAdminTotal = isAdminTotalGlobal(user);
   const canManageLocalCommunity = canManageCommunity(user);
   const canAccessMembersPanel = canViewCommunityMembers(user);
   const userComunidadId = Number(user?.comunidadId || user?.comunidad_id);
   const currentUserId = Number(user?.id);
+  const communityNameCandidate = useMemo(() => {
+    const sessionCommunityName = userComunidadId === comunidadId
+      ? getCommunityNameFromPayload(user)
+      : '';
+
+    return [
+      comunidadNombreProp,
+      location.state?.comunidadNombre,
+      location.state?.nombreComunidad,
+      location.state?.nomeComunidade,
+      location.state?.communityName,
+      location.state?.comunidad,
+      sessionCommunityName
+    ].map((candidate) => (
+      typeof candidate === 'object'
+        ? getCommunityNameFromPayload(candidate)
+        : normalizeCommunityName(candidate)
+    )).find(Boolean) || '';
+  }, [comunidadId, comunidadNombreProp, location.state, user, userComunidadId]);
+  const comunidadNombre =
+    communityNameCandidate ||
+    fetchedCommunityName ||
+    getFallbackCommunityName(comunidadId);
 
   const canRequest = useMemo(() => {
     if (!user) return false;
@@ -74,6 +161,33 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     if (!canAccessMembersPanel) return false;
     return userComunidadId === comunidadId;
   }, [user, isAdminTotal, canAccessMembersPanel, userComunidadId, comunidadId]);
+
+  useEffect(() => {
+    if (
+      communityNameCandidate ||
+      !Number.isInteger(comunidadId) ||
+      comunidadId <= 0
+    ) {
+      setFetchedCommunityName('');
+      return;
+    }
+
+    let isCurrentRequest = true;
+
+    axios.get(`${API_URL}/${comunidadId}`)
+      .then(({ data }) => {
+        if (!isCurrentRequest) return;
+        setFetchedCommunityName(getCommunityNameFromPayload(data));
+      })
+      .catch(() => {
+        if (!isCurrentRequest) return;
+        setFetchedCommunityName('');
+      });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [communityNameCandidate, comunidadId]);
 
   useEffect(() => {
     const fetchMiembros = async () => {
@@ -185,6 +299,57 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   }, [user, isAdminTotal, canManageLocalCommunity, userComunidadId, comunidadId]);
 
   const canManageInvitations = canManageRoles;
+  const shortCommunityName = useMemo(
+    () => getShortCommunityName(comunidadNombre),
+    [comunidadNombre]
+  );
+  const communitySlug = useMemo(
+    () => getCommunitySlug(comunidadNombre),
+    [comunidadNombre]
+  );
+
+  useEffect(() => {
+    const fetchActiveInvitation = async () => {
+      if (!authToken || !Number.isInteger(comunidadId) || comunidadId <= 0 || !canManageInvitations) {
+        setActiveInvitation(null);
+        return;
+      }
+
+      setLoadingInvitation(true);
+      setInvitationError('');
+
+      try {
+        const { data } = await axios.get(
+          `${API_URL}/${comunidadId}/invitaciones`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`
+            }
+          }
+        );
+
+        setActiveInvitation(getMostRecentActiveInvitation(data?.invitaciones));
+      } catch (err) {
+        const status = err.response?.status;
+
+        if (status === 401) {
+          setInvitationError('Sua sessão expirou. Entre novamente.');
+          logout?.();
+          navigate('/Seinscrever');
+        } else if (status === 403) {
+          setInvitationError('Você não tem permissão para ver convites.');
+        } else {
+          setInvitationError(
+            err.response?.data?.message || 'Não foi possível carregar o convite ativo.'
+          );
+        }
+      } finally {
+        setLoadingInvitation(false);
+      }
+    };
+
+    fetchActiveInvitation();
+  }, [authToken, comunidadId, canManageInvitations, logout, navigate]);
 
   const canEditMember = (miembro) => {
     if (!canManageRoles) return false;
@@ -281,13 +446,15 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
 
     setCreatingInvitation(true);
     setInvitationUrl('');
+    setInvitationToken('');
     setInvitationError('');
     setCopyConfirmed(false);
+    setInvitationNotice('');
 
     try {
       const { data } = await axios.post(
         `${API_URL}/${comunidadId}/invitaciones`,
-        { max_usos: 1 },
+        {},
         {
           headers: {
             Authorization: `Bearer ${authToken}`
@@ -295,11 +462,22 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         }
       );
 
-      if (!data?.url) {
+      if (!data?.url || !data?.token) {
         throw new Error('missing_invitation_url');
       }
 
       setInvitationUrl(data.url);
+      setInvitationToken(data.token || '');
+      setActiveInvitation({
+        id: data.id,
+        comunidad_id: data.comunidad_id,
+        estado: data.estado,
+        estado_efectivo: data.estado,
+        expires_at: data.expires_at,
+        max_usos: data.max_usos,
+        usos_actuales: data.usos_actuales,
+        created_at: data.created_at
+      });
     } catch (err) {
       const status = err.response?.status;
 
@@ -326,15 +504,120 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   const handleCopyInvitation = async () => {
     if (!invitationUrl || creatingInvitation) return;
 
+    if (!navigator.clipboard) {
+      setInvitationError(
+        'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.'
+      );
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(invitationUrl);
       setCopyConfirmed(true);
+      setInvitationNotice('Link copiado!');
     } catch {
       setInvitationError(
         'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.'
       );
     }
   };
+
+  const drawQrLabel = (context, canvasSize) => {
+    const lines = shortCommunityName.split(' ');
+    const labelLines = lines.length > 1
+      ? [lines[0], lines.slice(1).join(' ')]
+      : [shortCommunityName];
+    const fontSize = Math.max(12, Math.floor(canvasSize * 0.055));
+    const lineHeight = Math.floor(fontSize * 1.15);
+    const paddingX = Math.floor(canvasSize * 0.035);
+    const paddingY = Math.floor(canvasSize * 0.025);
+    const labelWidth = Math.floor(canvasSize * 0.42);
+    const labelHeight = (labelLines.length * lineHeight) + (paddingY * 2);
+    const x = Math.floor((canvasSize - labelWidth) / 2);
+    const y = Math.floor((canvasSize - labelHeight) / 2);
+
+    context.fillStyle = '#fff';
+    context.fillRect(x, y, labelWidth, labelHeight);
+    context.fillStyle = '#1f2933';
+    context.font = `700 ${fontSize}px Arial, sans-serif`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+
+    labelLines.slice(0, 2).forEach((line, index) => {
+      context.fillText(
+        line,
+        canvasSize / 2,
+        y + paddingY + (lineHeight / 2) + (index * lineHeight),
+        labelWidth - (paddingX * 2)
+      );
+    });
+  };
+
+  const handleDownloadQr = () => {
+    const sourceCanvas = qrCanvasRef.current?.querySelector('canvas');
+    if (!sourceCanvas || !invitationUrl) return;
+
+    const downloadCanvas = document.createElement('canvas');
+    const canvasSize = sourceCanvas.width;
+    downloadCanvas.width = canvasSize;
+    downloadCanvas.height = canvasSize;
+
+    const context = downloadCanvas.getContext('2d');
+    context.drawImage(sourceCanvas, 0, 0);
+    drawQrLabel(context, canvasSize);
+
+    const link = document.createElement('a');
+    link.href = downloadCanvas.toDataURL('image/png');
+    link.download = `comuva-convite-${communitySlug}.png`;
+    link.click();
+  };
+
+  const handleRevokeInvitation = async () => {
+    if (!activeInvitation?.id || revokingInvitation || !authToken) return;
+
+    setRevokingInvitation(true);
+    setInvitationError('');
+    setInvitationNotice('');
+
+    try {
+      await axios.patch(
+        `${API_BASE}/api/invitaciones/${activeInvitation.id}/revocar`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }
+      );
+
+      setInvitationUrl('');
+      setInvitationToken('');
+      setActiveInvitation(null);
+      setCopyConfirmed(false);
+      setInvitationNotice('Convite revogado.');
+    } catch (err) {
+      const status = err.response?.status;
+
+      if (status === 401) {
+        setInvitationError('Sua sessão expirou. Entre novamente.');
+        logout?.();
+        navigate('/Seinscrever');
+      } else if (status === 403) {
+        setInvitationError('Você não tem permissão para revogar este convite.');
+      } else if (status === 404) {
+        setInvitationError('Convite não encontrado.');
+      } else {
+        setInvitationError(
+          err.response?.data?.message || 'Não foi possível revogar o convite.'
+        );
+      }
+    } finally {
+      setRevokingInvitation(false);
+    }
+  };
+
+  const hasRecoverableInvitationUrl = Boolean(invitationUrl && invitationToken);
+  const hasActiveInvitationWithoutUrl = Boolean(activeInvitation && !hasRecoverableInvitationUrl);
 
   return (
     <Container className="mt-4">
@@ -358,18 +641,26 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
           <Card.Body>
             <div className="community-invitation-manager__header">
               <div>
-                <Card.Title>Convidar uma pessoa</Card.Title>
+                <Card.Title>
+                  {activeInvitation
+                    ? 'Convite ativo'
+                    : 'Convide pessoas para sua comunidade'}
+                </Card.Title>
                 <Card.Text>
-                  Cada link pode ser utilizado uma única vez.
+                  {activeInvitation
+                    ? 'Já existe um convite permanente ativo para esta comunidade.'
+                    : 'Crie um convite permanente para compartilhar com várias pessoas.'}
                 </Card.Text>
               </div>
 
-              <Button
-                disabled={creatingInvitation || !authToken}
-                onClick={handleCreateInvitation}
-              >
-                {creatingInvitation ? 'Gerando...' : 'Gerar convite'}
-              </Button>
+              {!activeInvitation && (
+                <Button
+                  disabled={creatingInvitation || loadingInvitation || !authToken}
+                  onClick={handleCreateInvitation}
+                >
+                  {creatingInvitation ? 'Gerando...' : 'Gerar convite'}
+                </Button>
+              )}
             </div>
 
             {invitationError && (
@@ -378,28 +669,106 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
               </Alert>
             )}
 
-            {invitationUrl && (
-              <>
-                <InputGroup>
-                  <Form.Control
-                    readOnly
-                    aria-label="Link do convite"
-                    value={invitationUrl}
-                    onFocus={(event) => event.target.select()}
-                  />
-                  <Button
-                    variant="outline-secondary"
-                    disabled={creatingInvitation}
-                    onClick={handleCopyInvitation}
-                  >
-                    {copyConfirmed ? 'Copiado' : 'Copiar'}
-                  </Button>
-                </InputGroup>
+            {invitationNotice && (
+              <Alert variant="success" aria-live="polite">
+                {invitationNotice}
+              </Alert>
+            )}
 
-                <div className="small text-muted mt-2" aria-live="polite">
-                  {copyConfirmed
-                    ? 'Link copiado. Você pode gerar outro convite a qualquer momento.'
-                    : 'Você pode gerar outro link individual a qualquer momento.'}
+            {loadingInvitation && (
+              <div className="text-muted small">Carregando convite ativo...</div>
+            )}
+
+            {hasActiveInvitationWithoutUrl && (
+              <div className="community-invitation-manager__active">
+                <div className="community-invitation-manager__metadata">
+                  <div>
+                    <span className="text-muted">Estado</span>
+                    <strong>Ativo</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted">Usos</span>
+                    <strong>{activeInvitation.usos_actuales || 0}</strong>
+                  </div>
+                </div>
+
+                <p className="small text-muted mb-0">
+                  Já existe um convite ativo. Por segurança, o link só é exibido no momento
+                  em que é gerado. Se precisar compartilhá-lo novamente, gere um novo convite.
+                </p>
+
+                <div className="community-invitation-manager__actions">
+                  <Button
+                    disabled={creatingInvitation || revokingInvitation || !authToken}
+                    onClick={handleCreateInvitation}
+                  >
+                    {creatingInvitation ? 'Gerando...' : 'Gerar novo convite'}
+                  </Button>
+                  <Button
+                    variant="outline-danger"
+                    disabled={revokingInvitation || creatingInvitation || !authToken}
+                    onClick={handleRevokeInvitation}
+                  >
+                    {revokingInvitation ? 'Revogando...' : 'Revogar convite'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {hasRecoverableInvitationUrl && (
+              <>
+                <p className="small text-muted">
+                  Este convite não expira e pode ser compartilhado com várias pessoas.
+                  Você pode revogá-lo a qualquer momento.
+                </p>
+
+                <div className="community-invitation-manager__share">
+                  <InputGroup className="community-invitation-manager__link">
+                    <div
+                      className="community-invitation-manager__url"
+                      role="textbox"
+                      aria-label="Link do convite"
+                      tabIndex={0}
+                    >
+                      {invitationUrl}
+                    </div>
+                    <Button
+                      variant="outline-secondary"
+                      disabled={creatingInvitation}
+                      onClick={handleCopyInvitation}
+                    >
+                      {copyConfirmed ? 'Link copiado!' : 'Copiar link'}
+                    </Button>
+                  </InputGroup>
+
+                  <div className="community-invitation-manager__qr" ref={qrCanvasRef}>
+                    <QRCodeCanvas
+                      value={invitationUrl}
+                      size={232}
+                      level="H"
+                      includeMargin
+                    />
+                    <div className="community-invitation-manager__qr-label" aria-hidden="true">
+                      {shortCommunityName}
+                    </div>
+                  </div>
+
+                  <div className="community-invitation-manager__actions">
+                    <Button
+                      variant="outline-secondary"
+                      disabled={!invitationUrl}
+                      onClick={handleDownloadQr}
+                    >
+                      Baixar QR
+                    </Button>
+                    <Button
+                      variant="outline-danger"
+                      disabled={revokingInvitation || !activeInvitation?.id || !authToken}
+                      onClick={handleRevokeInvitation}
+                    >
+                      {revokingInvitation ? 'Revogando...' : 'Revogar convite'}
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
