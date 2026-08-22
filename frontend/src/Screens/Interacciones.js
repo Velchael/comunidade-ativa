@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from "react";
 import { Container, Button, Form, Card, Alert } from "react-bootstrap";
 import axios from "axios";
+import { useLocation } from "react-router-dom";
 import { UserContext } from "../UserContext";
 import PrimarySelectorBar from "../components/PrimarySelectorBar";
 import UserAvatar from "../components/UserAvatar";
@@ -59,6 +60,7 @@ const isHttpsUrl = (value) => {
 
 export default function Interacciones() {
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
+  const location = useLocation();
   const pollingIntervalRef = useRef(null);
   const isFetchingRef = useRef(false);
   const imageInputRef = useRef(null);
@@ -90,6 +92,7 @@ export default function Interacciones() {
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroVisibilidad, setFiltroVisibilidad] = useState("comunidad");
   const [selectorAberto, setSelectorAberto] = useState(null);
+  const [highlightedInteractionId, setHighlightedInteractionId] = useState(null);
 
   const puedeModerar =
     interaccionesAuth?.can_moderate_interacciones === true;
@@ -632,16 +635,55 @@ export default function Interacciones() {
     filtroCategoria !== "todos" ||
     filtroVisibilidad !== "comunidad";
 
-  const listaFiltrada = lista.filter((item) => {
-    return (
-      (filtroTipo === "todos" ||
-        item.tipo === filtroTipo) &&
-      (filtroCategoria === "todos" ||
-        normalizeCategoria(item.categoria) === filtroCategoria) &&
-      (filtroVisibilidad === "todas" ||
-        item.visibilidad === filtroVisibilidad)
+  const listaFiltrada = useMemo(() => (
+    lista.filter((item) => {
+      return (
+        (filtroTipo === "todos" ||
+          item.tipo === filtroTipo) &&
+        (filtroCategoria === "todos" ||
+          normalizeCategoria(item.categoria) === filtroCategoria) &&
+        (filtroVisibilidad === "todas" ||
+          item.visibilidad === filtroVisibilidad)
+      );
+    })
+  ), [filtroCategoria, filtroTipo, filtroVisibilidad, lista]);
+
+  useEffect(() => {
+    const rawInteraccionId = new URLSearchParams(location.search).get("interaccionId");
+    const interaccionId = Number(rawInteraccionId);
+
+    if (!Number.isInteger(interaccionId) || interaccionId <= 0) {
+      setHighlightedInteractionId(null);
+      return undefined;
+    }
+
+    const existsInCurrentList = listaFiltrada.some(
+      (item) => Number(item.id) === interaccionId
     );
-  });
+
+    if (!existsInCurrentList) {
+      return undefined;
+    }
+
+    setHighlightedInteractionId(interaccionId);
+
+    const animationId = window.requestAnimationFrame(() => {
+      document
+        .getElementById(`interaccion-${interaccionId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedInteractionId((currentId) =>
+        currentId === interaccionId ? null : currentId
+      );
+    }, 3500);
+
+    return () => {
+      window.cancelAnimationFrame(animationId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [listaFiltrada, location.search]);
 
   return (
     <Container className="interacciones-screen">
@@ -822,7 +864,12 @@ export default function Interacciones() {
       {listaFiltrada.map((item) => (
         <Card
           key={item.id}
-          className="interaccion-card"
+          id={`interaccion-${item.id}`}
+          className={`interaccion-card ${
+            Number(item.id) === highlightedInteractionId
+              ? "is-notification-target"
+              : ""
+          }`}
           style={{
             backgroundColor: getCardColor(item.tipo),
             border: "1px solid rgba(202, 147, 43, 0.18)"

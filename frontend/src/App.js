@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import { BrowserRouter, Route, Routes, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
@@ -42,11 +42,213 @@ function Header({ toggleSidebar }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isInvitationRoute = pathname.startsWith('/convite/');
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
+  const notificationsPanelId = "header-notifications-panel";
+  const notificationsIntervalRef = useRef(null);
+  const notificationsRef = useRef(null);
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
 
   useEffect(() => {
     if (!token) return;
     refreshAuthSession();
   }, [refreshAuthSession, token]);
+
+  const carregarNotificacoes = useCallback(async () => {
+    if (!user || !token || isHydrating) return;
+
+    try {
+      setNotificationsLoading(true);
+      setNotificationsError("");
+
+      const response = await fetch(`${API_BASE}/api/notificaciones?limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("notifications request failed");
+      }
+
+      const data = await response.json();
+      setNotificacoes(Array.isArray(data.items) ? data.items : []);
+      setUnreadCount(Number.isInteger(data.unread_count) ? data.unread_count : 0);
+    } catch (error) {
+      console.error("Erro ao carregar notificações", error);
+      setNotificationsError("Não foi possível carregar notificações.");
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [API_BASE, isHydrating, token, user]);
+
+  useEffect(() => {
+    if (!user || !token || isHydrating) {
+      setNotificacoes([]);
+      setUnreadCount(0);
+      setNotificationsOpen(false);
+      return undefined;
+    }
+
+    carregarNotificacoes();
+
+    const stopPolling = () => {
+      if (notificationsIntervalRef.current !== null) {
+        window.clearInterval(notificationsIntervalRef.current);
+        notificationsIntervalRef.current = null;
+      }
+    };
+
+    const startPolling = () => {
+      if (
+        document.visibilityState !== "visible" ||
+        notificationsIntervalRef.current !== null
+      ) {
+        return;
+      }
+
+      notificationsIntervalRef.current = window.setInterval(() => {
+        if (document.visibilityState === "visible") {
+          carregarNotificacoes();
+        }
+      }, 30000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        carregarNotificacoes();
+        startPolling();
+        return;
+      }
+
+      stopPolling();
+    };
+
+    const handleFocus = () => {
+      if (document.visibilityState === "visible") {
+        carregarNotificacoes();
+        startPolling();
+      }
+    };
+
+    startPolling();
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [carregarNotificacoes, isHydrating, token, user]);
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target)
+      ) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [notificationsOpen]);
+
+  const getNotificationText = (notification) => {
+    if (notification?.tipo === "respuesta_interaccion") {
+      const username = notification.actor?.username;
+      return `💬 ${username || "Alguém"} respondeu à sua publicação`;
+    }
+
+    return "💬 Nova notificação";
+  };
+
+  const formatNotificationTime = (value) => {
+    const createdAt = new Date(value);
+
+    if (Number.isNaN(createdAt.getTime())) {
+      return "";
+    }
+
+    const diffMs = Date.now() - createdAt.getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+    if (diffMinutes < 1) return "agora";
+    if (diffMinutes < 60) return `há ${diffMinutes} min`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `há ${diffHours} h`;
+    if (diffHours < 48) return "ontem";
+
+    return createdAt.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  };
+
+  const handleNotificationsToggle = () => {
+    setNotificationsOpen((prev) => {
+      const nextOpen = !prev;
+      if (nextOpen) {
+        carregarNotificacoes();
+      }
+      return nextOpen;
+    });
+  };
+
+  const handleNotificationClick = async (notification) => {
+    if (!notification?.id || !notification?.interaccion_id) return;
+
+    if (!notification.leida) {
+      try {
+        setNotificationsError("");
+
+        const response = await fetch(
+          `${API_BASE}/api/notificaciones/${notification.id}/leida`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("mark notification read failed");
+        }
+
+        setNotificacoes((prev) =>
+          prev.map((item) =>
+            item.id === notification.id
+              ? { ...item, leida: true }
+              : item
+          )
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error("Erro ao marcar notificação como lida", error);
+      }
+    }
+
+    setNotificationsOpen(false);
+    navigate(`/interacciones?interaccionId=${notification.interaccion_id}`);
+  };
 
   const handleLogin = () => navigate("/Seinscrever");
 
@@ -120,6 +322,68 @@ function Header({ toggleSidebar }) {
               </div>
 
               <div className="header-actions">
+                <div className="notifications-menu" ref={notificationsRef}>
+                  <button
+                    type="button"
+                    className="notifications-button"
+                    aria-label="Abrir notificações"
+                    aria-expanded={notificationsOpen}
+                    aria-controls={notificationsPanelId}
+                    onClick={handleNotificationsToggle}
+                  >
+                    <span aria-hidden="true">🔔</span>
+                    {unreadCount > 0 && (
+                      <span className="notifications-badge">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {notificationsOpen && (
+                    <div
+                      id={notificationsPanelId}
+                      className="notifications-panel"
+                      role="region"
+                      aria-label="Notificações"
+                    >
+                      <div className="notifications-panel__header">
+                        <strong>Notificações</strong>
+                        {notificationsLoading && (
+                          <span>Carregando...</span>
+                        )}
+                      </div>
+
+                      {notificationsError && (
+                        <div className="notifications-panel__error">
+                          {notificationsError}
+                        </div>
+                      )}
+
+                      {!notificationsLoading && notificacoes.length === 0 && (
+                        <div className="notifications-panel__empty">
+                          Sem notificações recentes.
+                        </div>
+                      )}
+
+                      {notificacoes.map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          className={`notification-item ${notification.leida ? "" : "is-unread"}`}
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <span className="notification-item__text">
+                            {getNotificationText(notification)}
+                          </span>
+                          <span className="notification-item__time">
+                            {formatNotificationTime(notification.created_at)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {shouldShowConfigMenu && (
                   <NavDropdown title="⚙" id="config-dropdown">
 
