@@ -1,4 +1,5 @@
 const db = require("../models");
+const notificationDeliveryService = require("../services/notificationDeliveryService");
 
 const ESTADOS_PERMITIDOS = ["activa", "oculta"];
 
@@ -7,10 +8,12 @@ const createRespuestasController = ({
   Interaccion = db.Interaccion,
   Notificacion = db.Notificacion,
   sequelize = db.sequelize,
+  deliveryService = notificationDeliveryService,
   logger = console
 } = {}) => {
   const crear = async (req, res) => {
     let transaction;
+    let notificacion = null;
 
     try {
       const interaccionId = Number(req.body?.interaccion_id);
@@ -46,7 +49,7 @@ const createRespuestasController = ({
       });
 
       if (Number(recipientUserId) !== Number(actorUserId)) {
-        await Notificacion.create({
+        notificacion = await Notificacion.create({
           user_id: recipientUserId,
           actor_user_id: actorUserId,
           tipo: "respuesta_interaccion",
@@ -60,6 +63,14 @@ const createRespuestasController = ({
 
       await transaction.commit();
       transaction = null;
+
+      if (notificacion) {
+        try {
+          await deliveryService.deliver(notificacion);
+        } catch (deliveryError) {
+          logger.error?.("post-commit notification delivery error");
+        }
+      }
 
       return res.json(data);
     } catch (err) {

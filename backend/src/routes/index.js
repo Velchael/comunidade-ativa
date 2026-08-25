@@ -12,6 +12,7 @@ const grupoReportesRoutes = require('./grupoReportesRoutes');
 const reportesRoutes      = require('./reportesRoutes');
 const invitacionesRoutes  = require('./invitaciones');
 const notificacionesRoutes = require('./notificaciones');
+const pushRoutes          = require('./push');
 
 router.use('/auth',          authRoutes);
 router.use('/users',         userRoutes);
@@ -24,5 +25,6 @@ router.use('/grupos',        grupoReportesRoutes); // /:grupoId/reportes — sin
 router.use('/reportes',      reportesRoutes);
 router.use('/invitaciones',  invitacionesRoutes);
 router.use('/notificaciones', notificacionesRoutes);
+router.use('/push',           pushRoutes);
 
 module.exports = router;

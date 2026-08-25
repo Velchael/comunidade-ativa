@@ -40,7 +40,8 @@
         "pg-hstore": "^2.3.4",
         "rimraf": "^5.0.7",
         "sequelize": "^6.37.7",
-        "sequelize-cli": "^6.6.3"
+        "sequelize-cli": "^6.6.3",
+        "web-push": "3.6.7"
     },
     "devDependencies": {
         "cross-env": "^7.0.3",

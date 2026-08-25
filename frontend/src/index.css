@@ -2428,6 +2428,59 @@ footer {
   padding-top: calc(1rem + 18px);
 }
 
+.meu-perfil__notifications {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin-top: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid rgba(67, 26, 3, 0.14);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.meu-perfil__notifications-copy,
+.meu-perfil__notifications-status {
+  min-width: 0;
+}
+
+.meu-perfil__notifications-copy h2 {
+  margin: 0;
+  color: #431a03;
+  font-size: clamp(1.25rem, 3vw, 1.55rem);
+}
+
+.meu-perfil__notifications-copy p,
+.meu-perfil__notifications-status p {
+  margin: 0.35rem 0 0;
+}
+
+.meu-perfil__notifications-status {
+  grid-column: 1 / 2;
+}
+
+.meu-perfil__notifications-active {
+  color: #146c43;
+  font-weight: 700;
+}
+
+.meu-perfil__notifications-error {
+  color: #842029;
+}
+
+.meu-perfil__notifications .btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 190px;
+  min-height: 44px;
+}
+
+.meu-perfil__notifications .btn:focus-visible {
+  outline: 3px solid #1f6f62;
+  outline-offset: 2px;
+}
+
 .meu-perfil--state {
   display: flex;
   min-height: 280px;
@@ -2537,6 +2590,21 @@ footer {
   .meu-perfil__actions .btn {
     width: 100%;
   }
+
+  .meu-perfil__notifications {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meu-perfil__notifications-status,
+  .meu-perfil__notifications .btn {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .meu-perfil__notifications .btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 320px) {
@@ -2554,6 +2622,10 @@ footer {
   }
 
   .meu-perfil__avatar-editor {
+    padding: 1rem 0.75rem;
+  }
+
+  .meu-perfil__notifications {
     padding: 1rem 0.75rem;
   }
 

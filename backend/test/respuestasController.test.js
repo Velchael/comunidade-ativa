@@ -24,7 +24,9 @@ const createHarness = ({
   interaccion = { id: 15, user_id: 88 },
   actorUserId = 42,
   respuestaError = null,
-  notificacionError = null
+  notificacionError = null,
+  deliveryResult = { attempted: 1, delivered: 1, expired: 0, failed: 0 },
+  deliveryError = null
 } = {}) => {
   const calls = [];
   const committedRespuestas = [];
@@ -79,11 +81,20 @@ const createHarness = ({
     }
   };
 
+  const deliveryService = {
+    deliver: async (notificacion) => {
+      calls.push(['delivery:deliver', notificacion]);
+      if (deliveryError) throw deliveryError;
+      return deliveryResult;
+    }
+  };
+
   const controller = createRespuestasController({
     Respuesta,
     Interaccion,
     Notificacion,
     sequelize,
+    deliveryService,
     logger
   });
   const req = {
@@ -165,6 +176,7 @@ test('autor responde a própria publicação sem criar notificação', async () 
   assert.equal(response.statusCode, 200);
   assert.equal(harness.committedRespuestas.length, 1);
   assert.equal(harness.calls.some(([name]) => name === 'notificacion:create'), false);
+  assert.equal(harness.calls.some(([name]) => name === 'delivery:deliver'), false);
   assert.deepEqual(harness.committedNotificaciones, []);
 });
 
@@ -177,6 +189,7 @@ test('falha em Respuesta.create faz rollback e não cria Notificacion', async ()
   assert.equal(response.statusCode, 500);
   assert.deepEqual(response.body, { message: 'Erro ao criar resposta' });
   assert.equal(harness.calls.some(([name]) => name === 'notificacion:create'), false);
+  assert.equal(harness.calls.some(([name]) => name === 'delivery:deliver'), false);
   assert.deepEqual(harness.committedRespuestas, []);
   assert.equal(harness.calls.some(([name]) => name === 'transaction:rollback'), true);
 });
@@ -192,6 +205,7 @@ test('falha em Notificacion.create faz rollback completo da resposta', async () 
   assert.deepEqual(harness.committedRespuestas, []);
   assert.deepEqual(harness.committedNotificaciones, []);
   assert.equal(harness.calls.some(([name]) => name === 'transaction:rollback'), true);
+  assert.equal(harness.calls.some(([name]) => name === 'delivery:deliver'), false);
 });
 
 test('transaction.commit ocorre no fluxo exitoso', async () => {
@@ -259,4 +273,63 @@ test('busca interação oficial dentro da transação', async () => {
     15,
     { attributes: ['id', 'user_id'], transaction }
   ]);
+});
+
+test('delivery ocorre somente depois do commit e recebe a Notificacion comprometida', async () => {
+  const harness = createHarness();
+  const { res } = createResponse();
+
+  await harness.controller.crear(harness.req, res);
+
+  const commitIndex = harness.calls.findIndex(([name]) => name === 'transaction:commit');
+  const deliveryIndex = harness.calls.findIndex(([name]) => name === 'delivery:deliver');
+  assert.ok(commitIndex >= 0);
+  assert.ok(deliveryIndex > commitIndex);
+  assert.equal(harness.committedNotificaciones.length, 1);
+  assert.equal(
+    harness.calls.find(([name]) => name === 'delivery:deliver')[1],
+    harness.committedNotificaciones[0]
+  );
+});
+
+test('delivery sem subscriptions não altera o sucesso HTTP', async () => {
+  const harness = createHarness({
+    deliveryResult: { attempted: 0, delivered: 0, expired: 0, failed: 0 }
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.crear(harness.req, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(harness.calls.some(([name]) => name === 'delivery:deliver'), true);
+  assert.equal(response.body.id, 30);
+});
+
+test('push fallido no altera la respuesta HTTP exitosa', async () => {
+  const harness = createHarness({
+    deliveryResult: { attempted: 1, delivered: 0, expired: 0, failed: 1 }
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.crear(harness.req, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.id, 30);
+  assert.equal(harness.committedRespuestas.length, 1);
+  assert.equal(harness.committedNotificaciones.length, 1);
+});
+
+test('excepción interna de delivery no rompe POST ni intenta rollback post-commit', async () => {
+  const harness = createHarness({ deliveryError: new Error('push internal secret') });
+  const { response, res } = createResponse();
+
+  await harness.controller.crear(harness.req, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.id, 30);
+  assert.equal(harness.calls.some(([name]) => name === 'transaction:rollback'), false);
+  assert.deepEqual(
+    harness.calls.find(([name]) => name === 'logger:error'),
+    ['logger:error', 'post-commit notification delivery error']
+  );
 });

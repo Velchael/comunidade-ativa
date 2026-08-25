@@ -4,6 +4,11 @@ import { Button, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../UserContext';
 import UserAvatar from '../components/UserAvatar';
+import {
+  activatePushNotifications,
+  deactivatePushNotifications,
+  getPushState
+} from '../services/pushNotifications';
 
 const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3000') + '/api';
 const NOT_INFORMED = 'Não informado';
@@ -127,6 +132,53 @@ export default function MeuPerfil() {
   const avatarInputRef = useRef(null);
   const avatarPreviewUrlRef = useRef('');
   const isUploadingAvatarRef = useRef(false);
+  const [pushStatus, setPushStatus] = useState('loading');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    getPushState()
+      .then((nextStatus) => {
+        if (active) setPushStatus(nextStatus);
+      })
+      .catch(() => {
+        if (active) setPushStatus('error');
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  const handleActivatePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushError('');
+
+    try {
+      const result = await activatePushNotifications({ token });
+      setPushStatus(result.status);
+    } catch (error) {
+      setPushError('Não foi possível ativar as notificações.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDeactivatePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushError('');
+
+    try {
+      const result = await deactivatePushNotifications({ token });
+      setPushStatus(result.status);
+    } catch (error) {
+      setPushError('Não foi possível desativar as notificações.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const releaseAvatarPreview = useCallback(() => {
     if (avatarPreviewUrlRef.current) {
@@ -662,6 +714,49 @@ export default function MeuPerfil() {
           </div>
         </>
       )}
+
+      <section className="meu-perfil__notifications" aria-labelledby="meu-perfil-notifications-title">
+        <div className="meu-perfil__notifications-copy">
+          <h2 id="meu-perfil-notifications-title">Notificações</h2>
+          <p>Receba avisos quando alguém responder às suas publicações.</p>
+        </div>
+
+        <div className="meu-perfil__notifications-status" aria-live="polite">
+          {pushStatus === 'loading' && <p>Verificando este dispositivo...</p>}
+          {pushStatus === 'unsupported' && (
+            <p>Notificações não são suportadas neste dispositivo.</p>
+          )}
+          {pushStatus === 'ios_not_standalone' && (
+            <p>Para receber notificações no iPhone, adicione COMUVA à Tela de Início e abra o aplicativo pelo ícone.</p>
+          )}
+          {pushStatus === 'denied' && (
+            <p>Notificações estão bloqueadas nas configurações do navegador.</p>
+          )}
+          {pushStatus === 'active' && (
+            <p className="meu-perfil__notifications-active">Notificações ativadas neste dispositivo</p>
+          )}
+          {pushStatus === 'error' && (
+            <p>Não foi possível verificar as notificações neste dispositivo.</p>
+          )}
+          {pushError && <p className="meu-perfil__notifications-error" role="alert">{pushError}</p>}
+        </div>
+
+        {(pushStatus === 'default' || pushStatus === 'error') && (
+          <Button type="button" onClick={handleActivatePush} disabled={pushBusy}>
+            {pushBusy ? 'Ativando...' : 'Ativar notificações'}
+          </Button>
+        )}
+        {pushStatus === 'active' && (
+          <Button
+            type="button"
+            variant="outline-secondary"
+            onClick={handleDeactivatePush}
+            disabled={pushBusy}
+          >
+            {pushBusy ? 'Desativando...' : 'Desativar notificações'}
+          </Button>
+        )}
+      </section>
     </section>
   );
 }
