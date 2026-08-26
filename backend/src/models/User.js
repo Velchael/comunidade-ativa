@@ -125,6 +125,11 @@ module.exports = (sequelize, DataTypes) => {
       as: 'invitacionesRevocadas'
     });
 
+    User.hasMany(models.AuthSession, {
+      foreignKey: 'user_id',
+      as: 'authSessions'
+    });
+
     User.belongsToMany(models.Comunidad, {
       through: models.ComunidadMiembro,
       foreignKey: 'user_id',
