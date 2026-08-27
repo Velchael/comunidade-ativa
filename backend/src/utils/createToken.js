@@ -7,4 +7,10 @@ function createToken(userPayload, expiresIn = '120m') {
   return jwt.sign(userPayload, process.env.JWT_SECRET, { expiresIn });
 }
 
+const createAccessToken = (userPayload) => createToken({
+  ...userPayload,
+  token_use: 'access'
+}, '15m');
+
 module.exports = createToken;
+module.exports.createAccessToken = createAccessToken;

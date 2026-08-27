@@ -4,6 +4,7 @@ const router = require('express').Router();
 const passport = require('passport');
 const authController = require('../controllers/authController');
 const { verificarToken } = require('../middleware/authMiddleware');
+const { requireAuthOrigin } = require('../middleware/authOrigin');
 
 // Login normal
 router.post('/login', authController.login);
@@ -24,5 +25,10 @@ router.get('/me', verificarToken, authController.getMe);
 // Refresh token (NO usar verificarToken aquí: aceptamos token expirado pero con firma valida)
 // Se usa GET para facilitar pruebas; si prefieres POST, cámbialo.
 router.get('/refresh', authController.refreshToken);
+
+// Backend dual: refresh cookie routes coexist with the legacy GET above.
+router.post('/refresh', requireAuthOrigin, authController.refreshSession);
+router.post('/logout', requireAuthOrigin, authController.logoutSession);
+router.post('/session/migrate', requireAuthOrigin, authController.migrateLegacySession);
 
 module.exports = router;
