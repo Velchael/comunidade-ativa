@@ -64,13 +64,6 @@ const ComunidadesPanel = () => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
     if (!sessionUser) {
       return;
     }
@@ -86,8 +79,6 @@ const ComunidadesPanel = () => {
       setLoading(false);
       return;
     }
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
     if (isAdminTotal) {
       fetchComunidades();

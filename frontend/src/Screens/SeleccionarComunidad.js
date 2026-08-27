@@ -6,6 +6,7 @@ import { UserContext } from '../UserContext';
 import OnboardingLayout from '../components/OnboardingLayout';
 import OnboardingAccessGuard from '../components/OnboardingAccessGuard';
 import { completeOnboardingSession } from '../utils/onboardingSession';
+import authClient from '../services/authClient';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
@@ -58,14 +59,11 @@ export default function SeleccionarComunidad() {
     setMessage({ type: '', text: '' });
 
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.post(
-        `${API_BASE}/api/comunidades/${comunidadId}/unirse`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      const { data } = await authClient.request({
+        method: 'post',
+        url: `${API_BASE}/api/comunidades/${comunidadId}/unirse`,
+        data: {}
+      });
 
       const completedUser = await completeOnboardingSession({ data, login });
 

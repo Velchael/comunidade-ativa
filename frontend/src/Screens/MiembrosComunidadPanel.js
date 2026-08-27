@@ -22,8 +22,7 @@ import {
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 const API_URL = `${API_BASE}/api/comunidades`;
 
-const fetchMiembrosComunidad = async (comunidadId, token) => {
-  axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+const fetchMiembrosComunidad = async (comunidadId) => {
   const res = await axios.get(`${API_URL}/${comunidadId}/miembros`);
 
   return {
@@ -191,14 +190,6 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
 
   useEffect(() => {
     const fetchMiembros = async () => {
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        setError('Sua sessão expirou. Entre novamente.');
-        setLoading(false);
-        return;
-      }
-
       if (!Number.isInteger(comunidadId) || comunidadId <= 0) {
         setError('Comunidade inválida');
         setLoading(false);
@@ -212,7 +203,7 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       }
 
       try {
-        const data = await fetchMiembrosComunidad(comunidadId, token);
+        const data = await fetchMiembrosComunidad(comunidadId);
         setMiembros(data.miembros);
         setTotal(data.total);
         setActionError('');
@@ -392,21 +383,12 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     setUpdatingUserId(miembro.user_id);
 
     try {
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        setActionError('Sua sessão expirou. Entre novamente.');
-        logout?.();
-        navigate('/Seinscrever');
-        return;
-      }
-
       await axios.patch(
         `${API_URL}/${comunidadId}/miembros/${miembro.user_id}/rol`,
         { rol_comunidad: nextRole }
       );
 
-      const data = await fetchMiembrosComunidad(comunidadId, token);
+      const data = await fetchMiembrosComunidad(comunidadId);
       setMiembros(data.miembros);
       setTotal(data.total);
     } catch (err) {

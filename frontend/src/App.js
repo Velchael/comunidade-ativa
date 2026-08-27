@@ -36,9 +36,18 @@ import {
   canViewCommunityMembers,
   isAdminTotalGlobal
 } from './utils/permissions';
+import authClient from './services/authClient';
 
 function Header({ toggleSidebar }) {
-  const { user, token, logout, isHydrating, refreshAuthSession } = useContext(UserContext);
+  const {
+    user,
+    token,
+    logout,
+    logoutPending,
+    retryAuthentication,
+    isHydrating,
+    refreshAuthSession
+  } = useContext(UserContext);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isInvitationRoute = pathname.startsWith('/convite/');
@@ -64,17 +73,11 @@ function Header({ toggleSidebar }) {
       setNotificationsLoading(true);
       setNotificationsError("");
 
-      const response = await fetch(`${API_BASE}/api/notificaciones?limit=10`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const response = await authClient.request({
+        method: 'get',
+        url: `${API_BASE}/api/notificaciones?limit=10`
       });
-
-      if (!response.ok) {
-        throw new Error("notifications request failed");
-      }
-
-      const data = await response.json();
+      const data = response.data;
       setNotificacoes(Array.isArray(data.items) ? data.items : []);
       setUnreadCount(Number.isInteger(data.unread_count) ? data.unread_count : 0);
     } catch (error) {
@@ -219,19 +222,10 @@ function Header({ toggleSidebar }) {
       try {
         setNotificationsError("");
 
-        const response = await fetch(
-          `${API_BASE}/api/notificaciones/${notification.id}/leida`,
-          {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("mark notification read failed");
-        }
+        await authClient.request({
+          method: 'patch',
+          url: `${API_BASE}/api/notificaciones/${notification.id}/leida`
+        });
 
         setNotificacoes((prev) =>
           prev.map((item) =>
@@ -279,6 +273,15 @@ function Header({ toggleSidebar }) {
 
   return (
     <header>
+
+      {logoutPending && (
+        <div className="alert alert-warning m-2" role="alert">
+          Sua saída local foi concluída, mas o logout remoto não foi confirmado.{' '}
+          <Button size="sm" variant="outline-dark" onClick={retryAuthentication}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
 
       {/* Header superior */}
 

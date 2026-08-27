@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Col, Form, Row } from 'react-bootstrap';
-import axios from 'axios';
+import authClient from '../services/authClient';
 import { UserContext } from '../UserContext';
 import OnboardingLayout from '../components/OnboardingLayout';
 import OnboardingAccessGuard from '../components/OnboardingAccessGuard';
@@ -46,10 +46,10 @@ export default function CrearComunidad() {
     setSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.post(
-        `${API_BASE}/api/comunidades/onboarding`,
-        {
+      const { data } = await authClient.request({
+        method: 'post',
+        url: `${API_BASE}/api/comunidades/onboarding`,
+        data: {
           nombre: formData.nombre.trim(),
           descripcion: formData.descripcion.trim() || null,
           direccion: formData.direccion.trim() || null,
@@ -60,11 +60,8 @@ export default function CrearComunidad() {
           visibilidad: formData.visibilidad || 'publica',
           ciudad: formData.ciudad.trim() || null,
           pais: formData.pais.trim() || null,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
         }
-      );
+      });
 
       const completedUser = await completeOnboardingSession({ data, login });
 

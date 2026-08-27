@@ -15,7 +15,7 @@ import { isAdminTotalGlobal } from '../utils/permissions';
 const API_URL = `${process.env.REACT_APP_API_URL}/api/users`;
 
 const ConfiguracionPanel = () => {
-  const { user, isHydrating, logout } = useContext(UserContext);
+  const { user, isHydrating, logout, refreshAuthSession } = useContext(UserContext);
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -25,14 +25,13 @@ const ConfiguracionPanel = () => {
   const [updatingRol, setUpdatingRol] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     const isAdminTotal = isAdminTotalGlobal(user);
 
     if (isHydrating) {
       return;
     }
 
-    if (!token || !user) {
+    if (!user) {
       setLoading(false);
       setMessage({ type: 'danger', text: 'Você precisa entrar como admin_total.' });
       return;
@@ -44,7 +43,6 @@ const ConfiguracionPanel = () => {
       return;
     }
 
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     fetchUsuarios();
   }, [user, isHydrating]);
 
@@ -74,27 +72,18 @@ const ConfiguracionPanel = () => {
 
   setUpdatingRol(true);
   try {
-    const token = localStorage.getItem('token');
-
     await axios.put(
       `${API_URL}/${selectedUser.id}/rol`,
-      { rol: newRol },
-      { headers: { Authorization: `Bearer ${token}` } }
+      { rol: newRol }
     );
 
-    const refreshRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/refresh`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    localStorage.setItem('token', refreshRes.data.token);
-    if (refreshRes.data.user) {
-      localStorage.setItem('user', JSON.stringify(refreshRes.data.user));
-    }
+    const refreshedUser = await refreshAuthSession({ force: true });
 
     setMessage({ type: 'success', text: 'Papel atualizado com sucesso' });
 
     if (
-      refreshRes.data.user?.rol_global !== 'admin_total' &&
-      refreshRes.data.user?.rol !== 'admin_total'
+      refreshedUser?.rol_global !== 'admin_total' &&
+      refreshedUser?.rol !== 'admin_total'
     ) {
       alert('Papel atualizado. Você precisa entrar novamente.');
       logout?.();

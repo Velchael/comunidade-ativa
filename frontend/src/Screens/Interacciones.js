@@ -185,16 +185,7 @@ export default function Interacciones() {
 
     try {
       isFetchingRef.current = true;
-      const token = localStorage.getItem("token");
-
-      const res = await axios.get(
-        `${API_BASE}/api/interacciones/${comunidadId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const res = await axios.get(`${API_BASE}/api/interacciones/${comunidadId}`);
 
       if (Array.isArray(res.data)) {
         setLista(res.data);
@@ -309,11 +300,6 @@ export default function Interacciones() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
-
       if (selectedImage) {
         const formData = new FormData();
         formData.append("comunidad_id", String(comunidadIdActual));
@@ -326,7 +312,7 @@ export default function Interacciones() {
         await axios.post(
           `${API_BASE}/api/interacciones`,
           formData,
-          { headers }
+          {}
         );
       } else {
         await axios.post(
@@ -338,9 +324,6 @@ export default function Interacciones() {
             categoria,
             descripcion: texto,
             visibilidad
-          },
-          {
-            headers
           }
         );
       }
@@ -374,19 +357,12 @@ export default function Interacciones() {
     if (!mensaje || !user) return;
 
     try {
-      const token = localStorage.getItem("token");
-
       const response = await axios.post(
         `${API_BASE}/api/respuestas`,
         {
           interaccion_id: id,
           user_id: user.id,
           mensaje
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
         }
       );
 
@@ -527,16 +503,9 @@ export default function Interacciones() {
       }));
       setAccionEstadoId(interaccionId);
 
-      const token = localStorage.getItem("token");
-
       await axios.patch(
         `${API_BASE}/api/interacciones/${interaccionId}/estado`,
-        { estado: nuevoEstado },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { estado: nuevoEstado }
       );
 
       await cargarInteracciones();
@@ -591,16 +560,9 @@ export default function Interacciones() {
       }));
       setAccionEstadoRespuestaId(respuestaId);
 
-      const token = localStorage.getItem("token");
-
       await axios.patch(
         `${API_BASE}/api/respuestas/${respuestaId}/estado`,
-        { estado: nuevoEstado },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { estado: nuevoEstado }
       );
 
       await cargarInteracciones();

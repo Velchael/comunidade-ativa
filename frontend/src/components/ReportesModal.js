@@ -25,9 +25,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
   if (!grupo || !grupo.id) return;
   setLoading(true);
   try {
-    const res = await axios.get(`${API_URL}/api/grupos/${grupo.id}/reportes`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
+    const res = await axios.get(`${API_URL}/api/grupos/${grupo.id}/reportes`);
     setReportes(res.data);
   } catch (err) {
     console.error('❌ Error al cargar reportes:', err);
@@ -53,9 +51,7 @@ const ReportesModal = ({ show, handleClose, grupo }) => {
         semana: nuevoReporte.semana ? new Date(nuevoReporte.semana).toISOString().split('T')[0] : null
       };
 
-      await axios.post(`${API_URL}/api/grupos/${grupo.id}/reportes`, payload, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await axios.post(`${API_URL}/api/grupos/${grupo.id}/reportes`, payload);
 
       setMessage({ type: 'success', text: 'Relatório criado com sucesso' });
       fetchReportes();

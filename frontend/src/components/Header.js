@@ -5,12 +5,11 @@ import { UserContext } from "../UserContext";
 import UserAvatar from "./UserAvatar";
 
 export default function Header({ toggleSidebar }) {
-  const { user, setUser } = useContext(UserContext);
+  const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.clear();
-    setUser(null);
+  const handleLogout = async () => {
+    await logout?.();
     navigate("/");
   };
 

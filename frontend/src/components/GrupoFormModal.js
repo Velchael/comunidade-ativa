@@ -56,16 +56,14 @@ const GrupoFormModal = ({ show, handleClose, onSave, grupo }) => {
     setSubmitting(true);
 
     try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
-
       if (grupo) {
         // -------- PUT: EDITAR GRUPO --------
         const { comunidad_id, ...editData } = formData;
-        await axios.put(`${API_BASE}/api/grupos/${grupo.id}`, editData, { headers });
+        await axios.put(`${API_BASE}/api/grupos/${grupo.id}`, editData);
       } else {
         // -------- POST: CREAR GRUPO --------
         const { comunidad_id, ...createData } = formData;
-        await axios.post(`${API_BASE}/api/grupos`, createData, { headers });
+        await axios.post(`${API_BASE}/api/grupos`, createData);
       }
 
       onSave();

@@ -46,8 +46,6 @@ const GruposActivos = () => {
   const fetchGrupos = async () => {
     try {
       let res;
-      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
-
       if (esAdmin) {
         // admin_total puede pasar filtros por query params
         const params = {};
@@ -55,9 +53,9 @@ const GruposActivos = () => {
           if (filterComunidad) params.comunidad_id = filterComunidad;
           if (filterLider) params.lider_id = filterLider;
         }
-        res = await axios.get(`${API_BASE}/api/grupos`, { headers, params });
+        res = await axios.get(`${API_BASE}/api/grupos`, { params });
       } else {
-        res = await axios.get(`${API_BASE}/api/grupos/mios`, { headers });
+        res = await axios.get(`${API_BASE}/api/grupos/mios`);
       }
 
       setGrupos(res.data);
@@ -86,9 +84,7 @@ const GruposActivos = () => {
     if (!window.confirm('Tem certeza de que deseja excluir este grupo?')) return;
 
     try {
-      await axios.delete(`${API_BASE}/api/grupos/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await axios.delete(`${API_BASE}/api/grupos/${id}`);
       setMessage({ type: 'success', text: 'Grupo excluído com sucesso' });
       fetchGrupos();
     } catch (err) {

@@ -12,8 +12,6 @@ import {
 
 import { Helmet } from 'react-helmet-async';
 import { UserContext } from '../UserContext';
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import OnboardingLayout from '../components/OnboardingLayout';
 import GoogleAuthStep from '../components/GoogleAuthStep';
 import OnboardingStatusCard from '../components/OnboardingStatusCard';
@@ -23,7 +21,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 export default function Seinscrever({ mode = 'direct' }) {
 
-  const { setUser, login } = useContext(UserContext) || {};
+  const { user, authStatus, login } = useContext(UserContext) || {};
   const navigate = useNavigate();
 
   // =====================================================
@@ -60,79 +58,32 @@ export default function Seinscrever({ mode = 'direct' }) {
       const token = params.get('token');
 
       if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-        let decoded = {};
-
-        try {
-          decoded = jwtDecode(token);
-        } catch (err) {
-          console.warn('Token inválido', err);
-        }
-
-        const fallbackUser = {
-          id: decoded.id,
-          email: decoded.email,
-          rol: decoded.rol,
-          rol_global: decoded.rol_global || decoded.rol,
-          username:
-            decoded.username ||
-            (decoded.email
-              ? decoded.email.split('@')[0]
-              : ''),
-          googleId: decoded.googleId,
-          avatar: decoded.avatar || null,
-          comunidad_id: decoded.comunidad_id || null
-        };
-
-        let sessionUser = fallbackUser;
-
         if (typeof login === 'function') {
+          const migration = login(token);
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('token');
+          window.history.replaceState(
+            window.history.state,
+            '',
+            `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`
+          );
+
           try {
-            const hydratedUser = await login(token, null);
-            if (hydratedUser) {
-              sessionUser = {
-                ...fallbackUser,
-                ...hydratedUser
-              };
-            }
+            const authoritativeUser = await migration;
+            setGoogleUser(authoritativeUser);
           } catch (err) {
-          console.warn('Não foi possível hidratar a sessão inicial com refresh');
-          }
-        } else if (typeof setUser === 'function') {
-          setUser(fallbackUser);
-        }
-
-        setGoogleUser(sessionUser);
-
-        // Retira o JWT da query string sem perder o convite da sessão da aba.
-        navigate('/Seinscrever', { replace: true });
-      } else {
-        // 🔹 RESTAURA LOGIN SI YA EXISTE
-        const savedUser = localStorage.getItem('user');
-        const savedToken = localStorage.getItem('token');
-
-        if (savedUser && savedToken) {
-          try {
-            const parsedUser = JSON.parse(savedUser);
-
-            axios.defaults.headers.common['Authorization'] =
-              `Bearer ${savedToken}`;
-
-            if (typeof setUser === 'function') {
-              setUser(parsedUser);
-            }
-
-            setGoogleUser(parsedUser);
-          } catch (err) {
-            console.warn('Não foi possível restaurar a sessão');
+            console.warn('Não foi possível migrar a sessão Google legacy');
           }
         }
       }
     };
 
     syncGoogleSession();
-  }, [login, navigate, setUser]);
+  }, [login, navigate]);
+
+  useEffect(() => {
+    if (authStatus === 'authenticated' && user) setGoogleUser(user);
+  }, [authStatus, user]);
 
   // =====================================================
   // 🔹 CONTINUAR FLUJO CON SESIÓN HIDRATADA
@@ -162,7 +113,7 @@ export default function Seinscrever({ mode = 'direct' }) {
 
     continueAuthenticatedFlow();
 
-  }, [googleUser, navigate, returnToPendingInvitation, setUser]);
+  }, [googleUser, navigate, returnToPendingInvitation]);
 
   const handleContinueCommunityChoice = () => {
     if (startMode === 'crear') {

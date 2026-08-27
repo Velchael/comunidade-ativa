@@ -61,12 +61,10 @@ const TaskList = () => {
   );
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    if (!user) return;
     fetchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frecuenciaFiltro]);
+  }, [frecuenciaFiltro, user]);
 
   const fetchTasks = async () => {
     try {
