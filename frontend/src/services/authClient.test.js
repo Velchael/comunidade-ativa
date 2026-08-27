@@ -189,6 +189,88 @@ test('migrate 200 elimina legacy solamente después de aplicar el éxito', async
   expect(localStorage.getItem('token')).toBeNull();
 });
 
+test('dos migrates concurrentes del mismo legacy comparten exactamente una Promise y un POST', async () => {
+  const onAuthenticated = jest.fn();
+  authClient.setAuthHandlers({ onAuthenticated });
+  localStorage.setItem('token', 'same-legacy');
+  let releaseMigration;
+  axios.post.mockReturnValueOnce(new Promise((resolve) => { releaseMigration = resolve; }));
+
+  const first = authClient.migrateLegacy('same-legacy');
+  const second = authClient.migrateLegacy('same-legacy');
+
+  expect(second).toBe(first);
+  expect(axios.post).toHaveBeenCalledTimes(1);
+  releaseMigration(authResponse('single-flight-access'));
+  await expect(Promise.all([first, second])).resolves.toEqual([USER, USER]);
+  expect(axios.post).toHaveBeenCalledTimes(1);
+  expect(onAuthenticated).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem('token')).toBeNull();
+});
+
+test('Seinscrever y bootstrap convergen en el mismo migrate después del refresh 401', async () => {
+  const state = handlers();
+  let rejectRefresh;
+  let releaseMigration;
+  axios.post
+    .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRefresh = reject; }))
+    .mockReturnValueOnce(new Promise((resolve) => { releaseMigration = resolve; }));
+
+  const bootstrapping = authClient.bootstrap();
+  const fromSeinscrever = authClient.setLegacyTokenAndMigrate('callback-legacy');
+  rejectRefresh(apiError(401, 'AUTH_REFRESH_MISSING'));
+  for (let index = 0; index < 10; index += 1) await Promise.resolve();
+
+  const migrateCalls = axios.post.mock.calls.filter(([url]) => url.includes('/session/migrate'));
+  expect(migrateCalls).toHaveLength(1);
+  releaseMigration(authResponse('shared-access'));
+  await expect(Promise.all([bootstrapping, fromSeinscrever])).resolves.toEqual([USER, USER]);
+  expect(state.status).toBe('authenticated');
+  expect(localStorage.getItem('token')).toBeNull();
+});
+
+test('migrate temporal concurrente libera single-flight y permite un POST futuro', async () => {
+  const state = handlers();
+  localStorage.setItem('token', 'retryable-legacy');
+  let rejectMigration;
+  axios.post.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectMigration = reject; }));
+
+  const first = authClient.migrateLegacy('retryable-legacy');
+  const second = authClient.migrateLegacy('retryable-legacy');
+  const temporaryError = apiError(503, 'AUTH_MIGRATION_UNAVAILABLE');
+  rejectMigration(temporaryError);
+
+  await expect(first).rejects.toBe(temporaryError);
+  await expect(second).rejects.toBe(temporaryError);
+  expect(axios.post).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem('token')).toBe('retryable-legacy');
+  expect(state.status).toBe('temporarilyUnavailable');
+
+  axios.post.mockResolvedValueOnce(authResponse('retry-success'));
+  await expect(authClient.migrateLegacy('retryable-legacy')).resolves.toEqual(USER);
+  expect(axios.post).toHaveBeenCalledTimes(2);
+});
+
+test('un legacy distinto no comparte resultado ni es eliminado por el migrate activo', async () => {
+  handlers();
+  let releaseFirst;
+  axios.post.mockReturnValueOnce(new Promise((resolve) => { releaseFirst = resolve; }));
+
+  const first = authClient.setLegacyTokenAndMigrate('legacy-a');
+  const conflicting = authClient.setLegacyTokenAndMigrate('legacy-b');
+
+  await expect(conflicting).rejects.toMatchObject({ code: 'AUTH_LEGACY_MIGRATE_CONFLICT' });
+  expect(axios.post).toHaveBeenCalledTimes(1);
+  releaseFirst(authResponse('access-a'));
+  await expect(first).resolves.toEqual(USER);
+  expect(localStorage.getItem('token')).toBe('legacy-b');
+
+  axios.post.mockResolvedValueOnce(authResponse('access-b'));
+  await expect(authClient.migrateLegacy('legacy-b')).resolves.toEqual(USER);
+  expect(axios.post).toHaveBeenCalledTimes(2);
+  expect(localStorage.getItem('token')).toBeNull();
+});
+
 test('access token existe solo en memoria, reset simula reload y refresh lo repone', async () => {
   handlers();
   localStorage.setItem('token', 'legacy');

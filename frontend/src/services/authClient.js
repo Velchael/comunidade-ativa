@@ -26,6 +26,7 @@ const DEFINITIVE_LEGACY_CODES = new Set([
 let accessToken = null;
 let expiresAt = 0;
 let refreshInFlight = null;
+let migrateInFlight = null;
 let handlers = {};
 let sessionRecoverable = true;
 let logoutPending = false;
@@ -153,15 +154,8 @@ const refresh = () => {
   return inFlight.promise;
 };
 
-const migrateLegacy = async (
-  legacyToken = localStorage.getItem('token'),
-  operationEpoch = authEpoch
-) => {
+const performLegacyMigration = async (legacyToken, operationEpoch) => {
   requireCurrentOperation(operationEpoch);
-  if (!legacyToken) {
-    markUnauthenticated();
-    return null;
-  }
 
   try {
     const response = await axios.post(`${API_BASE}/auth/session/migrate`, null, {
@@ -170,7 +164,7 @@ const migrateLegacy = async (
       headers: { Authorization: `Bearer ${legacyToken}` }
     });
     const user = storeAuthResponse(response.data, operationEpoch);
-    localStorage.removeItem('token');
+    if (localStorage.getItem('token') === legacyToken) localStorage.removeItem('token');
     return user;
   } catch (error) {
     if (!isOperationCurrent(operationEpoch)) {
@@ -180,13 +174,46 @@ const migrateLegacy = async (
     }
     const code = errorCode(error);
     if (errorStatus(error) === 401 && DEFINITIVE_LEGACY_CODES.has(code)) {
-      localStorage.removeItem('token');
+      if (localStorage.getItem('token') === legacyToken) localStorage.removeItem('token');
       markUnauthenticated();
     } else {
       markTemporarilyUnavailable(error);
     }
     throw error;
   }
+};
+
+const migrateLegacy = (
+  legacyToken = localStorage.getItem('token'),
+  operationEpoch = authEpoch
+) => {
+  try {
+    requireCurrentOperation(operationEpoch);
+  } catch (error) {
+    return Promise.reject(error);
+  }
+  if (!legacyToken) {
+    markUnauthenticated();
+    return Promise.resolve(null);
+  }
+
+  if (migrateInFlight) {
+    if (
+      migrateInFlight.legacyToken === legacyToken &&
+      migrateInFlight.epoch === operationEpoch
+    ) {
+      return migrateInFlight.promise;
+    }
+    return Promise.reject(new AuthClientError('AUTH_LEGACY_MIGRATE_CONFLICT'));
+  }
+
+  const inFlight = { legacyToken, epoch: operationEpoch, promise: null };
+  migrateInFlight = inFlight;
+  inFlight.promise = performLegacyMigration(legacyToken, operationEpoch)
+    .finally(() => {
+      if (migrateInFlight === inFlight) migrateInFlight = null;
+    });
+  return inFlight.promise;
 };
 
 const bootstrap = async () => {
@@ -210,9 +237,13 @@ const bootstrap = async () => {
   }
 };
 
-const setLegacyTokenAndMigrate = async (legacyToken) => {
+const setLegacyTokenAndMigrate = (legacyToken) => {
   const operationEpoch = authEpoch;
-  requireCurrentOperation(operationEpoch);
+  try {
+    requireCurrentOperation(operationEpoch);
+  } catch (error) {
+    return Promise.reject(error);
+  }
   localStorage.setItem('token', legacyToken);
   notify('onHydrating');
   return migrateLegacy(legacyToken, operationEpoch);
@@ -279,6 +310,7 @@ const isLogoutPending = () => logoutPending;
 const __resetForTests = () => {
   clearMemoryAccess();
   refreshInFlight = null;
+  migrateInFlight = null;
   handlers = {};
   sessionRecoverable = true;
   logoutPending = false;
