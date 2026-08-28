@@ -74,13 +74,19 @@ const clearMemoryAccess = () => {
   expiresAt = 0;
 };
 
-const storeAuthResponse = (data = {}, operationEpoch = authEpoch) => {
+const storeAuthResponse = (
+  data = {},
+  operationEpoch = authEpoch,
+  establishesNewSession = false
+) => {
   requireCurrentOperation(operationEpoch);
   if (!data.access_token || !data.user) {
     const error = new Error('AUTH_RESPONSE_INVALID');
     error.code = 'AUTH_RESPONSE_INVALID';
     throw error;
   }
+
+  if (establishesNewSession) authEpoch += 1;
 
   accessToken = data.access_token;
   const ttlSeconds = Number(data.expires_in) || DEFAULT_ACCESS_TTL_SECONDS;
@@ -115,6 +121,7 @@ const performRefresh = async (operationEpoch) => {
   } catch (error) {
     if (errorStatus(error) === 409 && errorCode(error) === 'AUTH_REFRESH_RACE') {
       await wait(REFRESH_RACE_DELAY_MS);
+      requireCurrentOperation(operationEpoch);
       response = await rawRefresh();
     } else {
       throw error;
@@ -154,7 +161,11 @@ const refresh = () => {
   return inFlight.promise;
 };
 
-const performLegacyMigration = async (legacyToken, operationEpoch) => {
+const performLegacyMigration = async (
+  legacyToken,
+  operationEpoch,
+  getEstablishesNewSession = () => false
+) => {
   requireCurrentOperation(operationEpoch);
 
   try {
@@ -163,7 +174,11 @@ const performLegacyMigration = async (legacyToken, operationEpoch) => {
       __skipAuthLifecycle: true,
       headers: { Authorization: `Bearer ${legacyToken}` }
     });
-    const user = storeAuthResponse(response.data, operationEpoch);
+    const user = storeAuthResponse(
+      response.data,
+      operationEpoch,
+      getEstablishesNewSession()
+    );
     if (localStorage.getItem('token') === legacyToken) localStorage.removeItem('token');
     return user;
   } catch (error) {
@@ -185,7 +200,8 @@ const performLegacyMigration = async (legacyToken, operationEpoch) => {
 
 const migrateLegacy = (
   legacyToken = localStorage.getItem('token'),
-  operationEpoch = authEpoch
+  operationEpoch = authEpoch,
+  establishesNewSession = false
 ) => {
   try {
     requireCurrentOperation(operationEpoch);
@@ -202,14 +218,24 @@ const migrateLegacy = (
       migrateInFlight.legacyToken === legacyToken &&
       migrateInFlight.epoch === operationEpoch
     ) {
+      migrateInFlight.establishesNewSession ||= establishesNewSession;
       return migrateInFlight.promise;
     }
     return Promise.reject(new AuthClientError('AUTH_LEGACY_MIGRATE_CONFLICT'));
   }
 
-  const inFlight = { legacyToken, epoch: operationEpoch, promise: null };
+  const inFlight = {
+    legacyToken,
+    epoch: operationEpoch,
+    establishesNewSession,
+    promise: null
+  };
   migrateInFlight = inFlight;
-  inFlight.promise = performLegacyMigration(legacyToken, operationEpoch)
+  inFlight.promise = performLegacyMigration(
+    legacyToken,
+    operationEpoch,
+    () => inFlight.establishesNewSession
+  )
     .finally(() => {
       if (migrateInFlight === inFlight) migrateInFlight = null;
     });
@@ -246,7 +272,7 @@ const setLegacyTokenAndMigrate = (legacyToken) => {
   }
   localStorage.setItem('token', legacyToken);
   notify('onHydrating');
-  return migrateLegacy(legacyToken, operationEpoch);
+  return migrateLegacy(legacyToken, operationEpoch, true);
 };
 
 const shouldRefreshBeforeRequest = () => (

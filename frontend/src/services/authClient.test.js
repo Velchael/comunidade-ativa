@@ -315,6 +315,31 @@ test('AUTH_REFRESH_RACE espera y reintenta refresh exactamente una vez', async (
   expect(authClient.getAccessToken()).toBe('race-winner');
 });
 
+test('AUTH_REFRESH_RACE no emite segundo refresh si cambia authEpoch durante la espera', async () => {
+  jest.useFakeTimers();
+  try {
+    const state = handlers();
+    axios.post
+      .mockRejectedValueOnce(apiError(409, 'AUTH_REFRESH_RACE'))
+      .mockResolvedValueOnce(authResponse('migrated-during-wait'));
+
+    const racingRefresh = authClient.refresh();
+    for (let index = 0; index < 10 && axios.post.mock.calls.length === 0; index += 1) {
+      await Promise.resolve();
+    }
+    await expect(authClient.setLegacyTokenAndMigrate('new-session')).resolves.toEqual(USER);
+    expect(axios.post).toHaveBeenCalledTimes(2);
+
+    jest.advanceTimersByTime(200);
+    await expect(racingRefresh).rejects.toMatchObject({ code: 'AUTH_OPERATION_STALE' });
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(authClient.getAccessToken()).toBe('migrated-during-wait');
+    expect(state.status).toBe('authenticated');
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
 test('segundo race y 503 dejan estado temporal sin retries adicionales', async () => {
   const state = handlers();
   axios.post
@@ -358,6 +383,48 @@ test('migrate 200 tardío después de logout queda obsoleto y no autentica', asy
   releaseMigrate(authResponse('late-migrate'));
 
   await expect(pendingMigrate).rejects.toMatchObject({ code: 'AUTH_OPERATION_STALE' });
+  expect(authClient.getAccessToken()).toBeNull();
+  expect(state.status).toBe('unauthenticated');
+});
+
+test('refresh antiguo 401 no sobrescribe una nueva sesión establecida por migrate', async () => {
+  const state = handlers();
+  let rejectRefresh;
+  axios.post
+    .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRefresh = reject; }))
+    .mockResolvedValueOnce(authResponse('migrated-access'));
+
+  const oldRefresh = authClient.refresh();
+  await expect(authClient.setLegacyTokenAndMigrate('new-legacy')).resolves.toEqual(USER);
+  rejectRefresh(apiError(401, 'AUTH_REFRESH_MISSING'));
+
+  await expect(oldRefresh).rejects.toMatchObject({ code: 'AUTH_OPERATION_STALE' });
+  expect(authClient.getAccessToken()).toBe('migrated-access');
+  expect(state.status).toBe('authenticated');
+});
+
+test('bootstrap antiguo queda stale tras migrate de Seinscrever sin destruir autenticación', async () => {
+  const state = handlers();
+  let rejectRefresh;
+  axios.post
+    .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRefresh = reject; }))
+    .mockResolvedValueOnce(authResponse('seinscrever-access'));
+
+  const bootstrapping = authClient.bootstrap();
+  await expect(authClient.setLegacyTokenAndMigrate('seinscrever-legacy')).resolves.toEqual(USER);
+  rejectRefresh(apiError(401, 'AUTH_REFRESH_MISSING'));
+
+  await expect(bootstrapping).rejects.toMatchObject({ code: 'AUTH_OPERATION_STALE' });
+  expect(authClient.getAccessToken()).toBe('seinscrever-access');
+  expect(state.status).toBe('authenticated');
+});
+
+test('refresh 401 definitivo sin autenticación posterior queda unauthenticated', async () => {
+  const state = handlers();
+  axios.post.mockRejectedValueOnce(apiError(401, 'AUTH_SESSION_REVOKED'));
+
+  await expect(authClient.refresh()).rejects.toBeTruthy();
+
   expect(authClient.getAccessToken()).toBeNull();
   expect(state.status).toBe('unauthenticated');
 });
