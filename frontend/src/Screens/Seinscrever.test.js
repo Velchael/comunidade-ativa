@@ -1,6 +1,6 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { HelmetProvider } from 'react-helmet-async';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Seinscrever from './Seinscrever';
 import { UserContext } from '../UserContext';
 import { getPendingInvitation, savePendingInvitation } from '../utils/invitationSession';
@@ -53,6 +53,34 @@ test('continúa aceptando ?token legacy, lo migra y preserva pendingInvitationPa
 
   releaseMigration({ id: 9, email: 'google@example.test', comunidad_id: null });
   await waitFor(() => expect(getPendingInvitation()).toBe('/convite/invitation-token'));
+});
+
+test('callback limpio continúa con usuario autenticado y recupera pendingInvitationPath', async () => {
+  const login = jest.fn();
+  savePendingInvitation('/convite/invitation-token');
+  window.history.pushState({}, '', '/seinscrever');
+
+  render(
+    <HelmetProvider>
+      <UserContext.Provider value={{
+        user: { id: 9, email: 'google@example.test', comunidad_id: null },
+        authStatus: 'authenticated',
+        login
+      }}>
+        <MemoryRouter initialEntries={['/seinscrever']}>
+          <Routes>
+            <Route path="/seinscrever" element={<Seinscrever />} />
+            <Route path="/convite/invitation-token" element={<div>Convite pendente</div>} />
+          </Routes>
+        </MemoryRouter>
+      </UserContext.Provider>
+    </HelmetProvider>
+  );
+
+  await screen.findByText('Convite pendente');
+  expect(window.location.search).toBe('');
+  expect(login).not.toHaveBeenCalled();
+  expect(getPendingInvitation()).toBe('/convite/invitation-token');
 });
 
 test('localStorage.user aislado no se usa para autenticar Seinscrever', async () => {

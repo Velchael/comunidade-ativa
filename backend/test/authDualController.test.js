@@ -20,12 +20,15 @@ const USER = {
 };
 
 const makeResponse = () => {
-  const state = { status: 200, body: undefined, sent: false };
+  const state = { status: 200, body: undefined, sent: false, cookies: [], redirects: [] };
   return {
     state,
+    headersSent: false,
     status(code) { state.status = code; return this; },
     json(body) { state.body = body; return this; },
     send() { state.sent = true; return this; },
+    cookie(name, credential, options) { state.cookies.push({ name, credential, options }); return this; },
+    redirect(location) { state.redirects.push(location); return this; },
   };
 };
 
@@ -38,21 +41,36 @@ const loadHarness = ({
   service = {},
   findByPk = async () => USER,
   buildResponse = async (user) => ({ id: user.id, authoritative: true }),
+  transaction,
+  buildCookieOptions,
 } = {}) => {
   class AuthSessionError extends Error {
     constructor(code) { super(code); this.code = code; }
   }
-  const calls = { set: [], clear: [], events: [], find: [] };
+  const calls = { set: [], clear: [], events: [], find: [], create: [], cookieOptions: [] };
+  const activeTransaction = { id: 'transaction-id' };
+  const sequelize = {
+    transaction: transaction || (async (callback) => {
+      calls.events.push('begin');
+      const result = await callback(activeTransaction);
+      calls.events.push('commit');
+      return result;
+    }),
+  };
   const completeService = {
     rotateSessionCredential: async () => ({ session: SESSION, credential: 'rotated-secret' }),
     revokeSession: async () => ({ result: 'REVOKED' }),
-    createSession: async () => ({ session: SESSION, credential: 'created-secret' }),
+    createSession: async (args) => {
+      calls.events.push('create');
+      calls.create.push(args);
+      return { session: SESSION, credential: 'created-secret' };
+    },
     ...service,
   };
   const User = { findByPk: async (...args) => { calls.find.push(args); return findByPk(...args); } };
   const mock = (path, exports) => { require.cache[path] = { id: path, filename: path, loaded: true, exports }; };
   delete require.cache[controllerPath];
-  mock(modelsPath, { User, Comunidad: {}, AuthSession: {}, sequelize: {} });
+  mock(modelsPath, { User, Comunidad: {}, AuthSession: {}, sequelize });
   mock(servicePath, {
     ACCESS_TOKEN_TTL_SECONDS: 900, AuthSessionError,
     createAuthSessionService: () => completeService,
@@ -60,6 +78,14 @@ const loadHarness = ({
   mock(responsePath, { buildAuthUserResponse: buildResponse });
   mock(cookiesPath, {
     REFRESH_COOKIE_NAME: 'comuva_refresh',
+    buildRefreshCookieOptions: (args) => {
+      calls.events.push('options');
+      calls.cookieOptions.push(args);
+      if (buildCookieOptions) return buildCookieOptions(args);
+      return {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/api/auth', maxAge: 60_000,
+      };
+    },
     setRefreshCookie: (_res, credential) => { calls.events.push('set'); calls.set.push(credential); },
     clearRefreshCookie: () => { calls.events.push('clear'); calls.clear.push(true); },
   });
@@ -67,8 +93,170 @@ const loadHarness = ({
   fakeCreateToken.createAccessToken = () => 'access-token-15m';
   mock(tokenPath, fakeCreateToken);
   const controller = require(controllerPath);
-  return { controller, calls, AuthSessionError, service: completeService };
+  return { controller, calls, AuthSessionError, service: completeService, activeTransaction };
 };
+
+test('Google callback rechaza usuario inválido sin sesión, cookie ni redirect', async () => {
+  const harness = loadHarness();
+  const res = makeResponse();
+  await harness.controller.googleCallback(makeRequest(), res);
+  assert.equal(res.state.status, 401);
+  assert.equal(harness.calls.create.length, 0);
+  assert.equal(res.state.cookies.length, 0);
+  assert.equal(res.state.redirects.length, 0);
+});
+
+test('Google callback crea sesión transaccional, emite cookie después del commit y redirige limpio', async () => {
+  const originalFrontendUrl = process.env.FRONTEND_URL;
+  process.env.FRONTEND_URL = 'https://app.comuva.test/base?ignored=yes';
+  try {
+    const harness = loadHarness();
+    const res = makeResponse();
+    res.cookie = function cookie(name, credential, options) {
+      harness.calls.events.push('cookie');
+      this.state.cookies.push({ name, credential, options });
+      return this;
+    };
+    res.redirect = function redirect(location) {
+      harness.calls.events.push('redirect');
+      this.state.redirects.push(location);
+      return this;
+    };
+
+    await harness.controller.googleCallback({ ...makeRequest(), user: USER }, res);
+
+    assert.deepEqual(harness.calls.events, ['begin', 'create', 'options', 'commit', 'cookie', 'redirect']);
+    assert.equal(harness.calls.create.length, 1);
+    assert.equal(harness.calls.create[0].userId, USER.id);
+    assert.equal(harness.calls.create[0].transaction, harness.activeTransaction);
+    assert.deepEqual(res.state.cookies, [{
+      name: 'comuva_refresh', credential: 'created-secret',
+      options: { httpOnly: true, secure: true, sameSite: 'lax', path: '/api/auth', maxAge: 60_000 },
+    }]);
+    assert.equal(Object.hasOwn(res.state.cookies[0].options, 'domain'), false);
+    assert.deepEqual(res.state.redirects, ['https://app.comuva.test/seinscrever']);
+    const location = res.state.redirects[0];
+    for (const forbidden of ['token=', 'legacy-token', 'created-secret', USER.email, String(USER.id), 'googleId']) {
+      assert.equal(location.includes(forbidden), false, forbidden);
+    }
+  } finally {
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
+  }
+});
+
+test('Google callback usa cookie no segura sólo para HTTP local en development', async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalFrontendUrl = process.env.FRONTEND_URL;
+  process.env.NODE_ENV = 'development';
+  process.env.FRONTEND_URL = 'http://localhost:3000';
+  try {
+    const harness = loadHarness({
+      buildCookieOptions: ({ isLocalHttp }) => ({
+        httpOnly: true, secure: !isLocalHttp, sameSite: 'lax', path: '/api/auth', maxAge: 60_000,
+      }),
+    });
+    const res = makeResponse();
+    const req = { ...makeRequest(), user: USER, protocol: 'http', hostname: 'localhost' };
+    await harness.controller.googleCallback(req, res);
+    assert.equal(harness.calls.cookieOptions[0].isLocalHttp, true);
+    assert.equal(res.state.cookies[0].options.secure, false);
+  } finally {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
+  }
+});
+
+test('Google callback no emite cookie ni redirect si createSession u opciones fallan', async () => {
+  const originalFrontendUrl = process.env.FRONTEND_URL;
+  process.env.FRONTEND_URL = 'https://app.comuva.test';
+  try {
+    for (const harness of [
+      loadHarness({ service: { createSession: async () => { throw new Error('insert failed'); } } }),
+      loadHarness({ buildCookieOptions: () => { throw new Error('invalid expiry'); } }),
+    ]) {
+      const res = makeResponse();
+      await harness.controller.googleCallback({ ...makeRequest(), user: USER }, res);
+      assert.equal(res.state.status, 500);
+      assert.equal(res.state.cookies.length, 0);
+      assert.equal(res.state.redirects.length, 0);
+    }
+  } finally {
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
+  }
+});
+
+test('Google callback no emite credencial si transaction/commit falla', async () => {
+  const originalFrontendUrl = process.env.FRONTEND_URL;
+  process.env.FRONTEND_URL = 'https://app.comuva.test';
+  try {
+    let harness;
+    harness = loadHarness({ transaction: async (callback) => {
+      harness.calls.events.push('begin');
+      await callback(harness.activeTransaction);
+      harness.calls.events.push('commit-failed');
+      throw new Error('commit failed');
+    } });
+    const res = makeResponse();
+    await harness.controller.googleCallback({ ...makeRequest(), user: USER }, res);
+    assert.deepEqual(harness.calls.events, ['begin', 'create', 'options', 'commit-failed']);
+    assert.equal(res.state.status, 500);
+    assert.equal(res.state.cookies.length, 0);
+    assert.equal(res.state.redirects.length, 0);
+  } finally {
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
+  }
+});
+
+test('Google callback maneja fallos síncronos post-commit sin filtrar credencial', async () => {
+  const originalFrontendUrl = process.env.FRONTEND_URL;
+  const originalConsoleError = console.error;
+  process.env.FRONTEND_URL = 'https://app.comuva.test';
+  const logs = [];
+  console.error = (...args) => { logs.push(args.join(' ')); };
+  try {
+    const cookieHarness = loadHarness();
+    const cookieRes = makeResponse();
+    cookieRes.cookie = () => { throw new Error('created-secret'); };
+    await cookieHarness.controller.googleCallback({ ...makeRequest(), user: USER }, cookieRes);
+    assert.equal(cookieRes.state.status, 500);
+    assert.equal(cookieRes.state.redirects.length, 0);
+
+    const redirectHarness = loadHarness();
+    const redirectRes = makeResponse();
+    redirectRes.redirect = () => { throw new Error('created-secret'); };
+    await redirectHarness.controller.googleCallback({ ...makeRequest(), user: USER }, redirectRes);
+    assert.equal(redirectRes.state.status, 500);
+    assert.equal(redirectRes.state.cookies.length, 1);
+
+    assert.equal(logs.join(' ').includes('created-secret'), false);
+    assert.equal(JSON.stringify(cookieRes.state.body).includes('created-secret'), false);
+    assert.equal(JSON.stringify(redirectRes.state.body).includes('created-secret'), false);
+  } finally {
+    console.error = originalConsoleError;
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
+  }
+});
+
+test('cada Google callback exitoso crea una sesión independiente', async () => {
+  const originalFrontendUrl = process.env.FRONTEND_URL;
+  process.env.FRONTEND_URL = 'https://app.comuva.test';
+  try {
+    const harness = loadHarness();
+    await harness.controller.googleCallback({ ...makeRequest(), user: USER }, makeResponse());
+    await harness.controller.googleCallback({ ...makeRequest(), user: USER }, makeResponse());
+    assert.equal(harness.calls.create.length, 2);
+    assert.deepEqual(harness.calls.create.map(({ userId }) => userId), [USER.id, USER.id]);
+  } finally {
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
+  }
+});
 
 test('POST refresh rota, reconstruye usuario, emite cookie y JSON sin refresh secret', async () => {
   const harness = loadHarness({ service: {

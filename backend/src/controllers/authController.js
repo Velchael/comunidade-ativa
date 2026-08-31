@@ -10,8 +10,12 @@ const {
   AuthSessionError,
   createAuthSessionService
 } = require('../services/authSessionService');
-const { REFRESH_COOKIE_NAME } = require('../utils/authCookies');
-const { setRefreshCookie, clearRefreshCookie } = require('../utils/authCookies');
+const {
+  REFRESH_COOKIE_NAME,
+  buildRefreshCookieOptions,
+  setRefreshCookie,
+  clearRefreshCookie
+} = require('../utils/authCookies');
 require('dotenv').config();
 
 const MAX_REFRESH_AGE_SECONDS = 7 * 24 * 60 * 60;
@@ -128,28 +132,52 @@ const login = async (req, res) => {
   }
 };
 
-// Google callback existing (tu versión). Aquí solamente se firma y redirige con token
+const buildGoogleCallbackRedirect = () => {
+  const frontendUrl = new URL(process.env.FRONTEND_URL);
+  if (!['http:', 'https:'].includes(frontendUrl.protocol)) {
+    throw new TypeError('FRONTEND_URL must use HTTP or HTTPS');
+  }
+  return new URL('/seinscrever', frontendUrl).toString();
+};
+
 const googleCallback = async (req, res) => {
+  const user = req.user;
+  if (!Number.isInteger(user?.id) || user.id <= 0) {
+    return res.status(401).json({ message: 'Erro na autenticação Google (usuário inválido)' });
+  }
+
+  let committed;
   try {
-    const user = req.user;
-    if (!user || !user.id) return res.status(401).json({ message: 'Erro na autenticação Google (usuário inválido)' });
-
-    const payload = {
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      rol_global: user.rol_global || user.rol,
-      username: user.username,
-      googleId: user.googleId,
-      comunidad_id: user.comunidad_id || null
-    };
-
-    const token = createToken(payload, '30m'); // token de redirección más corto
-    const redirectURL = `${process.env.FRONTEND_URL}/seinscrever?token=${token}`;
-    return res.redirect(redirectURL);
+    const redirectURL = buildGoogleCallbackRedirect();
+    const context = cookieContext(req);
+    committed = await sequelize.transaction(async (transaction) => {
+      const created = await authSessionService.createSession({ userId: user.id, transaction });
+      const cookieOptions = buildRefreshCookieOptions({ session: created.session, ...context });
+      return { credential: created.credential, cookieOptions, redirectURL };
+    });
   } catch (err) {
-    console.error('❌ Error en callback Google:', err.message);
+    console.error('❌ Error en callback Google antes de emitir cookie');
     return res.status(500).json({ message: 'Erro interno na autenticação com Google' });
+  }
+
+  try {
+    res.cookie(REFRESH_COOKIE_NAME, committed.credential, committed.cookieOptions);
+  } catch (_) {
+    console.error('❌ Error al emitir cookie Google después del commit');
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Erro interno na autenticação com Google' });
+    }
+    return undefined;
+  }
+
+  try {
+    return res.redirect(committed.redirectURL);
+  } catch (_) {
+    console.error('❌ Error al redirigir callback Google después del commit');
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Erro interno na autenticação com Google' });
+    }
+    return undefined;
   }
 };
 
