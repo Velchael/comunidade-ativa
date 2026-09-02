@@ -4,8 +4,8 @@
 
 ## Estado del documento
 
-- Alcance: cierre de Fase D
-- Estado: `COMPLETADO`
+- Alcance: cierre de Fase 1D
+- Estado: `FASE 1D CERRADA Y VALIDADA EN PRODUCCIÓN`
 - Fuente de validación: código actual de `backend`, `frontend` y migraciones Sequelize
 - Regla oficial: este documento describe el sistema real implementado, no el diseño aspiracional
 
@@ -21,13 +21,17 @@ COMUVA es una plataforma comunitaria con arquitectura híbrida:
 - ownership local por comunidad
 - membresías locales por comunidad
 - moderación contextual
-- sesión frontend sincronizada periódicamente con el backend
+- sesiones persistentes server-side con refresh cookie HttpOnly
+- access JWT corto en memoria frontend
 
 ## Estado por área
 
 ### `COMPLETADO`
 
 - autenticación JWT con `login`, `me` y `refresh`
+- sesiones persistentes en `auth_sessions`
+- refresh cookie `comuva_refresh`
+- logout backend por sesión presentada
 - sincronización de sesión desde backend en `UserContext`
 - modelo `comunidades`
 - modelo `users`
@@ -46,6 +50,7 @@ COMUVA es una plataforma comunitaria con arquitectura híbrida:
 - `rol_global` en `users`
 - `rol_comunidad` en `comunidad_miembros`
 - `owner_user_id` en `comunidades`
+- `auth_sessions` para persistencia segura de sesión
 - `refreshAuthSession`
 - polling de `Interacciones`
 - middlewares híbridos de comunidad
@@ -58,6 +63,7 @@ COMUVA es una plataforma comunitaria con arquitectura híbrida:
 - interacciones
 - respuestas
 - refresco de sesión y rehidratación del usuario autenticado
+- autenticación persistente con cookie HttpOnly validada en producción
 
 Estas áreas ya tienen flujo backend coherente, persistencia real en PostgreSQL y representación frontend alineada con el backend.
 
@@ -158,6 +164,39 @@ Estado:
 - `EN USO`
 - `SOURCE OF TRUTH` para permisos locales, junto con `owner_user_id`
 
+### `auth_sessions`
+
+Tabla oficial de sesiones persistentes de autenticación.
+
+Campos relevantes:
+
+- `id`
+- `user_id`
+- `family_id`
+- `refresh_token_hash`
+- `previous_refresh_token_hash`
+- `rotation_counter`
+- `rotated_at`
+- `previous_valid_until`
+- `last_used_at`
+- `expires_at`
+- `absolute_expires_at`
+- `revoked_at`
+- `revoked_reason`
+
+Rol de la tabla:
+
+- persistir sesiones independientes por browser, device o login context
+- permitir múltiples sesiones activas coexistentes del mismo usuario
+- almacenar sólo hashes SHA-256 de refresh credentials
+- sostener rotación, race grace y revocación por sesión presentada
+
+Estado:
+
+- `EN USO`
+- `SOURCE OF TRUTH` para refresh persistente server-side
+- no define un constraint de exactamente una sesión por dispositivo
+
 ## 2.2 Relaciones oficiales
 
 ### `users` -> `comunidades`
@@ -221,59 +260,87 @@ Si hay divergencia entre lo persistido localmente y la base real, el backend cor
 
 ---
 
-# 3A. Estado actual auditado de autenticación y persistencia de sesión
+# 3A. Autenticación y persistencia de sesión
 
-## 3A.1 Estado de la auditoría
-
-La implementación real de autenticación, Google OAuth, JWT, `UserContext`,
-`/api/auth/refresh`, logout, persistencia frontend, QR/invitaciones y su relación con
-la PWA y Web Push fue auditada contra el código y el schema PostgreSQL vigentes.
+## 3A.1 CURRENT PRODUCTION STATE
 
 Estado:
 
-- `AUDITORÍA COMPLETADA`
-- `/api/auth/refresh` = `AUDITADO`
-- arquitectura de sesión persistente nueva = `NO IMPLEMENTADA`
-- siguiente paso = diseñar y aprobar la implementación de sesión persistente segura
-  basándose en esta auditoría, antes de modificar código
+- `FASE 1D CERRADA Y VALIDADA EN PRODUCCIÓN`
+- autenticación persistente server-side implementada
+- Google direct callback validado en producción
+- redirect limpio sin JWT en URL
+- refresh cookie HttpOnly validada
+- access JWT corto emitido después del refresh
+- logout/revocación por sesión presentada validado
 
-## 3A.2 Estrategia de autenticación actual confirmada
+COMUVA usa actualmente:
 
-COMUVA utiliza actualmente autenticación stateless con un único JWT propio:
+- Google OAuth mediante Passport con `session: false`
+- login legacy por email y contraseña
+- tabla/modelo productivo `auth_sessions`
+- refresh credential opaca en cookie HttpOnly
+- access JWT corto para llamadas autenticadas
+- access JWT moderno guardado sólo en memoria frontend
+- backend y PostgreSQL RDS como autoridad de usuario, comunidad, ownership,
+  membresía y roles
 
-- Google OAuth funciona mediante Passport con `session: false`
-- también existe login por email y contraseña
-- no existe una sesión persistente server-side
-- no existe un refresh token independiente
-- no existen tablas `sessions` ni `refresh_tokens` en el schema auditado
-- tampoco existe actualmente una tabla `auth_sessions`
-- no existe revocación server-side de JWT
-- no existe un endpoint backend real de logout
+`auth_sessions` representa sesiones independientes por browser, device o login
+context. Pueden coexistir múltiples sesiones activas del mismo usuario. El modelo no
+define ni garantiza un constraint de exactamente una sesión por dispositivo.
 
-El frontend mantiene:
+Campos contractuales relevantes de `auth_sessions`:
 
-- `localStorage.token` = JWT actual
-- `localStorage.user` = snapshot/caché del usuario para representación frontend,
-  nunca autoridad
-- `Authorization: Bearer <JWT>` = transporte de la credencial en llamadas
-  autenticadas
+- `id`
+- `user_id`
+- `family_id`
+- `refresh_token_hash`
+- `previous_refresh_token_hash`
+- `rotation_counter`
+- `rotated_at`
+- `previous_valid_until`
+- `last_used_at`
+- `expires_at`
+- `absolute_expires_at`
+- `revoked_at`
+- `revoked_reason`
 
-El logout actual es exclusivamente frontend: elimina la credencial y el snapshot
-locales. No invalida el JWT en backend.
+## 3A.2 Refresh credential y cookie
+
+La refresh credential de COMUVA es opaca para el cliente. El formato implementado es:
+
+- `sessionId.secret`
+- `sessionId` = UUID canónico de `auth_sessions.id`
+- `secret` = 32 bytes aleatorios codificados en base64url
+
+El plaintext de la refresh credential nunca se almacena en RDS. La tabla persiste
+sólo `SHA-256(secret)` en `refresh_token_hash`. Durante la rotación, el hash anterior
+se conserva temporalmente en `previous_refresh_token_hash` para manejar races.
+
+Cookie productiva:
+
+- nombre: `comuva_refresh`
+- `HttpOnly`
+- `Secure` en producción
+- `SameSite=Lax`
+- `Path=/api/auth`
+- host-only
+- sin `Domain`
+- `maxAge` limitado por el mínimo entre `expires_at` y `absolute_expires_at`
+
+TTL reales:
+
+- access JWT: `15 minutos`
+- inactivity lifetime: `180 días`
+- absolute lifetime: `365 días`
+- race grace: `10 segundos`
 
 ## 3A.3 Access JWT actual
 
-Duraciones confirmadas en código:
+El access JWT moderno se emite con `createAccessToken` y contiene `token_use:
+'access'`. Su TTL real es `15m`.
 
-- callback de Google OAuth = JWT inicial de `30m`
-- login por email/contraseña = JWT de `120m`
-- `/api/auth/refresh` = JWT nuevo de `120m`
-- valor por defecto de `createToken` = `120m`
-
-Estas duraciones están actualmente definidas en código y no mediante una variable
-específica de expiración.
-
-El JWT incluye como datos de autenticación:
+Payload relevante:
 
 - `id`
 - `email`
@@ -282,75 +349,241 @@ El JWT incluye como datos de autenticación:
 - `username`
 - `googleId`
 - `comunidad_id`
+- `token_use='access'`
 - `iat` y `exp` agregados por la biblioteca JWT
 
-El callback Google redirige actualmente al frontend con el JWT temporalmente en la
-query string de `/seinscrever?token=<JWT>`. El frontend lo retira después de procesar
-la respuesta, pero su paso por la URL sigue siendo un riesgo pendiente.
+El frontend moderno no persiste este access JWT en `localStorage`; vive en memoria de
+`authClient`. Tras reload o nueva apertura, el frontend recupera sesión mediante
+`POST /api/auth/refresh` usando la cookie HttpOnly.
 
-Los access token y refresh token propios de Google que Passport recibe durante OAuth
-no se utilizan como sesión persistente de COMUVA.
+## 3A.4 Endpoints auth actuales
 
-## 3A.4 Naturaleza exacta del refresh actual
+### CURRENT PRODUCTION STATE
 
-`/api/auth/refresh` no implementa un refresh token separado. Su funcionamiento real
-actual es:
+`POST /api/auth/refresh`
 
-1. recibe el mismo JWT mediante `Authorization: Bearer <JWT>`;
-2. verifica su firma con `JWT_SECRET` usando `ignoreExpiration: true`;
-3. exige un payload con `id` e `iat`;
-4. acepta renovarlo hasta 7 días desde ese `iat`;
-5. vuelve a consultar el usuario en PostgreSQL;
-6. reconstruye usuario, comunidad, ownership, membresía y rol efectivo mediante el
-   backend;
-7. devuelve un JWT nuevo de `120m` y un snapshot autenticado nuevo.
+- requiere origen permitido por `requireAuthOrigin`
+- lee `comuva_refresh`
+- valida y rota refresh credential bajo lock transaccional
+- actualiza `previous_refresh_token_hash`, `rotation_counter`, `rotated_at`,
+  `previous_valid_until`, `last_used_at` y `expires_at`
+- reconstruye el usuario autoritativo desde PostgreSQL
+- emite nueva cookie `comuva_refresh`
+- devuelve `access_token`, `token_type='Bearer'`, `expires_in=900` y `user`
+- devuelve `409 AUTH_REFRESH_RACE` para carrera recuperable dentro del grace
+- limpia cookie en errores definitivos 401
+- preserva sincronización browser/backend ante fallos temporales posteriores al
+  commit de rotación
 
-Cada renovación crea un `iat` nuevo. Por ello, el comportamiento actual produce una
-ventana deslizante: mientras el JWT vigente sea renovado antes de superar los 7 días
-desde su emisión, la nueva credencial reinicia esa ventana.
+`POST /api/auth/logout`
 
-Este mecanismo debe denominarse renovación del mismo JWT, no refresh token.
+- requiere origen permitido por `requireAuthOrigin`
+- es idempotente
+- revoca únicamente la sesión presentada por la cookie actual
+- usa `revoked_at` y `revoked_reason='user_logout'`
+- limpia la cookie aunque la credencial ya no sea válida
 
-## 3A.5 Rehidratación y manejo de errores actual
+`POST /api/auth/session/migrate`
 
-`UserContext`:
+- bridge temporal desde JWT legacy
+- acepta JWT legacy válido o expirado recientemente hasta 7 días desde `iat`
+- rechaza access JWT moderno con `token_use='access'`
+- crea `auth_session`, emite cookie y devuelve access JWT corto
+- no fue eliminado y debe conservarse mientras existan clientes/sesiones legacy
 
-- recupera token y snapshot desde `localStorage`
-- configura el Bearer token de Axios
-- entra en estado de hidratación cuando encuentra una credencial local
-- llama a `/api/auth/refresh`
-- reemplaza token y snapshot con la respuesta reconstruida por el backend
-- vuelve a sincronizar al recuperar foco, visibilidad y mediante intervalo
+### LEGACY COMPATIBILITY
 
-El backend sigue siendo la única autoridad sobre usuario, comunidad, ownership,
-membresías y roles.
+`GET /api/auth/refresh` sigue existiendo como endpoint legacy Bearer:
 
-Riesgo confirmado: cualquier excepción durante `refreshAuthSession()`, incluidos
-problemas temporales de red o servidor, puede ejecutar el logout frontend y eliminar
-la única credencial local, aunque el fallo no demuestre que la sesión sea inválida.
+- recibe el JWT legacy por `Authorization: Bearer`
+- verifica firma con `ignoreExpiration: true`
+- renueva hasta 7 días desde `iat`
+- devuelve `{ token, user }`
+- no emite refresh cookie
+- no rota `auth_sessions`
 
-## 3A.6 Invitaciones, QR y persistencia de intención
+Este endpoint debe documentarse como compatibilidad, no como el flujo moderno.
 
-La intención pendiente del flujo QR/invitación se conserva actualmente en:
+## 3A.5 Google OAuth
 
-- `sessionStorage["comuva.pendingInvitationPath"]`
+### CURRENT FLOW
 
 Flujo actual:
 
-`/convite/<token>` -> guardar intención en `sessionStorage` -> Google OAuth -> callback
--> hidratación de usuario -> retorno a `/convite/<token>` -> aceptación backend.
+`GET /api/auth/google`
+-> Passport Google
+-> callback `/api/auth/google/callback`
+-> `googleCallback`
+-> `authSessionService.createSession({ userId, transaction })`
+-> `buildRefreshCookieOptions` dentro de la transacción
+-> commit
+-> `Set-Cookie: comuva_refresh`
+-> redirect limpio a `/seinscrever`
+-> frontend bootstrap
+-> `POST /api/auth/refresh`
+-> access JWT corto + usuario autoritativo.
 
-Esta intención puede sobrevivir la redirección OAuth dentro de la misma pestaña y
-origin, pero no debe considerarse persistente entre pestañas, navegadores, WebViews o
-después de cerrar la sesión de navegación.
+El callback Google actual:
 
-Las invitaciones permanentes, su token, hash, validaciones backend y reglas de
-elegibilidad permanecen independientes de la futura arquitectura de sesión.
+- no crea JWT para el redirect
+- no usa `?token=`
+- no llama `createAccessToken`
+- no llama `buildAuthUserResponse`
+- no devuelve secret ni datos sensibles en la URL
+- emite la cookie sólo después de que la transacción commit exitosamente
 
-## 3A.7 Relación con PWA y Web Push actuales
+Validación productiva Fase 1D:
 
-La PWA y Web Push Nivel 2 ya existentes se conservan. No necesitan ser rediseñados
-para resolver persistencia de autenticación.
+- Google direct callback OK
+- exactly one `auth_session` para el intento E2E controlado
+- `/session/migrate = 0` en nuevos logins Google
+- `/seinscrever?token= = 0`
+- `POST /api/auth/refresh = 200`
+- rotación normal
+- sesión persistente
+- retorno correcto a invitación
+- membership creada sólo después de aceptación explícita
+- logout/no-restauración previamente validado
+
+La observación "exactly one `auth_session`" describe el intento E2E controlado. No es
+un constraint global del modelo ni impide múltiples sesiones activas del mismo usuario.
+
+### LEGACY FALLBACK
+
+`/api/auth/session/migrate` conserva compatibilidad con el callback histórico que
+entregaba un JWT legacy a `/seinscrever?token=...`. `Seinscrever` todavía acepta
+`?token=` legacy, limpia la URL y migra la sesión si aparece.
+
+Ese fallback no forma parte del flujo Google moderno.
+
+## 3A.6 Frontend auth
+
+Estados actuales de `UserContext`:
+
+- `hydrating`
+- `authenticated`
+- `unauthenticated`
+- `temporarilyUnavailable`
+
+Bootstrap actual:
+
+- arranca en `hydrating`
+- intenta `POST /api/auth/refresh` con cookie HttpOnly
+- si no hay cookie utilizable y existe `localStorage.token`, intenta migración legacy
+- si no hay cookie ni legacy, queda `unauthenticated`
+- si hay error temporal 5xx/network, queda `temporarilyUnavailable`
+
+Persistencia frontend actual:
+
+- access JWT moderno vive sólo en memoria
+- `localStorage.token` no es la credencial moderna principal
+- `localStorage.token` queda sólo como bridge temporal legacy
+- `localStorage.user` no autentica ni se usa como autoridad
+
+Single-flight:
+
+- `refreshInFlight` controla refresh concurrentes
+- `migrateInFlight` controla migraciones concurrentes
+
+Auth generation:
+
+- `authEpoch` invalida operaciones y respuestas pertenecientes a una generación
+  anterior de autenticación
+- respuestas tardías después de logout o de una nueva sesión no restauran un estado
+  obsoleto
+
+Otros comportamientos reales:
+
+- `logoutPending` bloquea requests protegidas nuevas durante logout remoto pendiente
+- `logoutPending` permite retry de logout remoto
+- refresh preventivo cuando el access JWT vence en `<= 2 min`
+- listeners de recuperación: `focus`, `visibilitychange`, `online`
+- 401 `AUTH_ACCESS_EXPIRED` refresca y reintenta una vez
+- errores 5xx/network no deben transformarse automáticamente en credenciales
+  inválidas
+- no existe polling periódico global de autenticación en `UserContext`
+
+## 3A.7 Invitaciones, link/QR y persistencia de intención
+
+### CURRENT PRODUCTION CONTRACT
+
+La intención pendiente del flujo link/QR de invitación se conserva en:
+
+- `sessionStorage["comuva.pendingInvitationPath"]`
+
+Flujo validado:
+
+`/convite/:token`
+-> validación pública
+-> `pendingInvitationPath`
+-> Google
+-> callback directo
+-> refresh
+-> retorno al mismo convite
+-> membership todavía `0`
+-> aceptación explícita
+-> backend valida
+-> `comunidad_miembros`
+-> acceso real a comunidad.
+
+El flujo mediante link `/convite/:token` fue validado E2E en producción durante Fase
+1D. El escaneo físico de QR no fue probado como E2E separado; el QR representa y
+resuelve al mismo flujo de convite. QR/link no decide membership. El frontend sólo
+conserva la intención de volver al convite. Backend/PostgreSQL RDS es la autoridad
+sobre elegibilidad, aceptación y creación de membresía.
+
+## 3A.8 Contrato real de invitaciones y `max_usos`
+
+### HISTORICAL / PLANNED DESIGN
+
+El diseño histórico contemplaba invitación individual con `max_usos=1`.
+
+### CURRENT PRODUCTION STATE
+
+La creación productiva actual fuerza:
+
+- `estado='activa'`
+- `expires_at=null`
+- `max_usos=null`
+- `usos_actuales=0`
+
+Comportamiento auditado:
+
+- una nueva invitación revoca invitaciones activas previas de esa comunidad
+- la aceptación nueva incrementa `usos_actuales`
+- la aceptación nueva actualiza `last_used_at`
+- una invitación ilimitada permanece `activa`
+- `already_member` es idempotente y no incrementa uso
+- `membership_inactive` devuelve `409`
+- `already_has_community` devuelve `409`
+- invitaciones históricas limitadas siguen respetando `max_usos`
+
+### PENDING PRODUCT DECISION
+
+La diferencia entre el diseño histórico individual y el contrato productivo actual
+permanente/ilimitado queda registrada como decisión de producto pendiente. No se debe
+cambiar código desde este documento.
+
+## 3A.9 PWA, Web Push y onboarding
+
+### CURRENT PRODUCTION STATE
+
+Infraestructura PWA/Web Push existente:
+
+- `manifest.json`
+- `start_url=/`
+- `display=standalone`
+- `scope=/` mediante registro del Service Worker
+- iconos `favicon.ico`, `logo192.png`, `logo512.png`
+- `theme_color=#2e7d32`
+- `background_color=#ffffff`
+- Service Worker en `/service-worker.js`
+- manejo de `push`
+- manejo de `notificationclick`
+- Web Push con VAPID
+- tabla `push_subscriptions`
+- activación/desactivación de notificaciones desde perfil
+- detección standalone/iOS usada actualmente para Push
 
 Separación oficial:
 
@@ -362,43 +595,85 @@ Separación oficial:
 - `push_subscriptions`, VAPID y `notificationDeliveryService` permanecen separados de
   auth
 
-En iOS no debe basarse la futura persistencia en que `localStorage` del navegador sea
-transferido a la PWA instalada. La restauración futura debe depender de una
-credencial segura validada por el backend y no de asumir que el almacenamiento local
-se comparte o se copia entre esos contextos.
+### NOT IMPLEMENTED YET
 
-## 3A.8 PROPUESTA / PENDIENTE DE APROBACIÓN
+Todavía no existe:
 
-La siguiente arquitectura es resultado recomendado de la auditoría. No está
-implementada, desplegada ni aprobada para desarrollo:
+- `beforeinstallprompt`
+- `appinstalled`
+- install state integrado al onboarding
+- botón/promoción post-aceptación
+- flujo guiado de instalación móvil/desktop
 
-- access JWT corto
-- refresh credential aleatoria y opaca
-- almacenamiento exclusivo del hash de la refresh credential en PostgreSQL
-- cookie persistente con `HttpOnly`, `Secure` y `SameSite=Lax`
-- tabla propuesta `auth_sessions`
-- una sesión independiente por dispositivo/navegador
-- rotación de refresh credential
-- revocación por sesión y, cuando corresponda, global
-- detección de reutilización/replay
-- `POST /api/auth/refresh`
-- `POST /api/auth/logout`
-- bootstrap/hydration global frontend antes de decidir entre UI autenticada y login
-- evitar el paso de JWT sensible por la query string del callback OAuth
-- conservar backend y PostgreSQL RDS como autoridad de usuario, estado, comunidad,
-  ownership, membresía y roles
+COMUVA no puede instalarse automáticamente. El navegador y el usuario controlan la
+instalación. La instalación PWA no debe ser requisito para entrar en la comunidad ni
+para usar la web normal.
 
-Estado explícito de esta propuesta:
+Regla de validación para Fase 1E:
 
-- `auth_sessions` = `NO EXISTE`
-- refresh basado en cookie = `NO EXISTE`
-- rotación = `NO IMPLEMENTADA`
-- revocación = `NO IMPLEMENTADA`
-- replay detection = `NO IMPLEMENTADA`
-- endpoints POST nuevos de refresh/logout = `NO IMPLEMENTADOS`
+- no asumir que instalar o abrir la PWA conserva o transfiere automáticamente el
+  estado de autenticación del navegador
+- la restauración de sesión de una PWA instalada debe validarse E2E por plataforma
+- la restauración debe depender de credenciales aceptadas y validadas por backend
+- no depender de asumir transferencia de `localStorage`
+- no depender de asumir transferencia automática de sesión entre contextos sin prueba
+  real
 
-Antes de implementar será obligatorio presentar archivos afectados, diff completo,
-explicación técnica y riesgos, y esperar aprobación explícita.
+Experiencia objetivo futura:
+
+`convite`
+-> autenticación
+-> aceptación
+-> acceso a comunidad
+-> ofrecer "Instalar COMUVA"
+-> prompt nativo cuando esté disponible.
+
+## 3A.10 HISTORICAL ISSUES RESOLVED
+
+Quedan registrados como problemas históricos resueltos por Fase 1D:
+
+- ausencia de `auth_sessions`
+- ausencia de refresh cookie HttpOnly
+- ausencia de logout backend por sesión
+- Google callback con JWT en query string
+- access JWT persistido como credencial moderna principal
+- pérdida de sesión ante reload sin bridge server-side
+- separación entre autenticación Google y aceptación explícita de membership,
+  validada E2E en producción
+- Google/auth_session no crea `comunidad_miembros`; la membership aparece únicamente
+  después de la aceptación explícita del convite
+
+## 3A.11 PENDING HARDENING
+
+Pendientes conocidos:
+
+- OAuth `state` sigue ausente
+- auditar estrategia de account linking entre `email` y `googleId`
+- evaluar selección explícita de cuenta Google con `prompt=select_account`
+- desvincular `PushSubscription` durante logout
+- evaluar `pageshow`/BFCache sólo como posible hardening UX, no como bug confirmado
+- aplicar rate limiting a validación pública de invitaciones
+- revisar alineación de códigos `AUTH_*` entre frontend y backend
+
+## 3A.12 NEXT PHASE
+
+NEXT: `FASE 1E — PWA INSTALLATION / ONBOARDING`
+
+Objetivo:
+
+- integrar una experiencia de instalación PWA después de la incorporación exitosa
+
+Debe contemplar posteriormente:
+
+- Android/Chrome
+- desktop Chromium
+- iOS/Safari fallback manual
+- detección de PWA ya instalada
+- `beforeinstallprompt` donde exista
+- `appinstalled`
+- no Play Store
+- no instalación silenciosa
+- no bloquear uso web normal
 
 ---
 
@@ -791,6 +1066,12 @@ Para autorización local:
 - `Interacciones` usa polling con foco/visibilidad y relectura del backend
 - `auth/refresh` recompone el estado autenticado real desde PostgreSQL
 
+Nota histórica:
+
+- en Fase C, `auth/refresh` todavía describía el refresh legacy basado en JWT
+- desde Fase 1D, el refresh moderno productivo es `POST /api/auth/refresh` con
+  cookie HttpOnly y `auth_sessions`
+
 ## Resultado arquitectónico
 
 - backend consolidado como fuente de verdad
@@ -840,6 +1121,35 @@ Cualquier implementación que haya permitido crear una membresía secundaria dur
 
 ---
 
+# 9A. Fase 1D
+
+## Estado
+
+- `CERRADA Y VALIDADA EN PRODUCCIÓN`
+
+## Cierre funcional validado
+
+- persistent auth sessions en `auth_sessions`
+- Google direct callback
+- refresh cookie HttpOnly `comuva_refresh`
+- redirect limpio a `/seinscrever`
+- no JWT en URL
+- access JWT corto obtenido posteriormente por refresh
+- retorno correcto a invitación
+- membership creada sólo después de aceptación explícita
+- logout/revocación y persistencia validados
+- cero loops/races/5xx relevantes en validación productiva
+
+## Resultado arquitectónico
+
+- autenticación moderna separada entre refresh credential server-side y access JWT
+  corto
+- compatibilidad legacy conservada por `GET /api/auth/refresh` y
+  `POST /api/auth/session/migrate`
+- Web Push y Service Worker permanecen separados de la sesión autenticada
+
+---
+
 # 10. Estado actual validado
 
 Validado contra código actual:
@@ -876,9 +1186,10 @@ No implica que `grupos`, `tareas` y `reportes` ya estén completamente alineados
 
 - estado: `COMPLETADO`
 - uso: `EN USO`
-- observación: backend recompone sesión desde DB; `/api/auth/refresh` ya fue auditado
-  y actualmente renueva el mismo JWT, no un refresh token separado
-- persistencia segura por cookie y sesión server-side: `PROPUESTA / PENDIENTE DE APROBACIÓN`
+- observación: `POST /api/auth/refresh` rota refresh credential por cookie HttpOnly,
+  recompone el usuario desde PostgreSQL y emite access JWT corto
+- compatibilidad: `GET /api/auth/refresh` legacy Bearer sigue disponible
+- migración: `POST /api/auth/session/migrate` sigue disponible como bridge temporal
 
 ## `comunidades`
 
@@ -933,7 +1244,9 @@ No implica que `grupos`, `tareas` y `reportes` ya estén completamente alineados
 - frontend como vista sincronizada
 - ownership estructural separado de rol global
 - membresía local separada de rol global
-- refresh de sesión como mecanismo de corrección de estado
+- refresh cookie HttpOnly + `auth_sessions` como persistencia moderna de sesión
+- access JWT corto en memoria como credencial de request
+- Google callback limpio sin JWT en query string
 
 ## `DEPRECADO`
 
@@ -946,12 +1259,42 @@ No implica que `grupos`, `tareas` y `reportes` ya estén completamente alineados
 - política oficial de multi-comunidad
 - normalización total de módulos legacy
 - sustitución del polling por tiempo real
-- diseñar y aprobar la implementación de sesión persistente segura basándose en la
-  auditoría completada, antes de modificar autenticación
+- hardening de OAuth `state`, account linking, selección explícita de cuenta Google,
+  PushSubscription logout, BFCache UX, rate limiting de invitaciones y alineación de
+  códigos `AUTH_*`
 
 ---
 
 # 13. Roadmap
+
+## Fase 1E
+
+Estado:
+
+- `PENDIENTE`
+
+Nota:
+
+- Fase 1E es la continuación inmediata del track 1 de autenticación/onboarding,
+  dedicada a PWA installation/onboarding
+- no renumera ni reemplaza la Fase E histórica del roadmap
+
+Objetivo:
+
+- PWA installation / onboarding
+- integrar una experiencia de instalación después de incorporación exitosa
+- ofrecer instalación sin bloquear uso web normal ni entrada a la comunidad
+
+Debe contemplar:
+
+- Android/Chrome
+- desktop Chromium
+- iOS/Safari fallback manual
+- detección de PWA ya instalada
+- `beforeinstallprompt` donde exista
+- `appinstalled`
+- no Play Store
+- no instalación silenciosa
 
 ## Fase E
 
@@ -1022,18 +1365,22 @@ Evaluar:
 
 # 14. Conclusión oficial
 
-Al cierre de Fase D, COMUVA ya tiene un núcleo arquitectónico estable:
+Al cierre de Fase 1D, COMUVA ya tiene un núcleo arquitectónico estable:
 
-- autenticación con refresh
+- autenticación persistente con `auth_sessions`
+- refresh cookie HttpOnly y access JWT corto en memoria
 - backend como fuente de verdad
 - ownership persistido
 - membresías locales
 - sistema híbrido de roles operativo
 - moderación contextual funcional
 
-La siguiente prioridad no es redefinir lo ya resuelto, sino alinear `grupos`, `tareas` y `reportes` al mismo estándar antes de abrir multi-comunidad y tiempo real.
+El flujo Google directo quedó validado en producción sin JWT en URL, con redirect
+limpio, sesión persistente, retorno correcto a invitación y aceptación explícita antes
+de crear membresía.
 
-En autenticación, `/api/auth/refresh` ya fue auditado y su comportamiento real está
-documentado. El siguiente paso es diseñar y aprobar una sesión persistente segura
-basada en esa evidencia antes de modificar código; la arquitectura propuesta todavía
-no está implementada.
+La siguiente prioridad inmediata es `FASE 1E — PWA INSTALLATION / ONBOARDING`: ofrecer
+instalación PWA después de la incorporación exitosa, sin Play Store, sin instalación
+silenciosa y sin bloquear el uso web normal. Las prioridades históricas de alinear
+`grupos`, `tareas` y `reportes`, definir multi-comunidad y sustituir polling por
+tiempo real siguen pendientes.
