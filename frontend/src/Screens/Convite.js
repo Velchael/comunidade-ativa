@@ -10,6 +10,7 @@ import {
 import GoogleAuthStep from '../components/GoogleAuthStep';
 import OnboardingLayout from '../components/OnboardingLayout';
 import OnboardingStatusCard from '../components/OnboardingStatusCard';
+import { usePwaInstall } from '../PwaInstallContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
@@ -24,6 +25,14 @@ export default function Convite({
     isHydrating,
     refreshAuthSession
   } = useContext(UserContext);
+  const {
+    isInstalled,
+    isManualInstall,
+    isPrompting,
+    isDismissed,
+    canPrompt,
+    promptInstall
+  } = usePwaInstall();
 
   const invitationPath = `/convite/${encodeURIComponent(invitationToken || '')}`;
   const [validation, setValidation] = useState(null);
@@ -35,6 +44,7 @@ export default function Convite({
   const [acceptanceOutcome, setAcceptanceOutcome] = useState(null);
   const [refreshingAfterAcceptance, setRefreshingAfterAcceptance] = useState(false);
   const [refreshAfterAcceptanceFailed, setRefreshAfterAcceptanceFailed] = useState(false);
+  const [showManualInstallHelp, setShowManualInstallHelp] = useState(false);
   const mountedRef = useRef(false);
   const currentTokenRef = useRef(invitationToken);
   const validationRequestSequenceRef = useRef(0);
@@ -166,6 +176,7 @@ export default function Convite({
     setAcceptanceOutcome(null);
     acceptanceOutcomeContextRef.current = null;
     setRefreshAfterAcceptanceFailed(false);
+    setShowManualInstallHelp(false);
     validateInvitation({ token: invitationToken });
   }, [invitationToken, validateInvitation]);
 
@@ -315,6 +326,15 @@ export default function Convite({
     });
   };
 
+  const handlePromptInstall = async () => {
+    if (!canPrompt || isPrompting) return;
+    await promptInstall();
+  };
+
+  const handleToggleManualInstallHelp = () => {
+    setShowManualInstallHelp((currentValue) => !currentValue);
+  };
+
   const handleLoginAgain = () => {
     clearPendingInvitation();
     navigate('/Seinscrever');
@@ -331,6 +351,55 @@ export default function Convite({
   const isAcceptingCurrentInvitation =
     accepting && activeAcceptanceRef.current?.token === invitationToken;
   const isAcceptanceGloballyBlocked = acceptingRef.current;
+  const shouldOfferPwaInstall =
+    acceptanceOutcome === 'new-member' &&
+    !refreshingAfterAcceptance &&
+    !refreshAfterAcceptanceFailed &&
+    !isInstalled &&
+    !isDismissed &&
+    (canPrompt || isPrompting || isManualInstall);
+
+  const pwaInstallOffer = shouldOfferPwaInstall ? (
+    <div className="invitation-pwa-offer">
+      <div className="invitation-pwa-offer__actions">
+        {(canPrompt || isPrompting) && (
+          <button
+            type="button"
+            className="btn btn-outline-primary"
+            disabled={isPrompting}
+            onClick={handlePromptInstall}
+          >
+            {isPrompting ? 'Instalando...' : 'Instalar COMUVA'}
+          </button>
+        )}
+        {isManualInstall && (
+          <button
+            type="button"
+            className="btn btn-outline-primary"
+            aria-expanded={showManualInstallHelp}
+            aria-controls="invitation-pwa-manual-help"
+            onClick={handleToggleManualInstallHelp}
+          >
+            Como instalar COMUVA
+          </button>
+        )}
+      </div>
+      {isManualInstall && showManualInstallHelp && (
+        <div
+          id="invitation-pwa-manual-help"
+          className="invitation-pwa-offer__manual-help"
+          role="region"
+          aria-label="Instruções para instalar COMUVA"
+        >
+          <ol>
+            <li>Toque em Compartilhar.</li>
+            <li>Escolha "Adicionar à Tela de Início".</li>
+            <li>Confirme "Adicionar".</li>
+          </ol>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   if (acceptanceOutcome === 'already-member') {
     content = refreshingAfterAcceptance ? (
@@ -341,7 +410,7 @@ export default function Convite({
         title="Você já faz parte desta comunidade."
         actions={refreshAfterAcceptanceFailed
           ? [{ label: authToken ? 'Tentar atualizar sessão' : 'Entrar novamente', onClick: authToken ? handleRetryRefresh : handleLoginAgain }]
-          : [{ label: 'Ir para a comunidade', onClick: () => navigate('/interacciones', { replace: true }) }]}
+          : [{ label: 'Entrar na comunidade', onClick: () => navigate('/interacciones', { replace: true }) }]}
       >
         <p>Nenhuma alteração foi necessária.</p>
         {refreshAfterAcceptanceFailed && <p>Não foi possível atualizar sua sessão agora.</p>}
@@ -362,18 +431,21 @@ export default function Convite({
     content = refreshingAfterAcceptance ? (
       <OnboardingStatusCard status="loading" title="Atualizando sua sessão..." />
     ) : (
-      <OnboardingStatusCard
-        status={refreshAfterAcceptanceFailed ? 'warning' : 'success'}
-        title="Tudo certo!"
-        actions={refreshAfterAcceptanceFailed
-          ? [{ label: authToken ? 'Tentar atualizar sessão' : 'Entrar novamente', onClick: authToken ? handleRetryRefresh : handleLoginAgain }]
-          : [{ label: 'Ir para a comunidade', onClick: () => navigate('/interacciones', { replace: true }) }]}
-      >
-        <p>Você agora faz parte de {communityName}.</p>
-        {refreshAfterAcceptanceFailed && (
-          <p>Sua entrada foi confirmada, mas não foi possível atualizar sua sessão agora.</p>
-        )}
-      </OnboardingStatusCard>
+      <>
+        <OnboardingStatusCard
+          status={refreshAfterAcceptanceFailed ? 'warning' : 'success'}
+          title="Tudo certo!"
+          actions={refreshAfterAcceptanceFailed
+            ? [{ label: authToken ? 'Tentar atualizar sessão' : 'Entrar novamente', onClick: authToken ? handleRetryRefresh : handleLoginAgain }]
+            : [{ label: 'Entrar na comunidade', onClick: () => navigate('/interacciones', { replace: true }) }]}
+        >
+          <p>Você agora faz parte de {communityName}.</p>
+          {refreshAfterAcceptanceFailed && (
+            <p>Sua entrada foi confirmada, mas não foi possível atualizar sua sessão agora.</p>
+          )}
+        </OnboardingStatusCard>
+        {pwaInstallOffer}
+      </>
     );
   }
 
