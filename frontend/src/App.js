@@ -31,6 +31,7 @@ import UserAvatar from './components/UserAvatar';
 
 // Context
 import { UserProvider, UserContext } from './UserContext';
+import { PwaInstallProvider } from './PwaInstallContext';
 import {
   canManageCommunity,
   canViewCommunityMembers,
@@ -611,14 +612,18 @@ export default function App() {
 
       <HelmetProvider>
 
-        <BrowserRouter>
+        <PwaInstallProvider>
 
-          <AppLayout
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-          />
+          <BrowserRouter>
 
-        </BrowserRouter>
+            <AppLayout
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+            />
+
+          </BrowserRouter>
+
+        </PwaInstallProvider>
 
       </HelmetProvider>
 
