@@ -43,7 +43,6 @@ function Header({ toggleSidebar }) {
   const {
     user,
     token,
-    logout,
     logoutPending,
     retryAuthentication,
     isHydrating,
@@ -247,10 +246,6 @@ function Header({ toggleSidebar }) {
 
   const handleLogin = () => navigate("/Seinscrever");
 
-  const handleLogout = () => {
-    logout?.();
-    navigate("/");
-  };
   const isGlobalAdmin = isAdminTotalGlobal(user);
   const canManageLocalCommunity = canManageCommunity(user);
   const canAccessMembersPanel = canViewCommunityMembers(user);
@@ -421,13 +416,6 @@ function Header({ toggleSidebar }) {
                   </NavDropdown>
                 )}
 
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={handleLogout}
-                >
-                Sair
-                </Button>
               </div>
             </div>
           ) : (

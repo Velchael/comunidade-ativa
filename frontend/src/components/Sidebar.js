@@ -1,11 +1,38 @@
-import React, { useContext } from "react";
-import { NavLink } from "react-router-dom";
+import React, { useContext, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { UserContext } from "../UserContext";
+import { usePwaInstall } from "../PwaInstallContext";
 import UserAvatar from "./UserAvatar";
 
 export default function Sidebar({ isOpen, toggle }) {
-  const { user, isHydrating } = useContext(UserContext);
+  const { user, isHydrating, logout } = useContext(UserContext);
+  const navigate = useNavigate();
+  const {
+    isInstalled,
+    isManualInstall,
+    isPrompting,
+    isDismissed,
+    canPrompt,
+    promptInstall
+  } = usePwaInstall();
+  const [showManualInstallHelp, setShowManualInstallHelp] = useState(false);
   const showAuthenticatedMenu = !isHydrating && Boolean(user);
+  const shouldShowInstallAction =
+    showAuthenticatedMenu &&
+    !isInstalled &&
+    !isDismissed &&
+    (canPrompt || isPrompting || isManualInstall);
+
+  const handlePromptInstall = async () => {
+    if (!canPrompt || isPrompting) return;
+    await promptInstall();
+  };
+
+  const handleLogout = () => {
+    logout?.();
+    toggle();
+    navigate("/");
+  };
 
   return (
     <>
@@ -36,6 +63,63 @@ export default function Sidebar({ isOpen, toggle }) {
         <NavLink to="/GruposActivos" onClick={toggle}>
           Grupos
         </NavLink>
+
+        {shouldShowInstallAction && (
+          <div className="sidebar-section">
+            {(canPrompt || isPrompting) && (
+              <button
+                type="button"
+                className="sidebar-action"
+                disabled={isPrompting}
+                onClick={handlePromptInstall}
+              >
+                <span aria-hidden="true">📲</span>
+                <span>{isPrompting ? "Instalando..." : "Instalar COMUVA"}</span>
+              </button>
+            )}
+
+            {isManualInstall && (
+              <button
+                type="button"
+                className="sidebar-action"
+                aria-expanded={showManualInstallHelp}
+                aria-controls="sidebar-pwa-manual-help"
+                onClick={() => setShowManualInstallHelp((currentValue) => !currentValue)}
+              >
+                <span aria-hidden="true">📲</span>
+                <span>Como instalar COMUVA</span>
+              </button>
+            )}
+
+            {isManualInstall && showManualInstallHelp && (
+              <div
+                id="sidebar-pwa-manual-help"
+                className="sidebar-manual-help"
+                role="region"
+                aria-label="Instruções para instalar COMUVA"
+              >
+                <ol>
+                  <li>Toque em Compartilhar.</li>
+                  <li>Escolha "Adicionar à Tela de Início".</li>
+                  <li>Confirme "Adicionar".</li>
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showAuthenticatedMenu && (
+          <div className="sidebar-section sidebar-section--logout">
+            <button
+              type="button"
+              className="sidebar-action sidebar-action--danger"
+              onClick={handleLogout}
+            >
+              <span aria-hidden="true">↪</span>
+              <span>Sair</span>
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
