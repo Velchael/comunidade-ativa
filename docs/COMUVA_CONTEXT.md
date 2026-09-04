@@ -4,8 +4,8 @@
 
 ## Estado del documento
 
-- Alcance: cierre de Fase 1D + actualización documental Fase 1E.4B
-- Estado: `FASE 1D CERRADA Y VALIDADA EN PRODUCCIÓN`; `FASE 1E PARCIALMENTE IMPLEMENTADA Y DESPLEGADA`
+- Alcance: cierre de Fase 1D + actualización documental Fase 1E.5C
+- Estado: `FASE 1D CERRADA Y VALIDADA EN PRODUCCIÓN`; `FASE 1E PWA VALIDADA EN DESKTOP CHROME Y ANDROID CHROME`
 - Fuente de validación: código actual de `backend`, `frontend` y migraciones Sequelize
 - Regla oficial: este documento describe el sistema real implementado, no el diseño aspiracional
 
@@ -747,45 +747,97 @@ Bundle confirmó presencia de:
 
 Estado:
 
-- `EJECUTADO PARCIALMENTE`
-- `DIAGNÓSTICO PENDIENTE`
+- `VALIDADO EN CHROME NORMAL`
 
-Flujo validado hasta:
+Flujo validado:
 
 `convite`
 -> Google
--> aceptación
+-> aceptación explícita
 -> membership
 -> refresh
 -> `Tudo certo!`
+-> `Instalar COMUVA`
+-> instalación PWA
+-> notificación Android `COMUVA — App instalado`
 -> `Entrar na comunidade`
+-> uso normal
+-> cerrar PWA
+-> abrir desde icono Android
+-> sesión persistente
+-> usuario/comunidad restaurados sin nuevo Google login.
 
-Resultado importante:
+Auditoría backend post-E2E:
 
-- no apareció `Instalar COMUVA` durante el E2E real Android/Chrome
+- una aceptación efectiva `201`
+- una membership creada
+- una `auth_session` activa correspondiente
+- sin duplicaciones anómalas
+- sin `PushSubscription` creada por instalación
+- sin errores `5xx`
+- sin `AUTH_REFRESH_RACE`
+- sin restart loops
 
 Conclusión operativa:
 
 - infraestructura PWA implementada
 - onboarding implementado
 - deploy producción exitoso
-- E2E Android detectó ausencia del CTA de instalación
-- diagnóstico de `beforeinstallprompt` pendiente
-- Fase 1E no debe marcarse completamente cerrada todavía
+- Chrome Android normal mostró el CTA de instalación
+- `beforeinstallprompt`/CTA custom funcionó en Chrome normal
+- instalación PWA Android validada
+- persistencia de sesión desde icono instalado validada para Android Chrome
 
-No se debe afirmar todavía:
+### E2E DESKTOP CHROME REAL
 
-- que la instalación Android esté validada
-- que `beforeinstallprompt` funciona en producción
-- que PWA está completamente cerrada
-- una causa raíz para la ausencia del CTA `Instalar COMUVA`
+Estado:
 
-Diagnóstico pendiente:
+- `VALIDADO EN CHROME NORMAL`
 
-- auditar por qué `beforeinstallprompt` no activó `canPrompt` en Android/Chrome
-- auditar presencia/ausencia y comportamiento de `fetch` handler del Service Worker
-  como posible factor relacionado
-- no afirmar que el Service Worker sea la causa raíz hasta concluir Fase 1E.5A
+Flujo validado:
+
+`convite`
+-> Google
+-> identificación
+-> aceptación
+-> membership
+-> refresh
+-> `Tudo certo!`
+-> `Instalar COMUVA`
+-> instalación PWA
+-> `Entrar na comunidade`
+-> `/interacciones`
+-> cerrar aplicación
+-> abrir COMUVA desde icono instalado
+-> sesión restaurada
+-> usuario/comunidad disponibles sin nuevo Google login.
+
+Validación Chrome DevTools:
+
+- manifest cargado
+- Service Worker registrado
+- scope `/`
+- `/convite` dentro del scope
+- Chrome ofreció `Instalar COMUVA...`
+
+No hubo necesidad de modificar el Service Worker.
+
+### DIAGNÓSTICO DE PRUEBA FALLIDA ANTERIOR
+
+La prueba inicial donde no apareció `Instalar COMUVA` se realizó en navegación
+incógnita. Chrome DevTools confirmó explícitamente:
+
+- `Page is loaded in an incognito window`
+
+Posteriormente, Chrome normal reconoció COMUVA como instalable, mostró el CTA,
+ejecutó el prompt nativo y completó la instalación PWA en desktop y Android.
+
+Conclusión del diagnóstico:
+
+- no considerar la ausencia de `fetch` handler como causa del problema observado
+- no afirmar que sea necesario modificar `service-worker.js`
+- la diferencia observada se explica por la condición de navegación incógnita de la
+  prueba fallida inicial
 
 ### HISTÓRICO / YA IMPLEMENTADO
 
@@ -797,6 +849,10 @@ en el código actual y fueron desplegadas en producción durante Fase 1E:
 - install state integrado al onboarding de invitación
 - botón/promoción post-aceptación
 - flujo guiado de instalación móvil/desktop donde el navegador lo permite
+- instalación PWA validada E2E en Desktop Chrome normal
+- instalación PWA validada E2E en Android Chrome normal
+- reapertura desde icono instalado con sesión persistente validada E2E en Desktop
+  Chrome y Android Chrome
 
 ### REGLAS VIGENTES
 
@@ -818,15 +874,31 @@ Regla de validación para Fase 1E:
 - Service Worker no es mecanismo de autenticación
 - la autenticación sigue dependiendo de backend, `auth_sessions`, cookie HttpOnly y
   refresh
+- Desktop Chrome y Android Chrome tienen evidencia E2E de reapertura desde icono
+  instalado manteniendo sesión mediante credenciales aceptadas por backend
+- esta evidencia no se generaliza automáticamente a Safari/iOS, otros navegadores o
+  todos los dispositivos
 
-Experiencia objetivo implementada parcialmente:
+Service Worker:
+
+- el Service Worker actual fue suficiente para las pruebas PWA realizadas
+- no se modificó durante el diagnóstico
+- actualmente gestiona principalmente `push` y `notificationclick`
+- no tiene estrategia offline/cache real documentada como implementada
+- Web Push continúa separado de auth
+- no debe tocarse sin una necesidad funcional nueva
+- esto no es una afirmación universal sobre todos los navegadores futuros
+
+Experiencia objetivo implementada para Chrome normal en desktop y Android:
 
 `convite`
 -> autenticación
 -> aceptación
 -> acceso a comunidad
 -> ofrecer "Instalar COMUVA"
--> prompt nativo cuando esté disponible.
+-> prompt nativo
+-> instalación PWA
+-> reapertura desde icono instalado con sesión restaurada.
 
 ## 3A.10 HISTORICAL ISSUES RESOLVED
 
@@ -854,8 +926,8 @@ Pendientes conocidos:
 - evaluar `pageshow`/BFCache sólo como posible hardening UX, no como bug confirmado
 - aplicar rate limiting a validación pública de invitaciones
 - revisar alineación de códigos `AUTH_*` entre frontend y backend
-- diagnosticar ausencia del CTA `Instalar COMUVA` en E2E real Android/Chrome
-- completar Fase 1E.5A antes de declarar validada la instalación Android
+- completar validación E2E del fallback manual iOS/Safari
+- evaluar mejoras UX futuras para instalación PWA fuera del onboarding
 
 ### PENDIENTE CONOCIDO / FUERA DEL SCOPE PWA ACTUAL
 
@@ -872,26 +944,32 @@ Frontend espera:
 - `AUTH_SESSION_EXPIRED`
 - `AUTH_REFRESH_REUSED`
 
-Este pendiente no forma parte del diagnóstico de instalación Android y no debe
-mezclarse con la investigación de `beforeinstallprompt`.
+Este pendiente no forma parte del cierre PWA validado en Chrome normal y no debe
+mezclarse con la instalación PWA.
 
 ## 3A.12 NEXT PHASE
 
-NEXT: `FASE 1E.5A — DIAGNÓSTICO ANDROID BEFOREINSTALLPROMPT`
+NEXT: `FASE 1E.6 — PWA INSTALL + LOGOUT EN MENÚ HAMBURGUESA`
 
 Objetivo:
 
-- diagnosticar por qué el E2E real Android/Chrome no mostró `Instalar COMUVA`
-- validar si `beforeinstallprompt` se dispara en producción
-- revisar criterios de instalabilidad reales del navegador
-- auditar el Service Worker como posible factor sin asumir causa raíz
+- ofrecer `Instalar COMUVA` desde menú lateral cuando `canPrompt=true`
+- iOS: ofrecer `Como instalar COMUVA`
+- ocultar instalación si PWA ya está instalada
+- ocultar silenciosamente cuando el estado sea `unavailable`
+- mantener CTA post-invitación
+- mover `Sair` del header al final del menú lateral
+- conservar exactamente la lógica actual de logout
+- no alterar roles ni permisos del menú de configuración
+- mantener comportamiento responsive móvil/desktop
 
-La Fase 1E ya implementó infraestructura y onboarding base, pero aún debe completar:
+Esta fase es futura. No está implementada en la actualización documental Fase 1E.5C.
 
-- diagnóstico Android/Chrome
-- validación desktop Chromium
+Pendiente fuera de Fase 1E.6:
+
 - validación iOS/Safari fallback manual
-- validación E2E de sesión al abrir PWA instalada por plataforma
+- mejoras UX futuras de instalación
+- estrategia offline/cache sólo si se decide expresamente en otra fase
 
 ---
 
@@ -1396,10 +1474,14 @@ La validación anterior aplica a:
 - infraestructura PWA base
 - detección PWA en frontend
 - onboarding post-aceptación desplegado en producción
+- instalación PWA validada E2E en Desktop Chrome normal
+- instalación PWA validada E2E en Android Chrome normal
+- persistencia de sesión desde icono instalado validada E2E en Desktop Chrome y
+  Android Chrome
 
 No implica que `grupos`, `tareas` y `reportes` ya estén completamente alineados al sistema híbrido.
-No implica que la instalación Android/Chrome esté validada, porque el E2E real no
-mostró el CTA `Instalar COMUVA`.
+No implica que el fallback manual iOS/Safari ya esté validado E2E ni que la
+persistencia PWA esté probada en todos los navegadores o dispositivos.
 
 ---
 
@@ -1440,15 +1522,16 @@ mostró el CTA `Instalar COMUVA`.
 
 ## `pwa installation / onboarding`
 
-- estado: `PARCIALMENTE IMPLEMENTADO`
+- estado: `VALIDADO EN DESKTOP CHROME Y ANDROID CHROME`
 - uso: `DESPLEGADO EN PRODUCCIÓN`
 - observación: `PwaInstallContext` implementa detección standalone/iOS,
   `beforeinstallprompt`, deferred prompt, `appinstalled`, estados de instalación y
   `promptInstall()`
 - observación: `Convite` ofrece instalación post-aceptación sólo para `new-member`
   cuando el estado PWA lo permite
-- pendiente: diagnóstico Android/Chrome por ausencia del CTA `Instalar COMUVA` en
-  E2E real
+- observación: Chrome normal desktop y Android mostraron `Instalar COMUVA`,
+  completaron instalación PWA y restauraron sesión desde icono instalado
+- pendiente: fallback manual iOS/Safari E2E
 - restricción: instalación PWA no autentica, no crea membership, no solicita Push y
   no bloquea entrada a comunidad
 
@@ -1486,6 +1569,8 @@ mostró el CTA `Instalar COMUVA`.
 - Google callback limpio sin JWT en query string
 - infraestructura de detección PWA implementada
 - onboarding post-aceptación con oferta PWA secundaria implementado y desplegado
+- instalación y persistencia de sesión PWA validadas E2E en Desktop Chrome normal
+  y Android Chrome normal
 
 ## `DEPRECADO`
 
@@ -1501,8 +1586,9 @@ mostró el CTA `Instalar COMUVA`.
 - hardening de OAuth `state`, account linking, selección explícita de cuenta Google,
   PushSubscription logout, BFCache UX, rate limiting de invitaciones y alineación de
   códigos `AUTH_*`
-- diagnóstico de ausencia del CTA `Instalar COMUVA` en Android/Chrome
-- validación E2E de instalación y restauración de sesión PWA por plataforma
+- validación E2E del fallback manual iOS/Safari
+- mejoras UX futuras para instalación PWA
+- estrategia offline/cache sólo si se decide expresamente
 
 ---
 
@@ -1512,8 +1598,8 @@ mostró el CTA `Instalar COMUVA`.
 
 Estado:
 
-- `PARCIALMENTE IMPLEMENTADA Y DESPLEGADA`
-- `NO CERRADA`
+- `VALIDADA EN DESKTOP CHROME Y ANDROID CHROME`
+- `PENDIENTE IOS/SAFARI FALLBACK MANUAL E2E`
 
 Nota:
 
@@ -1539,15 +1625,27 @@ Implementado:
 - onboarding post-aceptación para `new-member`
 - fallback manual iOS/iPadOS
 - deploy producción del frontend en `c0aba833b261d9ec02327d85ee7b1824124cf15c`
+- Desktop Chrome normal E2E validado
+- Android Chrome normal E2E validado
+- instalación PWA validada en Desktop Chrome normal
+- instalación PWA validada en Android Chrome normal
+- persistencia de sesión desde icono instalado validada en Desktop Chrome normal
+- persistencia de sesión desde icono instalado validada en Android Chrome normal
+
+Fases completadas:
+
+- FASE 1E.1 ✅: auditoría PWA inicial
+- FASE 1E.2 ✅: detección PWA
+- FASE 1E.3 ✅: onboarding post-aceptación
+- FASE 1E.4 ✅: deploy producción
+- Desktop Chrome E2E ✅
+- Android Chrome E2E ✅
 
 Pendiente:
 
-- Android/Chrome
-- diagnóstico de `beforeinstallprompt` en producción
-- desktop Chromium E2E
 - iOS/Safari fallback manual E2E
-- validación de PWA ya instalada
-- validación de persistencia de sesión al abrir PWA instalada por plataforma
+- mejoras UX futuras
+- estrategia offline/cache sólo si se decide expresamente en otra fase
 - no Play Store
 - no instalación silenciosa
 - no bloquear uso web normal
@@ -1555,10 +1653,32 @@ Pendiente:
 Estado E2E Android/Chrome:
 
 - flujo convite -> Google -> aceptación -> membership -> refresh -> `Tudo certo!`
-  -> `Entrar na comunidade` validado
-- no apareció `Instalar COMUVA`
-- causa raíz no determinada
-- Fase 1E no debe marcarse cerrada hasta concluir diagnóstico y validación
+  -> `Instalar COMUVA` -> instalación PWA -> entrada a comunidad validado
+- notificación Android `COMUVA — App instalado` observada
+- reapertura desde icono Android mantuvo sesión y restauró usuario/comunidad sin
+  nuevo Google login
+- auditoría backend post-E2E confirmó una aceptación efectiva, una membership, una
+  `auth_session` activa correspondiente, cero duplicaciones anómalas, cero
+  `PushSubscription` creada por instalación, cero `5xx`, cero `AUTH_REFRESH_RACE` y
+  cero restart loops
+
+Estado E2E Desktop Chrome:
+
+- flujo convite -> Google -> identificación -> aceptación -> membership -> refresh
+  -> `Tudo certo!` -> `Instalar COMUVA` -> instalación PWA -> `Entrar na comunidade`
+  -> `/interacciones` validado
+- Chrome DevTools confirmó manifest cargado, Service Worker registrado, scope `/` y
+  `/convite` dentro del scope
+- Chrome ofreció `Instalar COMUVA...`
+- reapertura desde icono instalado mantuvo sesión y restauró usuario/comunidad sin
+  nuevo Google login
+
+Diagnóstico de prueba fallida previa:
+
+- la prueba inicial sin CTA de instalación se realizó en navegación incógnita
+- Chrome DevTools confirmó `Page is loaded in an incognito window`
+- Chrome normal reconoció COMUVA como instalable y completó instalación
+- no se requiere modificar `service-worker.js` por ese resultado
 
 ## Fase E
 
@@ -1629,7 +1749,7 @@ Evaluar:
 
 # 14. Conclusión oficial
 
-Al cierre de Fase 1D y actualización documental Fase 1E.4B, COMUVA ya tiene un
+Al cierre de Fase 1D y actualización documental Fase 1E.5C, COMUVA ya tiene un
 núcleo arquitectónico estable:
 
 - autenticación persistente con `auth_sessions`
@@ -1642,17 +1762,30 @@ núcleo arquitectónico estable:
 - infraestructura PWA base
 - detección PWA en frontend
 - onboarding post-aceptación con oferta de instalación secundaria
+- instalación PWA validada en Desktop Chrome normal y Android Chrome normal
+- persistencia de sesión desde icono instalado validada en Desktop Chrome normal y
+  Android Chrome normal
 
 El flujo Google directo quedó validado en producción sin JWT en URL, con redirect
 limpio, sesión persistente, retorno correcto a invitación y aceptación explícita antes
 de crear membresía.
 
-Fase 1E ya implementó y desplegó infraestructura de detección PWA y onboarding
-post-aceptación. Sin embargo, no está cerrada: el E2E real Android/Chrome validó el
-flujo de convite, Google, aceptación, membership, refresh y `Tudo certo!`, pero no
-mostró el CTA `Instalar COMUVA`. La prioridad inmediata es `FASE 1E.5A —
-DIAGNÓSTICO ANDROID BEFOREINSTALLPROMPT`, sin asumir causa raíz ni declarar validada
-la instalación Android.
+Fase 1E implementó y desplegó infraestructura de detección PWA y onboarding
+post-aceptación. Las pruebas reales posteriores validaron Desktop Chrome normal y
+Android Chrome normal: convite, Google, aceptación, membership, refresh, `Tudo
+certo!`, CTA `Instalar COMUVA`, instalación PWA, entrada a comunidad y reapertura
+desde icono instalado con sesión restaurada.
+
+La prueba inicial donde no apareció `Instalar COMUVA` quedó explicada por navegación
+incógnita. Chrome DevTools indicó `Page is loaded in an incognito window`. Chrome
+normal reconoció COMUVA como instalable y completó la instalación. No se considera la
+ausencia de `fetch` handler del Service Worker como causa del problema observado ni
+se requiere modificar `service-worker.js` por ese diagnóstico.
+
+Queda pendiente validar el fallback manual iOS/Safari E2E. La siguiente fase prevista
+es `FASE 1E.6 — PWA INSTALL + LOGOUT EN MENÚ HAMBURGUESA`, enfocada en exponer la
+instalación desde el menú lateral cuando corresponda y mover `Sair` al final del menú
+sin alterar la lógica actual de logout ni los roles/permisos existentes.
 
 Las prioridades históricas de alinear `grupos`, `tareas` y `reportes`, definir
 multi-comunidad y sustituir polling por tiempo real siguen pendientes.
