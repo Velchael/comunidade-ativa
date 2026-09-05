@@ -2,8 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from 'rea
 import Sidebar from './components/Sidebar';
 import { BrowserRouter, Route, Routes, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
-import { Container, Navbar, NavDropdown, Button, Row, Col } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
+import { Container, Navbar, NavDropdown, Button } from 'react-bootstrap';
 
 import logo_large1 from './logo_large1.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -39,7 +38,26 @@ import {
 } from './utils/permissions';
 import authClient from './services/authClient';
 
-function Header({ toggleSidebar }) {
+export const formatCommunityDisplayName = (name) => {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+
+  if (!trimmed) return '';
+
+  const hasLetters = /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed);
+  const isAllUppercase =
+    hasLetters &&
+    trimmed === trimmed.toLocaleUpperCase('pt-BR');
+
+  if (!isAllUppercase) {
+    return trimmed;
+  }
+
+  const lower = trimmed.toLocaleLowerCase('pt-BR');
+
+  return lower.charAt(0).toLocaleUpperCase('pt-BR') + lower.slice(1);
+};
+
+export function Header({ toggleSidebar }) {
   const {
     user,
     token,
@@ -249,8 +267,17 @@ function Header({ toggleSidebar }) {
   const isGlobalAdmin = isAdminTotalGlobal(user);
   const canManageLocalCommunity = canManageCommunity(user);
   const canAccessMembersPanel = canViewCommunityMembers(user);
-  const userCommunityName = user?.comunidadNombre || 'Sem comunidade';
+  const rawCommunityName =
+    typeof user?.comunidadNombre === 'string'
+      ? user.comunidadNombre.trim()
+      : '';
+  const communityDisplayName = formatCommunityDisplayName(rawCommunityName);
+  const hasCommunityName = Boolean(rawCommunityName);
   const userDisplayName = user?.username || user?.email || 'Usuário';
+  const firstName =
+    typeof userDisplayName === 'string'
+      ? userDisplayName.trim().split(/\s+/)[0]
+      : '';
   const shouldShowConfigMenu =
     !isHydrating &&
     (isGlobalAdmin || canManageLocalCommunity || canAccessMembersPanel);
@@ -268,7 +295,7 @@ function Header({ toggleSidebar }) {
   }
 
   return (
-    <header>
+    <header className="community-header">
 
       {logoutPending && (
         <div className="alert alert-warning m-2" role="alert">
@@ -279,16 +306,23 @@ function Header({ toggleSidebar }) {
         </div>
       )}
 
-      {/* Header superior */}
+      {hasCommunityName && (
+        <div className="community-header-title-row">
+          <div
+            className="community-header-title"
+            title={communityDisplayName}
+            aria-label={`Comunidade atual: ${communityDisplayName}`}
+          >
+            {communityDisplayName}
+          </div>
+        </div>
+      )}
 
-      <Row className="header-top justify-content-between align-items-center mb-2">
-
-        {/* ESQUERDA → LOGO */}
-
-        <Col xs="auto" className="header-logo-col">
+      <div className="community-header-controls-row">
+        <div className="community-header-brand-menu">
           <img
             src={logo_large1}
-            alt="logo"
+            alt="COMUVA"
             className="header-logo"
             onClick={() => {
               // toggleSidebar(false);
@@ -296,18 +330,64 @@ function Header({ toggleSidebar }) {
               // window.scrollTo(0, 0);
             }}
           />
-        </Col>
 
-        {/* DIREITA → USUÁRIO */}
+          <button
+            onClick={toggleSidebar}
+            className="sidebar-menu-button"
+            aria-label="Abrir menu lateral"
+          >
+            ☰
+          </button>
+        </div>
 
-        <Col xs className="header-identity-col">
+        <Navbar className="menu-header community-header-nav">
+          <div className="menu">
+
+            <NavLink
+              to="/interacciones"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
+              Interações
+            </NavLink>
+
+            <NavLink
+              to="/TaskList"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
+              Agenda
+            </NavLink>
+
+            <NavLink
+              to="/GruposActivos"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
+              Grupos
+            </NavLink>
+
+          </div>
+        </Navbar>
+
+        <div className="community-header-user-actions">
           {user ? (
             <div className="header-session">
               <div className="header-user-summary">
-                <span className="header-community-name" title={userCommunityName}>
-                  {userCommunityName}
-                </span>
-                <span className="header-user-greeting" title={userDisplayName}>
+                <span
+                  className="header-user-greeting"
+                  title={userDisplayName}
+                  aria-label={`Olá, ${userDisplayName}`}
+                >
                   <UserAvatar
                     src={user.foto_perfil}
                     name={userDisplayName}
@@ -315,7 +395,12 @@ function Header({ toggleSidebar }) {
                     className="header-user-avatar"
                   />
                   <span className="header-user-greeting-text">
-                    Olá, {userDisplayName}
+                    <span className="header-user-name-full" aria-hidden="true">
+                      Olá, {userDisplayName}
+                    </span>
+                    <span className="header-user-name-mobile" aria-hidden="true">
+                      {firstName}
+                    </span>
                   </span>
                 </span>
               </div>
@@ -426,66 +511,8 @@ function Header({ toggleSidebar }) {
               Entrar
             </Button>
           )}
-        </Col>
-      </Row>
-
-      {/* Navbar principal */}
-
-      <Navbar className="menu-header">
-        <Container>
-
-          <LinkContainer to="/">
-            <Navbar.Brand>
-
-              <button
-                onClick={toggleSidebar}
-                className="sidebar-menu-button"
-                aria-label="Abrir menu lateral"
-              >
-                ☰
-              </button>
-
-            </Navbar.Brand>
-          </LinkContainer>
-
-          <div className="menu">
-
-            <NavLink
-              to="/interacciones"
-              style={({ isActive }) => ({
-                textDecoration: "none",
-                color: isActive ? "white" : "black",
-                marginRight: "13px"
-              })}
-            >
-              Interações
-            </NavLink>
-
-            <NavLink
-              to="/TaskList"
-              style={({ isActive }) => ({
-                textDecoration: "none",
-                color: isActive ? "white" : "black",
-                marginRight: "13px"
-              })}
-            >
-              Agenda
-            </NavLink>
-
-            <NavLink
-              to="/GruposActivos"
-              style={({ isActive }) => ({
-                textDecoration: "none",
-                color: isActive ? "white" : "black",
-                marginRight: "13px"
-              })}
-            >
-              Grupos
-            </NavLink>
-
-          </div>
-        </Container>
-      </Navbar>
+        </div>
+      </div>
 
     </header>
   );
