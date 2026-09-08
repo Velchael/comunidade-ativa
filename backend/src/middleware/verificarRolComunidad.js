@@ -1,4 +1,4 @@
-const { ROLES, tieneRolComunidad } = require('../utils/comunidadRoles');
+const { ROLES, rehidratarUsuarioComunidad, tieneRolComunidad } = require('../utils/comunidadRoles');
 
 const defaultGetComunidadId = (req) => req.user?.comunidad_id || req.params?.comunidad_id || req.body?.comunidad_id;
 const normalizeComunidadId = (value) => {
@@ -10,17 +10,35 @@ const normalizeComunidadId = (value) => {
 const verificarRolComunidad = ({
   rolesPermitidos = [],
   getComunidadId = defaultGetComunidadId,
-  permitirAdminTotalGlobal = true
+  permitirAdminTotalGlobal = true,
+  permitirLegacyGlobal = true,
+  rehidratarUsuario = false,
+  forbiddenStatus = 403,
+  forbiddenMessage = 'Você não tem permissão para esta comunidade'
 } = {}) => {
   return async (req, res, next) => {
     try {
-      const user = req.user;
+      let user = req.user;
 
       if (!user?.id) {
         return res.status(401).json({ message: 'Não autenticado' });
       }
 
-      if (permitirAdminTotalGlobal && user.rol === ROLES.ADMIN_TOTAL) {
+      if (rehidratarUsuario) {
+        user = await rehidratarUsuarioComunidad(user.id);
+
+        if (!user) {
+          return res.status(401).json({ message: 'Não autenticado' });
+        }
+
+        req.authUser = user;
+      }
+
+      const hasAdminTotalGlobal = rehidratarUsuario
+        ? user.rol_global === ROLES.ADMIN_TOTAL
+        : user.rol === ROLES.ADMIN_TOTAL;
+
+      if (permitirAdminTotalGlobal && hasAdminTotalGlobal) {
         const comunidadId = normalizeComunidadId(await getComunidadId(req));
 
         if (comunidadId) {
@@ -40,9 +58,11 @@ const verificarRolComunidad = ({
         return res.status(400).json({ message: 'comunidad_id é obrigatório para verificar permissões' });
       }
 
-      const resultado = await tieneRolComunidad(user, comunidadId, rolesPermitidos);
+      const resultado = await tieneRolComunidad(user, comunidadId, rolesPermitidos, {
+        permitirLegacyGlobal
+      });
       if (!resultado.permitido) {
-        return res.status(403).json({ message: 'Você não tem permissão para esta comunidade' });
+        return res.status(forbiddenStatus).json({ message: forbiddenMessage });
       }
 
       req.comunidadAuth = {

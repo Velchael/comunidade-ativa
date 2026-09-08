@@ -3,25 +3,37 @@ const router = express.Router();
 const tasksController = require('../controllers/tasksController');
 
 const { verificarToken } = require('../middleware/authMiddleware');
+const resolveTaskContext = require('../middleware/resolveTaskContext');
 const verificarRolComunidad = require('../middleware/verificarRolComunidad');
 
+const taskAuthOptions = {
+  getComunidadId: (req) => req.comunidadContext?.comunidad_id,
+  rehidratarUsuario: true,
+  permitirLegacyGlobal: false
+};
+
+const allowTaskRead = verificarRolComunidad({
+  ...taskAuthOptions,
+  rolesPermitidos: ['admin_total', 'admin_basic', 'miembro']
+});
+
+const allowTaskReadExisting = verificarRolComunidad({
+  ...taskAuthOptions,
+  rolesPermitidos: ['admin_total', 'admin_basic', 'miembro'],
+  forbiddenStatus: 404,
+  forbiddenMessage: 'Tarefa não encontrada'
+});
+
 const allowTaskAdmins = verificarRolComunidad({
-  rolesPermitidos: ['admin_total', 'admin_basic'],
-  getComunidadId: (req) => req.user?.comunidad_id,
-  permitirAdminTotalGlobal: true
+  ...taskAuthOptions,
+  rolesPermitidos: ['admin_total', 'admin_basic']
 });
 
-const allowTaskAdminTotal = verificarRolComunidad({
-  rolesPermitidos: ['admin_total'],
-  getComunidadId: (req) => req.user?.comunidad_id,
-  permitirAdminTotalGlobal: true
-});
+router.get('/', verificarToken, resolveTaskContext, allowTaskRead, tasksController.getAllTasks);
+router.get('/:id', verificarToken, resolveTaskContext, allowTaskReadExisting, tasksController.getTaskById);
 
-router.get('/', verificarToken, tasksController.getAllTasks); // usuarios y admins
-router.get('/:id', verificarToken, tasksController.getTaskById); // ambos
-
-router.post('/', verificarToken, allowTaskAdmins, tasksController.createTask); // 🔒 solo admin
-router.put('/:id', verificarToken, allowTaskAdmins, tasksController.updateTask); // 🔒 solo admin
-router.delete('/:id', verificarToken, allowTaskAdminTotal, tasksController.deleteTask); // 🔒 solo admin
+router.post('/', verificarToken, resolveTaskContext, allowTaskAdmins, tasksController.createTask);
+router.put('/:id', verificarToken, resolveTaskContext, allowTaskReadExisting, allowTaskAdmins, tasksController.updateTask);
+router.delete('/:id', verificarToken, resolveTaskContext, allowTaskReadExisting, allowTaskAdmins, tasksController.deleteTask);
 
 module.exports = router;

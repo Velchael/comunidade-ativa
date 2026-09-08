@@ -54,7 +54,21 @@ const getComunidadOwner = async (comunidadId) => {
   });
 };
 
-const resolveRolComunidadHibrido = async (user, comunidadId) => {
+const rehidratarUsuarioComunidad = async (userId) => {
+  const normalizedUserId = normalizeId(userId);
+
+  if (!normalizedUserId) {
+    return null;
+  }
+
+  return User.findByPk(normalizedUserId, {
+    attributes: ['id', 'rol', 'rol_global', 'comunidad_id']
+  });
+};
+
+const resolveRolComunidadHibrido = async (user, comunidadId, {
+  permitirLegacyGlobal = true
+} = {}) => {
   if (!user?.id) {
     return {
       rol: null,
@@ -95,7 +109,7 @@ const resolveRolComunidadHibrido = async (user, comunidadId) => {
     };
   }
 
-  if (user.rol === ROLES.ADMIN_TOTAL) {
+  if (permitirLegacyGlobal && user.rol === ROLES.ADMIN_TOTAL) {
     return {
       rol: user.rol,
       source: 'legacy_global',
@@ -110,9 +124,9 @@ const resolveRolComunidadHibrido = async (user, comunidadId) => {
   };
 };
 
-const tieneRolComunidad = async (user, comunidadId, rolesPermitidos = []) => {
+const tieneRolComunidad = async (user, comunidadId, rolesPermitidos = [], options = {}) => {
   const roles = normalizeRoles(rolesPermitidos);
-  const resolved = await resolveRolComunidadHibrido(user, comunidadId);
+  const resolved = await resolveRolComunidadHibrido(user, comunidadId, options);
 
   return {
     permitido: Boolean(resolved.rol && roles.includes(resolved.rol)),
@@ -315,6 +329,7 @@ module.exports = {
   ROLES,
   ESTADOS,
   getMembresiaActiva,
+  rehidratarUsuarioComunidad,
   resolveRolComunidadHibrido,
   tieneRolComunidad,
   ensureComunidadMiembroFromLegacy,
