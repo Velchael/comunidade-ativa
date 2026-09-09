@@ -14,12 +14,12 @@ const taskAuthOptions = {
 
 const allowTaskRead = verificarRolComunidad({
   ...taskAuthOptions,
-  rolesPermitidos: ['admin_total', 'admin_basic', 'miembro']
+  rolesPermitidos: ['admin_total', 'admin_basic', 'moderador', 'miembro']
 });
 
 const allowTaskReadExisting = verificarRolComunidad({
   ...taskAuthOptions,
-  rolesPermitidos: ['admin_total', 'admin_basic', 'miembro'],
+  rolesPermitidos: ['admin_total', 'admin_basic', 'moderador', 'miembro'],
   forbiddenStatus: 404,
   forbiddenMessage: 'Tarefa não encontrada'
 });

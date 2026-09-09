@@ -56,8 +56,8 @@ const TaskList = () => {
     [user]
   );
   const canDeleteTasks = useMemo(
-    () => isAdminTotalGlobal(user),
-    [user]
+    () => canCreateOrEditTasks,
+    [canCreateOrEditTasks]
   );
 
   useEffect(() => {
@@ -87,6 +87,8 @@ const TaskList = () => {
   };
 
   const openModal = (task = null) => {
+    if (!canCreateOrEditTasks) return;
+
     if (task) {
       // el backend puede enviar due_date o dueDate, created_at o createdAt
       setForm({
@@ -173,6 +175,7 @@ const TaskList = () => {
     .filter(Boolean);
 
   const handleSelectEvent = (event) => {
+    if (!canCreateOrEditTasks) return;
     if (event?.resource) openModal(event.resource);
   };
 

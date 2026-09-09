@@ -168,7 +168,7 @@ const createAgendaMiddlewares = (verificarRolComunidad, resolveTaskContext, role
   (req, res) => res.json({ ok: true, comunidad_id: req.comunidadAuth.comunidad_id })
 ];
 
-const readRoles = ['admin_total', 'admin_basic', 'miembro'];
+const readRoles = ['admin_total', 'admin_basic', 'moderador', 'miembro'];
 const writeRoles = ['admin_total', 'admin_basic'];
 
 test('miembro LIST propria comunidade recebe 200', async () => {
@@ -203,6 +203,26 @@ test('miembro GET propria comunidade recebe 200', async () => {
   );
 
   assert.equal(result.response.statusCode, 200);
+});
+
+test('moderador LIST e GET propria comunidade recebem 200', async () => {
+  const base = {
+    users: [{ id: 11, rol: 'miembro', rol_global: 'miembro', comunidad_id: 7 }],
+    communities: [{ id: 7, activa: true }],
+    memberships: [{ id: 11, user_id: 11, comunidad_id: 7, rol_comunidad: 'moderador', estado: 'activo', es_principal: true }],
+    tasks: [{ id: 10, comunidad_id: 7 }]
+  };
+
+  for (const params of [{}, { id: 10 }]) {
+    const { models } = createModels(base);
+    const { verificarRolComunidad, resolveTaskContext } = loadWithModels(models);
+    const result = await runMiddlewares(
+      createAgendaMiddlewares(verificarRolComunidad, resolveTaskContext, readRoles, Boolean(params.id)),
+      { user: { id: 11 }, params, body: {}, query: {} }
+    );
+
+    assert.equal(result.response.statusCode, 200);
+  }
 });
 
 test('task de outra comunidade em GET retorna 404', async () => {
@@ -257,6 +277,46 @@ test('miembro POST PUT DELETE recebem 403 quando pertence a comunidade', async (
       middlewares,
       { user: { id: 1 }, params, body: {}, query: {} }
     );
+    assert.equal(result.response.statusCode, 403);
+  }
+});
+
+test('moderador POST PUT DELETE recebem 403 quando pertence a comunidade', async () => {
+  const base = {
+    users: [{ id: 11, rol: 'miembro', rol_global: 'miembro', comunidad_id: 7 }],
+    communities: [{ id: 7, activa: true }],
+    memberships: [{ id: 11, user_id: 11, comunidad_id: 7, rol_comunidad: 'moderador', estado: 'activo', es_principal: true }],
+    tasks: [{ id: 10, comunidad_id: 7 }]
+  };
+
+  for (const params of [{}, { id: 10 }, { id: 10 }]) {
+    const { models } = createModels(base);
+    const { verificarRolComunidad, resolveTaskContext } = loadWithModels(models);
+    const middlewares = params.id
+      ? [
+          resolveTaskContext,
+          verificarRolComunidad({
+            rolesPermitidos: readRoles,
+            getComunidadId: (req) => req.comunidadContext?.comunidad_id,
+            rehidratarUsuario: true,
+            permitirLegacyGlobal: false,
+            forbiddenStatus: 404,
+            forbiddenMessage: 'Tarefa não encontrada'
+          }),
+          verificarRolComunidad({
+            rolesPermitidos: writeRoles,
+            getComunidadId: (req) => req.comunidadContext?.comunidad_id,
+            rehidratarUsuario: true,
+            permitirLegacyGlobal: false
+          }),
+          (req, res) => res.json({ ok: true })
+        ]
+      : createAgendaMiddlewares(verificarRolComunidad, resolveTaskContext, writeRoles);
+    const result = await runMiddlewares(
+      middlewares,
+      { user: { id: 11 }, params, body: {}, query: {} }
+    );
+
     assert.equal(result.response.statusCode, 403);
   }
 });
