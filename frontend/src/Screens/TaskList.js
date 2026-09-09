@@ -226,6 +226,7 @@ const TaskList = () => {
                 style={{ height: '100%' }}
                 views={['month']}
                 defaultView="month"
+                popup
                 onSelectEvent={handleSelectEvent}
                 messages={{ next: 'Próximo', previous: 'Anterior', today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
                 culture="pt-BR"

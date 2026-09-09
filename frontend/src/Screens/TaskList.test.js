@@ -3,6 +3,8 @@ import axios from 'axios';
 import TaskList from './TaskList';
 import { UserContext } from '../UserContext';
 
+const mockCalendarProps = jest.fn();
+
 jest.mock('axios', () => ({
   __esModule: true,
   default: {
@@ -20,15 +22,20 @@ jest.mock('axios', () => ({
 }));
 
 jest.mock('react-big-calendar', () => ({
-  Calendar: ({ events, onSelectEvent }) => (
-    <div data-testid="calendar">
-      {events.map((event) => (
-        <button key={event.id} type="button" onClick={() => onSelectEvent(event)}>
-          {event.title}
-        </button>
-      ))}
-    </div>
-  ),
+  Calendar: (props) => {
+    mockCalendarProps(props);
+    const { events, onSelectEvent } = props;
+
+    return (
+      <div data-testid="calendar">
+        {events.map((event) => (
+          <button key={event.id} type="button" onClick={() => onSelectEvent(event)}>
+            {event.title}
+          </button>
+        ))}
+      </div>
+    );
+  },
   dateFnsLocalizer: () => ({})
 }));
 
@@ -94,6 +101,21 @@ const renderTaskList = async (user) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+test('calendário mensal habilita popup nativo para tarefas ocultas', async () => {
+  await renderTaskList(users.miembro);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Mês' }));
+
+  expect(screen.getByTestId('calendar')).toBeInTheDocument();
+  expect(mockCalendarProps).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      views: ['month'],
+      defaultView: 'month',
+      popup: true
+    })
+  );
 });
 
 test.each([
