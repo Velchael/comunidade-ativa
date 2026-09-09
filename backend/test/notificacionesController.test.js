@@ -28,17 +28,18 @@ const createHarness = ({
   countError = null,
   updateError = null,
   updateAffectedRows = 1,
-  query = {}
-} = {}) => {
-  const calls = [];
-  const logger = { error: (...args) => calls.push(['logger:error', ...args]) };
-  const User = { name: 'User' };
-  const rows = [
+  query = {},
+  rows = [
     {
       id: 20,
       tipo: 'respuesta_interaccion',
       interaccion_id: 7,
       respuesta_id: 70,
+      comunidad_id: null,
+      task_id: null,
+      titulo: null,
+      corpo: null,
+      url: null,
       leida: false,
       created_at: '2026-08-19T10:00:00.000Z',
       actor: {
@@ -50,7 +51,11 @@ const createHarness = ({
       user_id: 88,
       token: 'secret'
     }
-  ];
+  ]
+} = {}) => {
+  const calls = [];
+  const logger = { error: (...args) => calls.push(['logger:error', ...args]) };
+  const User = { name: 'User' };
 
   const Notificacion = {
     findAll: async (options) => {
@@ -168,6 +173,46 @@ test('GET devuelve items y unread_count', async () => {
   assert.equal(response.statusCode, 200);
   assert.equal(Array.isArray(response.body.items), true);
   assert.equal(response.body.unread_count, 3);
+});
+
+test('GET devuelve campos genéricos necesarios para Agenda', async () => {
+  const harness = createHarness({
+    rows: [{
+      id: 21,
+      tipo: 'agenda_task_created',
+      interaccion_id: null,
+      respuesta_id: null,
+      comunidad_id: 7,
+      task_id: 99,
+      titulo: 'Nova atividade na Agenda',
+      corpo: 'Culto de oração — 15/09',
+      url: '/TaskList',
+      leida: false,
+      created_at: '2026-09-09T10:00:00.000Z',
+      actor: null,
+      user_id: 88,
+      endpoint: 'secret'
+    }]
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.listar(harness.req, res);
+
+  assert.deepEqual(response.body.items[0], {
+    id: 21,
+    tipo: 'agenda_task_created',
+    interaccion_id: null,
+    respuesta_id: null,
+    comunidad_id: 7,
+    task_id: 99,
+    titulo: 'Nova atividade na Agenda',
+    corpo: 'Culto de oração — 15/09',
+    url: '/TaskList',
+    leida: false,
+    created_at: '2026-09-09T10:00:00.000Z',
+    actor: null
+  });
+  assert.equal(Object.hasOwn(response.body.items[0], 'endpoint'), false);
 });
 
 test('GET incluye actor solo con id y username', async () => {

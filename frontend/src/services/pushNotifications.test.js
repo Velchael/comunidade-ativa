@@ -239,7 +239,8 @@ test('Service Worker solo maneja push/click, usa fallback y URL same-origin', ()
   expect(source).not.toContain("addEventListener('fetch'");
   expect(source).toContain('Você recebeu uma nova notificação');
   expect(source).toContain("new URL('/interacciones', self.location.origin)");
-  expect(source).not.toMatch(/payload\.(url|href|target)/);
+  expect(source).toContain('payload.url');
+  expect(source).toContain('payloadUrl.origin === self.location.origin');
 });
 
 test('index registra /service-worker.js sin solicitar permisos', () => {

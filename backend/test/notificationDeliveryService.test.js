@@ -16,6 +16,17 @@ const NOTIFICACION = {
   respuesta_id: 30,
   mensaje: 'contenido que nunca debe enviarse',
 };
+const AGENDA_NOTIFICACION = {
+  id: 90,
+  user_id: 88,
+  actor_user_id: 42,
+  tipo: 'agenda_task_created',
+  comunidad_id: 7,
+  task_id: 99,
+  titulo: 'Nova atividade na Agenda',
+  corpo: 'Culto de oração — 15/09',
+  url: '/TaskList',
+};
 const SECRET_ENDPOINT = 'https://push.example.test/private-endpoint';
 const SECRET_P256DH = 'private-p256dh';
 const SECRET_AUTH = 'private-auth';
@@ -152,6 +163,55 @@ test('payload es exacto y no contiene mensaje ni datos sensibles', async () => {
   });
   assert.equal(Object.hasOwn(payload, 'mensaje'), false);
   assert.equal(JSON.stringify(payload).includes('secret@example.test'), false);
+});
+
+test('payload Agenda usa campos persistidos e não consulta actor', async () => {
+  const harness = createHarness({
+    subscriptions: [
+      { ...makeSubscription(1), user_id: 88 },
+      { ...makeSubscription(2), user_id: 88 },
+    ],
+    results: [{ ok: true }, { ok: true }],
+  });
+  const summary = await harness.service.deliver(AGENDA_NOTIFICACION);
+
+  assert.equal(harness.calls.some(([name]) => name === 'user:findByPk'), false);
+  assert.deepEqual(summary, { attempted: 2, delivered: 2, expired: 0, failed: 0 });
+  assert.deepEqual(harness.calls.find(([name]) => name === 'provider:send')[1].payload, {
+    notification_id: 90,
+    tipo: 'agenda_task_created',
+    type: 'agenda_task_created',
+    title: 'Nova atividade na Agenda',
+    body: 'Culto de oração — 15/09',
+    url: '/TaskList',
+    taskId: 99,
+    comunidadId: 7,
+  });
+});
+
+test('deliverMany Agenda consulta subscriptions em bulk e preserva uma notificação por usuário', async () => {
+  const harness = createHarness({
+    subscriptions: [
+      { ...makeSubscription(1), user_id: 88 },
+      { ...makeSubscription(2), user_id: 88 },
+      { ...makeSubscription(3), user_id: 89 },
+    ],
+    results: [{ ok: true }, { ok: true }, { ok: true }],
+  });
+  const summary = await harness.service.deliverMany([
+    AGENDA_NOTIFICACION,
+    { ...AGENDA_NOTIFICACION, id: 91, user_id: 89, tipo: 'agenda_task_deleted' },
+  ]);
+
+  assert.deepEqual(
+    harness.calls.find(([name]) => name === 'subscription:findAll')[1].where.user_id[require('sequelize').Op.in],
+    [88, 89]
+  );
+  assert.deepEqual(summary, { attempted: 3, delivered: 3, expired: 0, failed: 0 });
+  assert.deepEqual(
+    harness.calls.filter(([name]) => name === 'provider:send').map(([, input]) => input.payload.notification_id),
+    [90, 90, 91]
+  );
 });
 
 test('query de subscriptions usa destinatario, atributos mínimos, orden y límite', async () => {

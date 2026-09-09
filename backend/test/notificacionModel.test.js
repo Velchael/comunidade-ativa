@@ -42,3 +42,41 @@ test('modelo Notificacion valida o tipo permitido', async () => {
 
   await assert.rejects(() => invalid.validate(), /Validation/);
 });
+
+test('modelo Notificacion aceita tipos Agenda com payload genérico nullable para interação', async () => {
+  const sequelize = new Sequelize('postgresql://test:test@127.0.0.1:5432/test', {
+    logging: false
+  });
+  const Notificacion = defineNotificacion(sequelize, DataTypes);
+
+  const valid = Notificacion.build({
+    user_id: 1,
+    actor_user_id: 2,
+    tipo: 'agenda_task_deleted',
+    interaccion_id: null,
+    respuesta_id: null,
+    comunidad_id: 7,
+    task_id: 99,
+    titulo: 'Atividade removida',
+    corpo: 'Culto de oração foi removida da Agenda',
+    url: '/TaskList'
+  });
+
+  await assert.doesNotReject(() => valid.validate());
+});
+
+test('modelo Notificacion alinha comunidade com FK cascade e task_id sem FK', () => {
+  const sequelize = new Sequelize('postgresql://test:test@127.0.0.1:5432/test', {
+    logging: false
+  });
+  const Notificacion = defineNotificacion(sequelize, DataTypes);
+  const comunidad = Notificacion.rawAttributes.comunidad_id;
+  const task = Notificacion.rawAttributes.task_id;
+
+  assert.equal(comunidad.allowNull, true);
+  assert.deepEqual(comunidad.references, { model: 'comunidades', key: 'id' });
+  assert.equal(comunidad.onDelete, 'CASCADE');
+  assert.equal(comunidad.onUpdate, 'CASCADE');
+  assert.equal(task.allowNull, true);
+  assert.equal(task.references, undefined);
+});

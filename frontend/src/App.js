@@ -191,12 +191,36 @@ export function Header({ toggleSidebar }) {
   }, [notificationsOpen]);
 
   const getNotificationText = (notification) => {
+    if (notification?.tipo?.startsWith("agenda_task_")) {
+      return notification.titulo || "Agenda";
+    }
+
     if (notification?.tipo === "respuesta_interaccion") {
       const username = notification.actor?.username;
       return `💬 ${username || "Alguém"} respondeu à sua publicação`;
     }
 
     return "💬 Nova notificação";
+  };
+
+  const getNotificationBody = (notification) => {
+    if (notification?.tipo?.startsWith("agenda_task_")) {
+      return notification.corpo || "";
+    }
+
+    return "";
+  };
+
+  const getNotificationTarget = (notification) => {
+    if (notification?.tipo?.startsWith("agenda_task_")) {
+      return notification.url || "/TaskList";
+    }
+
+    if (notification?.tipo === "respuesta_interaccion" && notification?.interaccion_id) {
+      return `/interacciones?interaccionId=${notification.interaccion_id}`;
+    }
+
+    return null;
   };
 
   const formatNotificationTime = (value) => {
@@ -234,7 +258,8 @@ export function Header({ toggleSidebar }) {
   };
 
   const handleNotificationClick = async (notification) => {
-    if (!notification?.id || !notification?.interaccion_id) return;
+    const target = getNotificationTarget(notification);
+    if (!notification?.id || !target) return;
 
     if (!notification.leida) {
       try {
@@ -259,7 +284,7 @@ export function Header({ toggleSidebar }) {
     }
 
     setNotificationsOpen(false);
-    navigate(`/interacciones?interaccionId=${notification.interaccion_id}`);
+    navigate(target);
   };
 
   const handleLogin = () => navigate("/Seinscrever");
@@ -458,6 +483,9 @@ export function Header({ toggleSidebar }) {
                         >
                           <span className="notification-item__text">
                             {getNotificationText(notification)}
+                            {getNotificationBody(notification) && (
+                              <small>{getNotificationBody(notification)}</small>
+                            )}
                           </span>
                           <span className="notification-item__time">
                             {formatNotificationTime(notification.created_at)}

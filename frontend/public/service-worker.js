@@ -16,11 +16,22 @@ self.addEventListener('push', (event) => {
     : null;
   const body = actorUsername
     ? `${actorUsername} respondeu à sua publicação`
-    : 'Você recebeu uma nova notificação';
+    : (typeof payload.body === 'string' && payload.body.trim()
+        ? payload.body.trim().slice(0, 180)
+        : 'Você recebeu uma nova notificação');
+  const title = typeof payload.title === 'string' && payload.title.trim()
+    ? payload.title.trim().slice(0, 120)
+    : 'COMUVA';
+  const url = typeof payload.url === 'string' && payload.url.trim()
+    ? payload.url.trim()
+    : null;
 
-  event.waitUntil(self.registration.showNotification('COMUVA', {
+  event.waitUntil(self.registration.showNotification(title, {
     body,
-    data: { interaccion_id: validInteractionId }
+    data: {
+      interaccion_id: validInteractionId,
+      url
+    }
   }));
 });
 
@@ -31,7 +42,18 @@ self.addEventListener('notificationclick', (event) => {
   const validInteractionId = Number.isSafeInteger(interactionId) && interactionId > 0
     ? interactionId
     : null;
-  const targetUrl = new URL('/interacciones', self.location.origin);
+  let targetUrl = new URL('/interacciones', self.location.origin);
+
+  if (typeof event.notification.data?.url === 'string') {
+    try {
+      const payloadUrl = new URL(event.notification.data.url, self.location.origin);
+      if (payloadUrl.origin === self.location.origin) {
+        targetUrl = payloadUrl;
+      }
+    } catch (error) {
+      targetUrl = new URL('/interacciones', self.location.origin);
+    }
+  }
 
   if (validInteractionId) {
     targetUrl.searchParams.set('interaccionId', String(validInteractionId));

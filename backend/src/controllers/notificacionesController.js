@@ -23,6 +23,11 @@ const serializeNotificacion = (notificacion) => {
     tipo: plain.tipo,
     interaccion_id: plain.interaccion_id,
     respuesta_id: plain.respuesta_id,
+    comunidad_id: plain.comunidad_id,
+    task_id: plain.task_id,
+    titulo: plain.titulo,
+    corpo: plain.corpo,
+    url: plain.url,
     leida: plain.leida,
     created_at: plain.created_at,
     actor: plain.actor
@@ -51,6 +56,11 @@ const createNotificacionesController = ({
           "tipo",
           "interaccion_id",
           "respuesta_id",
+          "comunidad_id",
+          "task_id",
+          "titulo",
+          "corpo",
+          "url",
           "leida",
           "created_at"
         ],

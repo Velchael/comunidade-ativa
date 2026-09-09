@@ -3,6 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { Header, formatCommunityDisplayName } from './App';
 import { UserContext } from './UserContext';
+import authClient from './services/authClient';
+
+const mockNavigate = jest.fn();
+
+jest.mock('react-router-dom', () => {
+  const actual = jest.requireActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate
+  };
+});
 
 jest.mock('axios', () => ({
   __esModule: true,
@@ -21,6 +32,12 @@ jest.mock('axios', () => ({
 jest.mock('./services/authClient', () => ({
   request: jest.fn()
 }));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockNavigate.mockClear();
+  authClient.request.mockResolvedValue({ data: { items: [], unread_count: 0 } });
+});
 
 const baseUser = {
   id: 7,
@@ -194,4 +211,105 @@ test('nombre largo de comunidad se renderiza como texto accesible', () => {
   expect(within(header).getByLabelText(
     'Comunidade atual: Comunidade Evangélica Internacional dos Venezuelanos de São Paulo'
   )).toBeInTheDocument();
+});
+
+test('campana renderiza respuesta_interaccion legacy y navega a interacciones', async () => {
+  authClient.request.mockImplementation(async (config) => {
+    if (config.method === 'patch') return { data: { id: 20, leida: true } };
+    return {
+      data: {
+        items: [{
+          id: 20,
+          tipo: 'respuesta_interaccion',
+          interaccion_id: 7,
+          respuesta_id: 70,
+          leida: false,
+          created_at: new Date().toISOString(),
+          actor: { id: 42, username: 'Efraim' }
+        }],
+        unread_count: 1
+      }
+    };
+  });
+
+  renderHeader({ token: 'access-token' });
+
+  await userEvent.click(screen.getByRole('button', { name: 'Abrir notificações' }));
+  expect(await screen.findByText('💬 Efraim respondeu à sua publicação')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByText('💬 Efraim respondeu à sua publicação'));
+
+  expect(authClient.request).toHaveBeenCalledWith({
+    method: 'patch',
+    url: 'http://localhost:3000/api/notificaciones/20/leida'
+  });
+  expect(mockNavigate).toHaveBeenCalledWith('/interacciones?interaccionId=7');
+});
+
+test('campana renderiza Agenda created y al tocar marca leído y navega /TaskList', async () => {
+  authClient.request.mockImplementation(async (config) => {
+    if (config.method === 'patch') return { data: { id: 21, leida: true } };
+    return {
+      data: {
+        items: [{
+          id: 21,
+          tipo: 'agenda_task_created',
+          titulo: 'Nova atividade na Agenda',
+          corpo: 'Culto de oração — 15/09',
+          url: '/TaskList',
+          task_id: 99,
+          comunidad_id: 7,
+          leida: false,
+          created_at: new Date().toISOString(),
+          actor: { id: 44, username: 'Admin' }
+        }],
+        unread_count: 1
+      }
+    };
+  });
+
+  renderHeader({ token: 'access-token' });
+
+  await userEvent.click(screen.getByRole('button', { name: 'Abrir notificações' }));
+  expect(await screen.findByText('Nova atividade na Agenda')).toBeInTheDocument();
+  expect(screen.getByText('Culto de oração — 15/09')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByText('Nova atividade na Agenda'));
+
+  expect(authClient.request).toHaveBeenCalledWith({
+    method: 'patch',
+    url: 'http://localhost:3000/api/notificaciones/21/leida'
+  });
+  expect(mockNavigate).toHaveBeenCalledWith('/TaskList');
+});
+
+test.each([
+  ['agenda_task_updated', 'Atividade atualizada', 'Culto de oração — nova data: 16/09'],
+  ['agenda_task_cancelled', 'Atividade cancelada', 'Culto de oração foi cancelada'],
+  ['agenda_task_deleted', 'Atividade removida', 'Culto de oração foi removida da Agenda']
+])('campana renderiza %s', async (tipo, titulo, corpo) => {
+  authClient.request.mockResolvedValue({
+    data: {
+      items: [{
+        id: 22,
+        tipo,
+        titulo,
+        corpo,
+        url: '/TaskList',
+        task_id: 99,
+        comunidad_id: 7,
+        leida: true,
+        created_at: new Date().toISOString(),
+        actor: null
+      }],
+      unread_count: 0
+    }
+  });
+
+  renderHeader({ token: 'access-token' });
+
+  await userEvent.click(screen.getByRole('button', { name: 'Abrir notificações' }));
+
+  expect(await screen.findByText(titulo)).toBeInTheDocument();
+  expect(screen.getByText(corpo)).toBeInTheDocument();
 });
