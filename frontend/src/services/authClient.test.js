@@ -1,5 +1,6 @@
 import axios from 'axios';
 import authClient from './authClient';
+import { cleanupDevicePushSubscription } from './pushNotifications';
 
 jest.mock('axios', () => {
   let nextInterceptorId = 0;
@@ -18,6 +19,7 @@ jest.mock('axios', () => {
   const client = {
     defaults: { headers: { common: {} } },
     post: jest.fn(),
+    delete: jest.fn(),
     __adapter: jest.fn(),
     __installRequest: installRequest,
     __installResponse: installResponse,
@@ -61,6 +63,14 @@ jest.mock('axios', () => {
   return { __esModule: true, default: client };
 });
 
+jest.mock('./pushNotifications', () => ({
+  cleanupDevicePushSubscription: jest.fn(() => Promise.resolve({
+    status: 'default',
+    backendDeleted: true,
+    unsubscribed: true
+  }))
+}));
+
 const USER = { id: 7, email: 'lab@example.test', rol_global: 'miembro' };
 const authResponse = (token = 'access-1', expiresIn = 900) => ({
   data: { access_token: token, expires_in: expiresIn, user: USER }
@@ -84,9 +94,16 @@ const handlers = () => {
 };
 
 beforeEach(() => {
+  jest.clearAllMocks();
   localStorage.clear();
   authClient.__resetForTests();
   axios.post.mockReset();
+  axios.delete.mockReset();
+  cleanupDevicePushSubscription.mockResolvedValue({
+    status: 'default',
+    backendDeleted: true,
+    unsubscribed: true
+  });
   axios.request.mockReset().mockImplementation(axios.__requestImplementation);
   axios.__adapter.mockReset();
   axios.interceptors.request.use.mockImplementation(axios.__installRequest);
@@ -524,6 +541,45 @@ test('logout 204 limpia memoria y legacy sin localStorage.clear', async () => {
   clearSpy.mockRestore();
 });
 
+test('logout intenta limpiar PushSubscription con access token saliente antes de limpiar memoria', async () => {
+  const state = handlers();
+  localStorage.setItem('token', 'legacy');
+  axios.post.mockResolvedValueOnce(authResponse('logout-token'));
+  await authClient.migrateLegacy('legacy');
+  axios.post.mockResolvedValueOnce({ status: 204 });
+
+  await expect(authClient.logout()).resolves.toBe(true);
+
+  expect(cleanupDevicePushSubscription).toHaveBeenCalledWith({ token: 'logout-token' });
+  expect(authClient.getAccessToken()).toBeNull();
+  expect(state).toMatchObject({ status: 'unauthenticated', pending: false });
+});
+
+test('logout continúa si cleanup Push falla', async () => {
+  const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  handlers();
+  axios.post.mockResolvedValueOnce(authResponse('logout-token'));
+  await authClient.migrateLegacy('legacy');
+  cleanupDevicePushSubscription.mockRejectedValueOnce(new Error('push cleanup failed'));
+  axios.post.mockResolvedValueOnce({ status: 204 });
+
+  await expect(authClient.logout()).resolves.toBe(true);
+
+  expect(cleanupDevicePushSubscription).toHaveBeenCalledWith({ token: 'logout-token' });
+  expect(authClient.getAccessToken()).toBeNull();
+  expect(warnSpy).toHaveBeenCalledWith('push subscription cleanup failed during logout');
+  warnSpy.mockRestore();
+});
+
+test('logout sin access token no intenta cleanup Push', async () => {
+  handlers();
+  axios.post.mockResolvedValueOnce({ status: 204 });
+
+  await expect(authClient.logout()).resolves.toBe(true);
+
+  expect(cleanupDevicePushSubscription).not.toHaveBeenCalled();
+});
+
 test('logout 503 mantiene salida local y permite retry remoto', async () => {
   const state = handlers();
   axios.post.mockRejectedValueOnce(apiError(503, 'AUTH_LOGOUT_UNAVAILABLE'));
@@ -535,4 +591,22 @@ test('logout 503 mantiene salida local y permite retry remoto', async () => {
   axios.post.mockResolvedValueOnce({ status: 204 });
   await expect(authClient.retryPendingLogout()).resolves.toBe(true);
   expect(authClient.isLogoutPending()).toBe(false);
+});
+
+test('retry de logout pendiente no deja lifecycle bloqueado permanentemente', async () => {
+  const state = handlers();
+  axios.post
+    .mockRejectedValueOnce(apiError(503, 'AUTH_LOGOUT_UNAVAILABLE'))
+    .mockResolvedValueOnce({ status: 204 });
+
+  await expect(authClient.logout()).resolves.toBe(false);
+  expect(authClient.isLogoutPending()).toBe(true);
+
+  await expect(authClient.retryPendingLogout()).resolves.toBe(true);
+  expect(authClient.isLogoutPending()).toBe(false);
+  expect(state).toMatchObject({ status: 'unauthenticated', pending: false });
+
+  axios.post.mockResolvedValueOnce(authResponse('after-retry'));
+  await expect(authClient.setLegacyTokenAndMigrate('new-login')).resolves.toEqual(USER);
+  expect(state).toMatchObject({ status: 'authenticated', user: USER });
 });

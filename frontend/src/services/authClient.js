@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { cleanupDevicePushSubscription } from './pushNotifications';
 
 const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3000') + '/api';
 const REFRESH_MARGIN_MS = 2 * 60 * 1000;
@@ -289,9 +290,22 @@ const request = async (config = {}) => {
 };
 
 const logout = async () => {
-  // TODO(auth-next): desvincular PushSubscription antes del rollout final.
+  const logoutAccessToken = accessToken;
   authEpoch += 1;
   logoutPending = true;
+  notify('onLogoutPending');
+
+  if (logoutAccessToken) {
+    try {
+      const result = await cleanupDevicePushSubscription({ token: logoutAccessToken });
+      if (result.deleteError || result.unsubscribeError || result.unsubscribed === false) {
+        console.warn('push subscription cleanup incomplete during logout');
+      }
+    } catch (error) {
+      console.warn('push subscription cleanup failed during logout');
+    }
+  }
+
   clearMemoryAccess();
   localStorage.removeItem('token');
   localStorage.removeItem('user');

@@ -1,14 +1,17 @@
 import fs from 'fs';
 import path from 'path';
+import { waitFor } from '@testing-library/react';
 
 jest.mock('axios', () => ({}));
 
 import {
   activatePushNotifications,
+  cleanupDevicePushSubscription,
   deactivatePushNotifications,
   getPushAvailability,
   getPushState,
   isPushSupported,
+  syncPushSubscriptionIfGranted,
   urlBase64ToUint8Array
 } from './pushNotifications';
 
@@ -180,6 +183,161 @@ test('crea subscription nueva con VAPID pública convertida', async () => {
   });
 });
 
+test('sync granted con subscription existente no solicita permiso y hace POST', async () => {
+  const subscription = createSubscription();
+  const registration = createRegistration(subscription);
+  const environment = createEnvironment({ permission: 'granted', registration });
+  const client = {
+    get: jest.fn().mockResolvedValue({ data: { publicKey: 'AQIDBA' } }),
+    post: jest.fn().mockResolvedValue({ data: { subscribed: true } })
+  };
+
+  await expect(syncPushSubscriptionIfGranted({ token: TOKEN, client, ...environment })).resolves.toEqual({
+    status: 'active'
+  });
+
+  expect(environment.windowObj.Notification.requestPermission).not.toHaveBeenCalled();
+  expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+  expect(client.post).toHaveBeenCalledWith(
+    expect.stringMatching(/\/api\/push\/subscriptions$/),
+    {
+      endpoint: ENDPOINT,
+      keys: { p256dh: 'public-key', auth: 'auth-key' }
+    },
+    { headers: { Authorization: `Bearer ${TOKEN}` } }
+  );
+});
+
+test('sync granted sin subscription crea una nueva y hace POST', async () => {
+  const subscription = createSubscription();
+  const registration = createRegistration();
+  registration.pushManager.subscribe.mockResolvedValue(subscription);
+  const environment = createEnvironment({ permission: 'granted', registration });
+  const client = {
+    get: jest.fn().mockResolvedValue({ data: { publicKey: 'AQIDBA' } }),
+    post: jest.fn().mockResolvedValue({ data: { subscribed: true } })
+  };
+
+  await expect(syncPushSubscriptionIfGranted({ token: TOKEN, client, ...environment })).resolves.toEqual({
+    status: 'active'
+  });
+
+  expect(environment.windowObj.Notification.requestPermission).not.toHaveBeenCalled();
+  expect(registration.pushManager.subscribe).toHaveBeenCalledWith({
+    userVisibleOnly: true,
+    applicationServerKey: new Uint8Array([1, 2, 3, 4])
+  });
+  expect(client.post).toHaveBeenCalledTimes(1);
+});
+
+test('sync abortado durante VAPID no subscribe ni POST', async () => {
+  const abortController = new AbortController();
+  const registration = createRegistration();
+  const environment = createEnvironment({ permission: 'granted', registration });
+  let rejectVapid;
+  const client = {
+    get: jest.fn().mockImplementation((_url, config) => new Promise((_resolve, reject) => {
+      expect(config.signal).toBe(abortController.signal);
+      rejectVapid = reject;
+    })),
+    post: jest.fn()
+  };
+
+  const syncing = syncPushSubscriptionIfGranted({
+    token: TOKEN,
+    client,
+    ...environment,
+    signal: abortController.signal
+  });
+  const observedSyncing = syncing.catch((error) => error);
+  for (let index = 0; index < 10 && !rejectVapid; index += 1) {
+    await Promise.resolve();
+  }
+
+  abortController.abort();
+  rejectVapid(Object.assign(new Error('canceled'), { name: 'AbortError' }));
+
+  await expect(observedSyncing).resolves.toMatchObject({ name: 'AbortError' });
+  expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+  expect(client.post).not.toHaveBeenCalled();
+});
+
+test('sync abortado durante subscribe no hace POST después de resolver', async () => {
+  const abortController = new AbortController();
+  const subscription = createSubscription();
+  const registration = createRegistration(null);
+  let resolveSubscribe;
+  registration.pushManager.subscribe.mockImplementation(() => new Promise((resolve) => {
+    resolveSubscribe = resolve;
+  }));
+  const environment = createEnvironment({ permission: 'granted', registration });
+  const client = {
+    get: jest.fn().mockResolvedValue({ data: { publicKey: 'AQIDBA' } }),
+    post: jest.fn()
+  };
+
+  const syncing = syncPushSubscriptionIfGranted({
+    token: TOKEN,
+    client,
+    ...environment,
+    signal: abortController.signal
+  });
+  const observedSyncing = syncing.catch((error) => error);
+  await waitFor(() => expect(registration.pushManager.subscribe).toHaveBeenCalledTimes(1));
+
+  abortController.abort();
+  resolveSubscribe(subscription);
+
+  await expect(observedSyncing).resolves.toMatchObject({ name: 'AbortError' });
+  expect(client.post).not.toHaveBeenCalled();
+});
+
+test('sync abortado después de getSubscription no hace POST', async () => {
+  const abortController = new AbortController();
+  const subscription = createSubscription();
+  const registration = createRegistration(subscription);
+  registration.pushManager.getSubscription.mockImplementation(async () => {
+    abortController.abort();
+    return subscription;
+  });
+  const environment = createEnvironment({ permission: 'granted', registration });
+  const client = {
+    get: jest.fn().mockResolvedValue({ data: { publicKey: 'AQIDBA' } }),
+    post: jest.fn()
+  };
+
+  await expect(syncPushSubscriptionIfGranted({
+    token: TOKEN,
+    client,
+    ...environment,
+    signal: abortController.signal
+  })).rejects.toMatchObject({ name: 'AbortError' });
+
+  expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+  expect(client.post).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['default', 'default'],
+  ['denied', 'denied']
+])('sync permission %s no solicita permiso, subscribe ni POST', async (permission, expected) => {
+  const registration = createRegistration();
+  const environment = createEnvironment({ permission, registration });
+  const client = {
+    get: jest.fn(),
+    post: jest.fn()
+  };
+
+  await expect(syncPushSubscriptionIfGranted({ token: TOKEN, client, ...environment })).resolves.toEqual({
+    status: expected
+  });
+
+  expect(environment.windowObj.Notification.requestPermission).not.toHaveBeenCalled();
+  expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+  expect(client.get).not.toHaveBeenCalled();
+  expect(client.post).not.toHaveBeenCalled();
+});
+
 test('DELETE backend ocurre antes de unsubscribe local', async () => {
   const order = [];
   const subscription = createSubscription();
@@ -217,6 +375,100 @@ test('si DELETE falla no finge desactivación ni hace unsubscribe', async () => 
 
   await expect(deactivatePushNotifications({ token: TOKEN, client, ...environment })).rejects.toThrow();
   expect(subscription.unsubscribe).not.toHaveBeenCalled();
+});
+
+test('cleanup logout con subscription intenta DELETE y unsubscribe', async () => {
+  const subscription = createSubscription();
+  const registration = createRegistration(subscription);
+  const environment = createEnvironment({ registration });
+  const client = {
+    delete: jest.fn().mockResolvedValue({ data: { subscribed: false } })
+  };
+
+  await expect(cleanupDevicePushSubscription({ token: TOKEN, client, ...environment })).resolves.toMatchObject({
+    status: 'default',
+    backendDeleted: true,
+    unsubscribed: true
+  });
+
+  expect(client.delete).toHaveBeenCalledWith(
+    expect.stringMatching(/\/api\/push\/subscriptions$/),
+    {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+      data: { endpoint: ENDPOINT },
+      __skipAuthLifecycle: true
+    }
+  );
+  expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+});
+
+test('cleanup logout intenta unsubscribe aunque DELETE falle', async () => {
+  const subscription = createSubscription();
+  const registration = createRegistration(subscription);
+  const environment = createEnvironment({ registration });
+  const client = {
+    delete: jest.fn().mockRejectedValue(new Error('backend failed'))
+  };
+
+  await expect(cleanupDevicePushSubscription({ token: TOKEN, client, ...environment })).resolves.toMatchObject({
+    status: 'default',
+    backendDeleted: false,
+    unsubscribed: true
+  });
+  expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+});
+
+test('cleanup logout reporta unsubscribe fallido sin lanzar', async () => {
+  const subscription = createSubscription();
+  subscription.unsubscribe.mockRejectedValue(new Error('browser failed'));
+  const registration = createRegistration(subscription);
+  const environment = createEnvironment({ registration });
+  const client = {
+    delete: jest.fn().mockResolvedValue({ data: { subscribed: false } })
+  };
+
+  const result = await cleanupDevicePushSubscription({ token: TOKEN, client, ...environment });
+
+  expect(result).toMatchObject({
+    status: 'default',
+    backendDeleted: true,
+    unsubscribed: false
+  });
+  expect(result.unsubscribeError).toBeTruthy();
+});
+
+test('cleanup logout continúa aunque DELETE y unsubscribe fallen', async () => {
+  const subscription = createSubscription();
+  subscription.unsubscribe.mockRejectedValue(new Error('browser failed'));
+  const registration = createRegistration(subscription);
+  const environment = createEnvironment({ registration });
+  const client = {
+    delete: jest.fn().mockRejectedValue(new Error('backend failed'))
+  };
+
+  const result = await cleanupDevicePushSubscription({ token: TOKEN, client, ...environment });
+
+  expect(result).toMatchObject({
+    status: 'default',
+    backendDeleted: false,
+    unsubscribed: false
+  });
+  expect(result.deleteError).toBeTruthy();
+  expect(result.unsubscribeError).toBeTruthy();
+});
+
+test('cleanup logout sin subscription no llama DELETE ni borra todas las subscriptions', async () => {
+  const registration = createRegistration(null);
+  const environment = createEnvironment({ registration });
+  const client = { delete: jest.fn() };
+
+  await expect(cleanupDevicePushSubscription({ token: TOKEN, client, ...environment })).resolves.toMatchObject({
+    status: 'default',
+    backendDeleted: false,
+    unsubscribed: false
+  });
+
+  expect(client.delete).not.toHaveBeenCalled();
 });
 
 test('convierte VAPID base64url a Uint8Array', () => {

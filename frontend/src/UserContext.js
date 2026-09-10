@@ -1,5 +1,6 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import authClient from './services/authClient';
+import { syncPushSubscriptionIfGranted } from './services/pushNotifications';
 
 export const UserContext = createContext();
 
@@ -17,6 +18,12 @@ export const UserProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [authStatus, setAuthStatus] = useState('hydrating');
   const [logoutPending, setLogoutPending] = useState(false);
+  const lastPushSyncUserIdRef = useRef(null);
+  const accessTokenRef = useRef(null);
+
+  useEffect(() => {
+    accessTokenRef.current = token;
+  }, [token]);
 
   useEffect(() => authClient.setAuthHandlers({
     onHydrating: () => setAuthStatus('hydrating'),
@@ -45,6 +52,33 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  useEffect(() => {
+    if (logoutPending || authStatus !== 'authenticated' || !user?.id || !accessTokenRef.current) {
+      lastPushSyncUserIdRef.current = null;
+      return undefined;
+    }
+
+    if (lastPushSyncUserIdRef.current === user.id) return undefined;
+    lastPushSyncUserIdRef.current = user.id;
+
+    const abortController = new AbortController();
+    syncPushSubscriptionIfGranted({
+      token: accessTokenRef.current,
+      signal: abortController.signal
+    }).catch((error) => {
+      if (error?.name !== 'AbortError') {
+        console.warn('push subscription sync failed');
+      }
+    });
+
+    return () => {
+      abortController.abort();
+      if (lastPushSyncUserIdRef.current === user.id) {
+        lastPushSyncUserIdRef.current = null;
+      }
+    };
+  }, [authStatus, logoutPending, user?.id]);
 
   const login = useCallback((legacyToken) => (
     authClient.setLegacyTokenAndMigrate(legacyToken)
