@@ -22,10 +22,7 @@ import getDay from 'date-fns/getDay';
 import ptBR from 'date-fns/locale/pt-BR';
 import parseISO from 'date-fns/parseISO';
 import { UserContext } from '../UserContext';
-import {
-  canManageCommunity,
-  isAdminTotalGlobal
-} from '../utils/permissions';
+import { isAdminTotalGlobal } from '../utils/permissions';
 
 const locales = { 'pt-BR': ptBR };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -42,6 +39,12 @@ const INITIAL_TASK_FORM = {
 };
 
 const getTaskDueDate = (task) => task?.dueDate || task?.due_date || task?.due || '';
+
+const canManageAgendaForUser = (user) => {
+  if (!user) return false;
+  if (isAdminTotalGlobal(user) || user.is_owner === true) return true;
+  return ['admin_total', 'admin_basic'].includes(user.rol_comunidad);
+};
 
 const formatTaskDate = (value) => {
   if (!value) return EMPTY_VALUE;
@@ -68,13 +71,17 @@ const TaskList = () => {
   // viewMode: 'table' (default) or 'month'
   const [viewMode, setViewMode] = useState('table');
   const { user } = useContext(UserContext);
-  const canCreateOrEditTasks = useMemo(
-    () => isAdminTotalGlobal(user) || canManageCommunity(user),
+  const canManageAgenda = useMemo(
+    () => canManageAgendaForUser(user),
     [user]
   );
+  const canCreateOrEditTasks = useMemo(
+    () => canManageAgenda,
+    [canManageAgenda]
+  );
   const canDeleteTasks = useMemo(
-    () => canCreateOrEditTasks,
-    [canCreateOrEditTasks]
+    () => canManageAgenda,
+    [canManageAgenda]
   );
 
   useEffect(() => {

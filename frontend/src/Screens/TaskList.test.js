@@ -96,7 +96,8 @@ const users = {
   },
   moderador: {
     ...baseUser,
-    rol_comunidad: 'moderador'
+    rol_comunidad: 'moderador',
+    can_manage_comunidad: true
   },
   miembro: baseUser
 };
@@ -104,13 +105,14 @@ const users = {
 const renderTaskList = async (user, taskData = [task]) => {
   axios.get.mockResolvedValueOnce({ data: taskData });
 
-  render(
+  const renderResult = render(
     <UserContext.Provider value={{ user }}>
       <TaskList />
     </UserContext.Provider>
   );
 
   await screen.findByText(taskData[0].title);
+  return renderResult;
 };
 
 beforeEach(() => {
@@ -179,6 +181,57 @@ test.each([
   expect(within(dialog).getByRole('button', { name: 'Fechar' })).toBeInTheDocument();
   expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
   expect(within(dialog).queryByDisplayValue('Reunião comunitária')).not.toBeInTheDocument();
+});
+
+test('agenda ignora flag genérico de gestão para moderador e mantém detalhe read-only', async () => {
+  await renderTaskList(users.moderador);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Mês' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reunião comunitária' }));
+
+  const dialog = await screen.findByRole('dialog');
+
+  expect(users.moderador.can_manage_comunidad).toBe(true);
+  expect(within(dialog).getByText('Detalhes da atividade')).toBeInTheDocument();
+  expect(within(dialog).getByText('Reunião comunitária')).toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: 'Excluir' })).not.toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: 'Fechar' })).toBeInTheDocument();
+});
+
+test('mudança de moderador para miembro mantém seleção de evento com detalhe read-only', async () => {
+  axios.get
+    .mockResolvedValueOnce({ data: [task] })
+    .mockResolvedValueOnce({ data: [task] });
+
+  const { rerender } = render(
+    <UserContext.Provider value={{ user: users.moderador }}>
+      <TaskList />
+    </UserContext.Provider>
+  );
+
+  await screen.findByText('Reunião comunitária');
+  fireEvent.click(screen.getByRole('button', { name: 'Mês' }));
+
+  rerender(
+    <UserContext.Provider value={{ user: users.miembro }}>
+      <TaskList />
+    </UserContext.Provider>
+  );
+
+  await waitFor(() => {
+    expect(axios.get).toHaveBeenCalledTimes(2);
+  });
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Reunião comunitária' }));
+
+  const dialog = await screen.findByRole('dialog');
+
+  expect(within(dialog).getByText('Detalhes da atividade')).toBeInTheDocument();
+  expect(within(dialog).getByText('Reunião comunitária')).toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: 'Excluir' })).not.toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: 'Fechar' })).toBeInTheDocument();
 });
 
 test.each([
