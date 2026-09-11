@@ -31,19 +31,36 @@ const locales = { 'pt-BR': ptBR };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 const API_URL = `${process.env.REACT_APP_API_URL || ''}/api/tasks`;
+const EMPTY_VALUE = '-';
+const INITIAL_TASK_FORM = {
+  title: '',
+  description: '',
+  frequency: 'semanal',
+  dueDate: '',
+  status: 'pendiente',
+  priority: 'media'
+};
+
+const getTaskDueDate = (task) => task?.dueDate || task?.due_date || task?.due || '';
+
+const formatTaskDate = (value) => {
+  if (!value) return EMPTY_VALUE;
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
+  return date.toLocaleDateString('pt-BR');
+};
 
 const TaskList = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalShow, setModalShow] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    frequency: 'semanal',
-    dueDate: '',
-    status: 'pendiente',
-    priority: 'media'
-  });
+  const [detailModalShow, setDetailModalShow] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [form, setForm] = useState(INITIAL_TASK_FORM);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [frecuenciaFiltro, setFrecuenciaFiltro] = useState('');
@@ -86,6 +103,16 @@ const TaskList = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3500);
   };
 
+  const resetTaskForm = () => {
+    setForm(INITIAL_TASK_FORM);
+    setEditingId(null);
+  };
+
+  const closeTaskModal = () => {
+    setModalShow(false);
+    resetTaskForm();
+  };
+
   const openModal = (task = null) => {
     if (!canCreateOrEditTasks) return;
 
@@ -95,14 +122,13 @@ const TaskList = () => {
         title: task.title || '',
         description: task.description || '',
         frequency: task.frequency || 'semanal',
-        dueDate: task.dueDate || task.due_date || '',
+        dueDate: getTaskDueDate(task),
         status: task.status || 'pendiente',
         priority: task.priority || 'media'
       });
       setEditingId(task.id);
     } else {
-      setForm({ title: '', description: '', frequency: 'semanal', dueDate: '', status: 'pendiente', priority: 'media' });
-      setEditingId(null);
+      resetTaskForm();
     }
     setModalShow(true);
   };
@@ -124,28 +150,48 @@ const TaskList = () => {
         showMessage('success', 'Tarefa criada');
       }
       fetchTasks();
-      setModalShow(false);
+      closeTaskModal();
     } catch (err) {
       showMessage('danger', err.response?.data?.message || 'Erro ao salvar tarefa');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Excluir esta tarefa?')) return;
+    if (!window.confirm('Excluir esta tarefa?')) return false;
     try {
       await axios.delete(`${API_URL}/${id}`);
       showMessage('success', 'Tarefa excluída');
       fetchTasks();
+      return true;
     } catch {
       showMessage('danger', 'Não foi possível excluir');
+      return false;
     }
+  };
+
+  const closeDetailModal = () => {
+    setDetailModalShow(false);
+    setSelectedTask(null);
+  };
+
+  const handleEditSelectedTask = () => {
+    const taskToEdit = selectedTask;
+    if (!taskToEdit) return;
+    closeDetailModal();
+    openModal(taskToEdit);
+  };
+
+  const handleDeleteSelectedTask = async () => {
+    if (!selectedTask) return;
+    const deleted = await handleDelete(selectedTask.id);
+    if (deleted) closeDetailModal();
   };
 
   // --- preparar eventos para calendario (month) ---
   const events = tasks
     .map(t => {
       // soporta dueDate (camel) o due_date (snake)
-      const raw = t.dueDate || t.due_date || t.due || '';
+      const raw = getTaskDueDate(t);
       if (!raw) return null;
 
       // Si viene solo 'YYYY-MM-DD', concatenamos T00:00:00 para evitar desajustes por zona horaria
@@ -175,9 +221,19 @@ const TaskList = () => {
     .filter(Boolean);
 
   const handleSelectEvent = (event) => {
-    if (!canCreateOrEditTasks) return;
-    if (event?.resource) openModal(event.resource);
+    if (!event?.resource) return;
+    setSelectedTask(event.resource);
+    setDetailModalShow(true);
   };
+
+  const detailRows = selectedTask ? [
+    ['Título', selectedTask.title || EMPTY_VALUE],
+    ['Descrição', selectedTask.description || EMPTY_VALUE],
+    ['Data de vencimento', formatTaskDate(getTaskDueDate(selectedTask))],
+    ['Status', selectedTask.status || EMPTY_VALUE],
+    ['Prioridade', selectedTask.priority || EMPTY_VALUE],
+    ['Frequência', selectedTask.frequency || EMPTY_VALUE]
+  ] : [];
 
   return (
     <Container className="mt-4">
@@ -217,7 +273,7 @@ const TaskList = () => {
         <>
           {/* CALENDAR: sólo vista "month" */}
           {viewMode === 'month' && (
-            <div style={{ height: 600 }}>
+            <div className="agenda-calendar" style={{ height: 600 }}>
               <Calendar
                 localizer={localizer}
                 events={events}
@@ -250,12 +306,9 @@ const TaskList = () => {
               </thead>
               <tbody>
                 {tasks.map((task) => {
-                  const rawDue = task.dueDate || task.due_date || task.due;
-                  const due = rawDue ? (/\d{4}-\d{2}-\d{2}/.test(rawDue) ? new Date(`${rawDue}T00:00:00`) : new Date(rawDue)) : null;
-                  const dueStr = due ? due.toLocaleDateString('pt-BR') : '-';
+                  const dueStr = formatTaskDate(getTaskDueDate(task));
                   const createdRaw = task.createdAt || task.created_at || task.created;
-                  const created = createdRaw ? new Date(createdRaw) : null;
-                  const createdStr = created ? created.toLocaleDateString('pt-BR') : '-';
+                  const createdStr = formatTaskDate(createdRaw);
                   return (
                     <tr key={task.id}>
                       <td>{task.title}</td>
@@ -280,7 +333,7 @@ const TaskList = () => {
       )}
 
       {/* Modal crear/editar */}
-      <Modal show={modalShow} onHide={() => setModalShow(false)}>
+      <Modal show={modalShow} onHide={closeTaskModal}>
         <Modal.Header closeButton>
           <Modal.Title>{editingId ? 'Editar tarefa' : 'Nova tarefa'}</Modal.Title>
         </Modal.Header>
@@ -333,10 +386,47 @@ const TaskList = () => {
           </Modal.Body>
 
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setModalShow(false)}>Cancelar</Button>
+            <Button variant="secondary" onClick={closeTaskModal}>Cancelar</Button>
             <Button type="submit" variant="primary">{editingId ? 'Atualizar' : 'Criar'}</Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      <Modal
+        show={detailModalShow}
+        onHide={closeDetailModal}
+        dialogClassName="agenda-detail-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Detalhes da atividade</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body className="agenda-detail-modal__body">
+          <dl className="agenda-detail-list">
+            {detailRows.map(([label, value]) => (
+              <div className="agenda-detail-list__row" key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </Modal.Body>
+
+        <Modal.Footer className="agenda-detail-modal__footer">
+          {canDeleteTasks && (
+            <Button variant="danger" onClick={handleDeleteSelectedTask}>
+              Excluir
+            </Button>
+          )}
+          {canCreateOrEditTasks && (
+            <Button variant="warning" onClick={handleEditSelectedTask}>
+              Editar
+            </Button>
+          )}
+          <Button variant="secondary" onClick={closeDetailModal}>
+            Fechar
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Container>
   );
