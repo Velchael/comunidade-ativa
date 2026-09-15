@@ -165,7 +165,8 @@ test('Sair aparece para autenticado depois dos elementos normais', () => {
   const sidebarText = container.querySelector('.sidebar').textContent;
   expect(sidebarText.indexOf('Meu Perfil')).toBeLessThan(sidebarText.indexOf('Agenda'));
   expect(sidebarText.indexOf('Agenda')).toBeLessThan(sidebarText.indexOf('Grupos'));
-  expect(sidebarText.indexOf('Grupos')).toBeLessThan(sidebarText.indexOf('Instalar COMUVA'));
+  expect(sidebarText.indexOf('Grupos')).toBeLessThan(sidebarText.indexOf('Conversas'));
+  expect(sidebarText.indexOf('Conversas')).toBeLessThan(sidebarText.indexOf('Instalar COMUVA'));
   expect(sidebarText.indexOf('Instalar COMUVA')).toBeLessThan(sidebarText.indexOf('Sair'));
 });
 
@@ -184,9 +185,10 @@ test('NavLinks existentes seguem chamando toggle', async () => {
 
   await userEvent.click(screen.getByRole('link', { name: 'Agenda' }));
   await userEvent.click(screen.getByRole('link', { name: 'Grupos' }));
+  await userEvent.click(screen.getByRole('link', { name: 'Conversas' }));
   await userEvent.click(screen.getByRole('link', { name: 'Meu Perfil' }));
 
-  expect(toggle).toHaveBeenCalledTimes(3);
+  expect(toggle).toHaveBeenCalledTimes(4);
 });
 
 test('usuário não autenticado não vê instalação nem Sair', () => {

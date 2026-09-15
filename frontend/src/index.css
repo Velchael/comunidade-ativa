@@ -3054,6 +3054,275 @@ footer {
   padding: 0.65rem 1rem;
 }
 
+.private-conversation-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0.35rem 0;
+  color: #1f6f62;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+}
+
+.private-conversation-action:hover,
+.private-conversation-action:focus {
+  color: #145247;
+  text-decoration: underline;
+}
+
+.private-conversation-action--reply {
+  margin-left: 0.65rem;
+}
+
+.conversas-screen,
+.conversa-detail-screen {
+  width: min(100%, 860px);
+  margin: 0 auto;
+  padding: 1.5rem 0 2.25rem;
+}
+
+.conversas-heading h2,
+.conversa-detail-person h2 {
+  margin: 0;
+  color: #4d3210;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.conversas-heading {
+  margin-bottom: 1rem;
+}
+
+.conversas-loading,
+.conversas-empty {
+  display: flex;
+  min-height: 7rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(202, 147, 43, 0.16);
+  border-radius: 0.5rem;
+  background: #fffdf8;
+  color: #6f5a43;
+  text-align: center;
+}
+
+.conversas-empty.compact {
+  min-height: 4.5rem;
+  border: 0;
+  background: transparent;
+}
+
+.conversas-empty p {
+  margin: 0;
+  color: #4d3210;
+  font-weight: 800;
+}
+
+.conversas-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.conversa-list-item {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 72px;
+  padding: 0.75rem;
+  border: 1px solid rgba(202, 147, 43, 0.16);
+  border-radius: 0.5rem;
+  background: #fffdf8;
+  color: #2f210f;
+  text-align: left;
+}
+
+.conversa-list-item:hover,
+.conversa-list-item:focus-visible {
+  border-color: rgba(31, 111, 98, 0.32);
+  background: #fbfffc;
+  outline: 3px solid rgba(31, 111, 98, 0.16);
+  outline-offset: 2px;
+}
+
+.conversa-list-item.is-unread {
+  border-color: rgba(31, 111, 98, 0.35);
+  box-shadow: inset 4px 0 0 #1f6f62;
+}
+
+.conversa-list-item__main,
+.conversa-list-item__meta {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.conversa-list-item__main strong,
+.conversa-list-item__main span,
+.conversa-list-item__main small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversa-list-item__main span,
+.conversa-list-item__main small,
+.conversa-list-item__meta {
+  color: #6f5a43;
+  font-size: 0.88rem;
+}
+
+.conversa-list-item__meta {
+  justify-items: end;
+  align-self: stretch;
+  align-content: center;
+  text-align: right;
+}
+
+.conversa-unread {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  border-radius: 999px;
+  padding: 0.16rem 0.55rem;
+  background: #1f6f62;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.conversa-detail-header {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.conversa-back-link {
+  width: fit-content;
+  color: #6f4a12;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.conversa-back-link:hover,
+.conversa-back-link:focus {
+  color: #431a03;
+  text-decoration: underline;
+}
+
+.conversa-detail-person {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.conversa-detail-person h2 {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.45rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversa-messages-panel {
+  display: flex;
+  height: min(62vh, 620px);
+  min-height: 360px;
+  flex-direction: column;
+  gap: 0.65rem;
+  overflow-y: auto;
+  border: 1px solid rgba(202, 147, 43, 0.16);
+  border-radius: 0.5rem;
+  padding: 0.85rem;
+  background: #fffdf8;
+}
+
+.conversa-load-older {
+  align-self: center;
+  min-height: 40px;
+  padding: 0.25rem 0.6rem;
+  color: #6f4a12;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.conversa-message {
+  width: min(82%, 34rem);
+  border: 1px solid rgba(202, 147, 43, 0.16);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+.conversa-message.is-own {
+  align-self: flex-end;
+  border-color: rgba(31, 111, 98, 0.22);
+  background: #f2fbf7;
+}
+
+.conversa-message.is-other {
+  align-self: flex-start;
+}
+
+.conversa-message__author {
+  display: block;
+  margin-bottom: 0.18rem;
+  color: #4d3210;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.conversa-message p {
+  margin: 0;
+  color: #2f210f;
+  line-height: 1.42;
+  white-space: pre-wrap;
+}
+
+.conversa-message time {
+  display: block;
+  margin-top: 0.25rem;
+  color: #78624a;
+  font-size: 0.74rem;
+  text-align: right;
+}
+
+.conversa-cannot-send {
+  margin-top: 0.85rem;
+}
+
+.conversa-compose {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: end;
+  margin-top: 0.85rem;
+}
+
+.conversa-compose textarea {
+  min-height: 54px;
+  max-height: 9rem;
+  resize: vertical;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(202, 147, 43, 0.24);
+}
+
+.conversa-compose button {
+  min-height: 44px;
+  border-radius: 999px;
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+
 @media (max-width: 768px) {
   .composer-row,
   .filter-row,
@@ -3112,6 +3381,44 @@ footer {
 
   .respuesta-form {
     align-items: stretch;
+  }
+
+  .private-conversation-action--reply {
+    margin-left: 0;
+  }
+
+  .conversas-screen,
+  .conversa-detail-screen {
+    padding-top: 1rem;
+  }
+
+  .conversa-list-item {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: flex-start;
+  }
+
+  .conversa-list-item__meta {
+    grid-column: 2;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .conversa-messages-panel {
+    height: min(58vh, 560px);
+    min-height: 330px;
+    padding: 0.65rem;
+  }
+
+  .conversa-message {
+    width: min(92%, 32rem);
+  }
+
+  .conversa-compose {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .conversa-compose button {
+    width: 100%;
   }
 
   .primary-selector-items {

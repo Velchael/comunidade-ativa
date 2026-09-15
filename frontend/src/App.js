@@ -17,6 +17,7 @@ import ComunidadesPanel from './Screens/ComunidadesPanel';
 import MiembrosComunidadPanel from './Screens/MiembrosComunidadPanel';
 import GruposActivos from './Screens/GruposActivos';
 import Interacciones from './Screens/Interacciones';
+import Conversas from './Screens/Conversas';
 import CrearComunidad from './Screens/CrearComunidad';
 import SeleccionarComunidad from './Screens/SeleccionarComunidad';
 import OnboardingConfirmacion from './Screens/OnboardingConfirmacion';
@@ -200,6 +201,10 @@ export function Header({ toggleSidebar }) {
       return `💬 ${username || "Alguém"} respondeu à sua publicação`;
     }
 
+    if (notification?.tipo === "mensagem_privada") {
+      return notification.titulo || "Nova mensagem privada";
+    }
+
     return "💬 Nova notificação";
   };
 
@@ -208,12 +213,34 @@ export function Header({ toggleSidebar }) {
       return notification.corpo || "";
     }
 
+    if (notification?.tipo === "mensagem_privada") {
+      return notification.corpo || "";
+    }
+
     return "";
+  };
+
+  const getSafeInternalUrl = (value) => {
+    if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+      return null;
+    }
+
+    try {
+      const parsed = new URL(value, window.location.origin);
+      if (parsed.origin !== window.location.origin) return null;
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch (_error) {
+      return null;
+    }
   };
 
   const getNotificationTarget = (notification) => {
     if (notification?.tipo?.startsWith("agenda_task_")) {
-      return notification.url || "/TaskList";
+      return getSafeInternalUrl(notification.url) || "/TaskList";
+    }
+
+    if (notification?.tipo === "mensagem_privada") {
+      return getSafeInternalUrl(notification.url);
     }
 
     if (notification?.tipo === "respuesta_interaccion" && notification?.interaccion_id) {
@@ -399,6 +426,17 @@ export function Header({ toggleSidebar }) {
               })}
             >
               Grupos
+            </NavLink>
+
+            <NavLink
+              to="/conversas"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "black",
+                marginRight: "13px"
+              })}
+            >
+              Conversas
             </NavLink>
 
           </div>
@@ -631,6 +669,11 @@ function AppRoutes() {
         path="/interacciones"
         element={<Interacciones />}
       />
+
+      <Route element={<RequireAuth />}>
+        <Route path="/conversas" element={<Conversas />} />
+        <Route path="/conversas/:id" element={<Conversas />} />
+      </Route>
 
     </Routes>
   );

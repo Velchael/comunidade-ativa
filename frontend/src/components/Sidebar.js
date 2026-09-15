@@ -64,6 +64,12 @@ export default function Sidebar({ isOpen, toggle }) {
           Grupos
         </NavLink>
 
+        {showAuthenticatedMenu && (
+          <NavLink to="/conversas" onClick={toggle}>
+            Conversas
+          </NavLink>
+        )}
+
         {shouldShowInstallAction && (
           <div className="sidebar-section">
             {(canPrompt || isPrompting) && (

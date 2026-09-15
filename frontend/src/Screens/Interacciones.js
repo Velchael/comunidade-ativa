@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from "react";
 import { Container, Button, Form, Card, Alert } from "react-bootstrap";
 import axios from "axios";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { UserContext } from "../UserContext";
 import PrimarySelectorBar from "../components/PrimarySelectorBar";
 import UserAvatar from "../components/UserAvatar";
+import authClient from "../services/authClient";
 
 const TIPO_OPTIONS = [
   { value: "necesidad", label: "Necessidade" },
@@ -61,6 +62,7 @@ const isHttpsUrl = (value) => {
 export default function Interacciones() {
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3000";
   const location = useLocation();
+  const navigate = useNavigate();
   const pollingIntervalRef = useRef(null);
   const isFetchingRef = useRef(false);
   const imageInputRef = useRef(null);
@@ -80,6 +82,7 @@ export default function Interacciones() {
   const [estadoErroresRespuestaPorId, setEstadoErroresRespuestaPorId] = useState({});
   const [accionEstadoRespuestaId, setAccionEstadoRespuestaId] = useState(null);
   const [accionEstadoId, setAccionEstadoId] = useState(null);
+  const [privateActionKey, setPrivateActionKey] = useState(null);
   const [interaccionesAuth, setInteraccionesAuth] = useState(null);
   const [respuestasExpandidasPorId, setRespuestasExpandidasPorId] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
@@ -103,6 +106,38 @@ export default function Interacciones() {
   const comunidadAuthId = Number(interaccionesAuth?.comunidad_id || 0);
   const tieneRolModeradorLocal =
     ["admin_total", "admin_basic", "moderador"].includes(rolComunidadAuth);
+
+  const isOwnUser = (possibleUserId) => (
+    Number(possibleUserId || 0) === Number(userId || 0)
+  );
+
+  const iniciarConversaPrivada = async (payload, actionKey) => {
+    if (!userId || privateActionKey) return;
+
+    try {
+      setEstadoErrorGeneral("");
+      setPrivateActionKey(actionKey);
+      const response = await authClient.request({
+        method: "post",
+        url: `${API_BASE}/api/conversas`,
+        data: payload
+      });
+
+      if (response.data?.id) {
+        navigate(`/conversas/${response.data.id}`);
+      }
+    } catch (error) {
+      console.error("Erro iniciando conversa privada", error);
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error;
+      setEstadoErrorGeneral(
+        backendMessage || "Não foi possível iniciar a conversa privada."
+      );
+    } finally {
+      setPrivateActionKey(null);
+    }
+  };
 
   const puedeModerarInteraccion = (item) => {
     if (!puedeModerar) return false;
@@ -906,7 +941,11 @@ export default function Interacciones() {
               const moderationActions = puedeModerarInteraccion(item)
                 ? getModerationActions(item.estado)
                 : [];
-              const hasActions = moderationActions.length > 0 || respuestasCount > 0;
+              const canStartPrivateFromInteraction = !isOwnUser(item.usuario?.id || item.user_id);
+              const hasActions =
+                moderationActions.length > 0 ||
+                respuestasCount > 0 ||
+                canStartPrivateFromInteraction;
 
               return (
                 <>
@@ -940,6 +979,23 @@ export default function Interacciones() {
                           onClick={() => toggleRespuestas(item.id)}
                         >
                           💬 {respuestasExpandidas ? "Ocultar respostas" : "Ver respostas"} ({respuestasCount})
+                        </Button>
+                      )}
+
+                      {canStartPrivateFromInteraction && (
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="private-conversation-action"
+                          disabled={privateActionKey === `interaccion-${item.id}`}
+                          onClick={() =>
+                            iniciarConversaPrivada(
+                              { origin_interaccion_id: item.id },
+                              `interaccion-${item.id}`
+                            )
+                          }
+                        >
+                          💬 Conversar em privado
                         </Button>
                       )}
                     </div>
@@ -980,22 +1036,41 @@ export default function Interacciones() {
                             </div>
                           </div>
 
-                          {puedeModerarInteraccion(item) && (
+                          {(puedeModerarInteraccion(item) || !isOwnUser(r.usuario?.id || r.user_id)) && (
                             <div className="respuesta-actions">
-                              <Button
-                                size="sm"
-                                variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
-                                className="moderation-button"
-                                disabled={accionEstadoRespuestaId === r.id}
-                                onClick={() =>
-                                  cambiarEstadoRespuesta(
-                                    r.id,
-                                    r.estado === "oculta" ? "activa" : "oculta"
-                                  )
-                                }
-                              >
-                                {r.estado === "oculta" ? "Ativar" : "Ocultar"}
-                              </Button>
+                              {puedeModerarInteraccion(item) && (
+                                <Button
+                                  size="sm"
+                                  variant={r.estado === "oculta" ? "outline-success" : "outline-secondary"}
+                                  className="moderation-button"
+                                  disabled={accionEstadoRespuestaId === r.id}
+                                  onClick={() =>
+                                    cambiarEstadoRespuesta(
+                                      r.id,
+                                      r.estado === "oculta" ? "activa" : "oculta"
+                                    )
+                                  }
+                                >
+                                  {r.estado === "oculta" ? "Ativar" : "Ocultar"}
+                                </Button>
+                              )}
+
+                              {!isOwnUser(r.usuario?.id || r.user_id) && (
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  className="private-conversation-action private-conversation-action--reply"
+                                  disabled={privateActionKey === `resposta-${r.id}`}
+                                  onClick={() =>
+                                    iniciarConversaPrivada(
+                                      { origin_respuesta_id: r.id },
+                                      `resposta-${r.id}`
+                                    )
+                                  }
+                                >
+                                  💬 Conversar em privado
+                                </Button>
+                              )}
                             </div>
                           )}
 

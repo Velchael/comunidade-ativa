@@ -144,6 +144,7 @@ test('mantiene hamburguesa y navegación principal', () => {
   expect(screen.getByRole('link', { name: 'Interações' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Agenda' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Grupos' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Conversas' })).toBeInTheDocument();
 });
 
 test('header no muestra Sair', () => {
@@ -312,4 +313,71 @@ test.each([
 
   expect(await screen.findByText(titulo)).toBeInTheDocument();
   expect(screen.getByText(corpo)).toBeInTheDocument();
+});
+
+test('campana renderiza mensagem_privada e navega para URL interna da conversa', async () => {
+  authClient.request.mockImplementation(async (config) => {
+    if (config.method === 'patch') return { data: { id: 23, leida: true } };
+    return {
+      data: {
+        items: [{
+          id: 23,
+          tipo: 'mensagem_privada',
+          titulo: 'Nova mensagem privada',
+          corpo: 'Maria enviou uma mensagem.',
+          url: '/conversas/55',
+          leida: false,
+          created_at: new Date().toISOString(),
+          actor: { id: 44, username: 'Maria' }
+        }],
+        unread_count: 1
+      }
+    };
+  });
+
+  renderHeader({ token: 'access-token' });
+
+  await userEvent.click(screen.getByRole('button', { name: 'Abrir notificações' }));
+  expect(await screen.findByText('Nova mensagem privada')).toBeInTheDocument();
+  expect(screen.getByText('Maria enviou uma mensagem.')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByText('Nova mensagem privada'));
+
+  expect(authClient.request).toHaveBeenCalledWith({
+    method: 'patch',
+    url: 'http://localhost:3000/api/notificaciones/23/leida'
+  });
+  expect(mockNavigate).toHaveBeenCalledWith('/conversas/55');
+});
+
+test.each([
+  '//evil.example/conversas/55',
+  'https://evil.example/conversas/55'
+])('campana ignora URL externa de mensagem_privada: %s', async (url) => {
+  authClient.request.mockResolvedValue({
+    data: {
+      items: [{
+        id: 24,
+        tipo: 'mensagem_privada',
+        titulo: 'Nova mensagem privada',
+        corpo: 'Maria enviou uma mensagem.',
+        url,
+        leida: false,
+        created_at: new Date().toISOString(),
+        actor: { id: 44, username: 'Maria' }
+      }],
+      unread_count: 1
+    }
+  });
+
+  renderHeader({ token: 'access-token' });
+
+  await userEvent.click(screen.getByRole('button', { name: 'Abrir notificações' }));
+  await userEvent.click(await screen.findByText('Nova mensagem privada'));
+
+  expect(mockNavigate).not.toHaveBeenCalled();
+  expect(authClient.request).not.toHaveBeenCalledWith(expect.objectContaining({
+    method: 'patch',
+    url: 'http://localhost:3000/api/notificaciones/24/leida'
+  }));
 });
