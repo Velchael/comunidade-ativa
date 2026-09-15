@@ -27,12 +27,17 @@ const createResponse = () => {
 
 const row = (value) => ({
   ...value,
-  async update(values) {
+  async update(values, options = {}) {
+    if (options.transaction?.stageUpdate) {
+      return options.transaction.stageUpdate(this, values);
+    }
     Object.assign(this, values);
     return this;
   },
   toJSON() {
-    return { ...this };
+    return Object.fromEntries(
+      Object.entries(this).filter(([, currentValue]) => typeof currentValue !== 'function')
+    );
   },
 });
 
@@ -89,8 +94,12 @@ const createHarness = ({
   ],
   conversas = [],
   mensagens = [],
+  notificaciones = [],
   concurrentCreate = false,
   forceUnexpectedUnique = false,
+  notificacionError = null,
+  deliveryError = null,
+  deliveryResult = { attempted: 1, delivered: 1, expired: 0, failed: 0 },
 } = {}) => {
   const calls = [];
   const state = {
@@ -104,8 +113,10 @@ const createHarness = ({
       ...item,
     })),
     mensagens: mensagens.map(row),
+    notificaciones: notificaciones.map(row),
     nextConversaId: 100,
     nextMensagemId: 1000,
+    nextNotificacionId: 5000,
   };
 
   const findConversaByPair = ({ comunidad_id, participante_1_id, participante_2_id }) => (
@@ -211,15 +222,19 @@ const createHarness = ({
       items = items.sort((a, b) => direction === 'DESC' ? b.id - a.id : a.id - b.id);
       return items.slice(0, options?.limit || 50);
     },
-    create: async (values) => {
-      calls.push(['ConversaMensagem.create', values]);
+    create: async (values, options = {}) => {
+      calls.push(['ConversaMensagem.create', values, options]);
       const created = row({
         id: state.nextMensagemId,
         created_at: new Date('2026-09-15T10:00:00.000Z'),
         ...values,
       });
       state.nextMensagemId += 1;
-      state.mensagens.push(created);
+      if (options.transaction?.pendingMensagens) {
+        options.transaction.pendingMensagens.push(created);
+      } else {
+        state.mensagens.push(created);
+      }
       return created;
     },
     update: async (values, options) => {
@@ -281,12 +296,54 @@ const createHarness = ({
     },
   };
 
+  const Notificacion = {
+    create: async (values, options = {}) => {
+      calls.push(['Notificacion.create', values, options]);
+      if (notificacionError) throw notificacionError;
+      const created = row({ id: state.nextNotificacionId, ...values });
+      state.nextNotificacionId += 1;
+      if (options.transaction?.pendingNotificaciones) {
+        options.transaction.pendingNotificaciones.push(created);
+      } else {
+        state.notificaciones.push(created);
+      }
+      return created;
+    },
+  };
+
+  const deliveryService = {
+    deliver: async (notificacion) => {
+      calls.push(['delivery.deliver', notificacion]);
+      if (deliveryError) throw deliveryError;
+      return deliveryResult;
+    },
+  };
+
   const sequelize = {
     transaction: async () => {
       calls.push(['transaction.start']);
       return {
-        async commit() { calls.push(['transaction.commit']); },
-        async rollback() { calls.push(['transaction.rollback']); },
+        pendingMensagens: [],
+        pendingNotificaciones: [],
+        pendingUpdates: [],
+        stageUpdate(target, values) {
+          this.pendingUpdates.push([target, values]);
+          return target;
+        },
+        async commit() {
+          calls.push(['transaction.commit']);
+          state.mensagens.push(...this.pendingMensagens);
+          state.notificaciones.push(...this.pendingNotificaciones);
+          for (const [target, values] of this.pendingUpdates) {
+            Object.assign(target, values);
+          }
+        },
+        async rollback() {
+          calls.push(['transaction.rollback']);
+          this.pendingMensagens = [];
+          this.pendingNotificaciones = [];
+          this.pendingUpdates = [];
+        },
       };
     },
     query: async (sql, options) => {
@@ -311,12 +368,14 @@ const createHarness = ({
     User,
     Interaccion,
     Respuesta,
+    Notificacion,
     sequelize,
+    deliveryService,
     logger: { error: (...args) => calls.push(['logger.error', ...args]) },
   });
 
   const req = {
-    user: { id: actorUserId },
+    user: { id: actorUserId, username: users.find((user) => user.id === actorUserId)?.username },
     body: { target_user_id: 2, comunidad_id: 10 },
     query: {},
     params: {},
@@ -573,6 +632,7 @@ test('terceiro não pode enviar mensagem', async () => {
 
   assert.equal(response.statusCode, 403);
   assert.equal(harness.state.mensagens.length, 0);
+  assert.equal(harness.state.notificaciones.length, 0);
 });
 
 test('participantes históricos seguem lendo mensagens quando B fica inativo', async () => {
@@ -618,6 +678,7 @@ test('envio é bloqueado quando destinatário histórico está inativo', async (
 
   assert.equal(response.statusCode, 403);
   assert.equal(harness.state.mensagens.length, 0);
+  assert.equal(harness.state.notificaciones.length, 0);
 });
 
 test('envio é bloqueado quando remetente histórico está inativo', async () => {
@@ -637,6 +698,7 @@ test('envio é bloqueado quando remetente histórico está inativo', async () =>
 
   assert.equal(response.statusCode, 403);
   assert.equal(harness.state.mensagens.length, 0);
+  assert.equal(harness.state.notificaciones.length, 0);
 });
 
 test('envio é bloqueado quando comunidade histórica está inativa', async () => {
@@ -655,6 +717,7 @@ test('envio é bloqueado quando comunidade histórica está inativa', async () =
 
   assert.equal(response.statusCode, 403);
   assert.equal(harness.state.mensagens.length, 0);
+  assert.equal(harness.state.notificaciones.length, 0);
 });
 
 test('ambos participantes são bloqueados para enviar quando comunidade está inativa', async () => {
@@ -695,6 +758,134 @@ test('sender_user_id não pode ser falsificado', async () => {
 
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.sender_user_id, 1);
+});
+
+test('mensagem válida cria notificação persistente para outro participante e faz delivery pós-commit', async () => {
+  const harness = createHarness({
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+  });
+  harness.req.params.id = '77';
+  harness.req.body = { corpo: 'te espero na Rua X às 18h' };
+  const { response, res } = createResponse();
+
+  await harness.controller.enviarMensagem(harness.req, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(harness.state.mensagens.length, 1);
+  assert.equal(harness.state.conversas[0].last_message_at, harness.state.mensagens[0].created_at);
+  assert.equal(harness.state.notificaciones.length, 1);
+  assert.deepEqual(harness.state.notificaciones[0].toJSON(), {
+    id: 5000,
+    user_id: 2,
+    actor_user_id: 1,
+    tipo: 'mensagem_privada',
+    interaccion_id: null,
+    respuesta_id: null,
+    comunidad_id: 10,
+    task_id: null,
+    titulo: 'Nova mensagem privada',
+    corpo: 'Ana enviou uma mensagem.',
+    url: '/conversas/77',
+    leida: false,
+  });
+  assert.equal(harness.state.notificaciones[0].user_id, 2);
+  assert.notEqual(harness.state.notificaciones[0].user_id, harness.req.user.id);
+
+  const commitIndex = harness.calls.findIndex(([name]) => name === 'transaction.commit');
+  const deliveryIndex = harness.calls.findIndex(([name]) => name === 'delivery.deliver');
+  assert.ok(deliveryIndex > commitIndex);
+  assert.equal(harness.calls.find(([name]) => name === 'delivery.deliver')[1], harness.state.notificaciones[0]);
+});
+
+test('sender participante_2 notifica somente participante_1', async () => {
+  const harness = createHarness({
+    actorUserId: 2,
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+  });
+  harness.req.params.id = '77';
+  harness.req.body = { corpo: 'Oi' };
+  const { response, res } = createResponse();
+
+  await harness.controller.enviarMensagem(harness.req, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(harness.state.notificaciones.length, 1);
+  assert.equal(harness.state.notificaciones[0].user_id, 1);
+  assert.equal(harness.state.notificaciones[0].actor_user_id, 2);
+});
+
+test('notificação privada nunca persiste o corpo real da mensagem', async () => {
+  const secret = 'João: te espero na Rua X às 18h';
+  const harness = createHarness({
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+  });
+  harness.req.params.id = '77';
+  harness.req.body = { corpo: secret };
+  const { response, res } = createResponse();
+
+  await harness.controller.enviarMensagem(harness.req, res);
+
+  assert.equal(response.statusCode, 201);
+  const persistedNotification = JSON.stringify(harness.state.notificaciones[0]);
+  assert.equal(persistedNotification.includes(secret), false);
+  assert.equal(harness.state.notificaciones[0].titulo, 'Nova mensagem privada');
+  assert.equal(harness.state.notificaciones[0].corpo, 'Ana enviou uma mensagem.');
+});
+
+test('falha em Notificacion.create faz rollback de mensagem e last_message_at sem delivery', async () => {
+  const harness = createHarness({
+    notificacionError: new Error('notificacion check failed'),
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+  });
+  harness.req.params.id = '77';
+  harness.req.body = { corpo: 'Oi' };
+  const { response, res } = createResponse();
+
+  await harness.controller.enviarMensagem(harness.req, res);
+
+  assert.equal(response.statusCode, 500);
+  assert.equal(harness.state.mensagens.length, 0);
+  assert.equal(harness.state.conversas[0].last_message_at, null);
+  assert.equal(harness.state.notificaciones.length, 0);
+  assert.equal(harness.calls.some(([name]) => name === 'delivery.deliver'), false);
+  assert.equal(harness.calls.some(([name]) => name === 'transaction.rollback'), true);
+});
+
+test('falha de delivery pós-commit mantém mensagem e notificação persistidas', async () => {
+  const harness = createHarness({
+    deliveryError: new Error('push endpoint secret'),
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+  });
+  harness.req.params.id = '77';
+  harness.req.body = { corpo: 'Oi' };
+  const { response, res } = createResponse();
+
+  await harness.controller.enviarMensagem(harness.req, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(harness.state.mensagens.length, 1);
+  assert.equal(harness.state.notificaciones.length, 1);
+  assert.equal(harness.calls.some(([name]) => name === 'transaction.rollback'), false);
+  assert.deepEqual(harness.calls.find(([name]) => name === 'logger.error'), [
+    'logger.error',
+    'post-commit private message notification delivery error',
+  ]);
+});
+
+test('delivery com N subscriptions não duplica Notificacion persistente', async () => {
+  const harness = createHarness({
+    deliveryResult: { attempted: 3, delivered: 3, expired: 0, failed: 0 },
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+  });
+  harness.req.params.id = '77';
+  harness.req.body = { corpo: 'Oi' };
+  const { response, res } = createResponse();
+
+  await harness.controller.enviarMensagem(harness.req, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(harness.state.notificaciones.length, 1);
+  assert.equal(harness.calls.filter(([name]) => name === 'delivery.deliver').length, 1);
 });
 
 test('mensagem vazia é rejeitada', async () => {

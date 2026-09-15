@@ -3,7 +3,8 @@ const TIPOS_NOTIFICACION = [
   "agenda_task_created",
   "agenda_task_updated",
   "agenda_task_cancelled",
-  "agenda_task_deleted"
+  "agenda_task_deleted",
+  "mensagem_privada"
 ];
 
 module.exports = (sequelize, DataTypes) => {

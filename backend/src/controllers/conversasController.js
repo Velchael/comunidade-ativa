@@ -1,10 +1,13 @@
 const { Op, UniqueConstraintError, fn, col, QueryTypes } = require('sequelize');
 const db = require('../models');
+const notificationDeliveryService = require('../services/notificationDeliveryService');
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const MAX_CORPO_LENGTH = 2000;
 const CONVERSA_UNIQUE_CONSTRAINT = 'conversas_privadas_comunidad_participantes_key';
+const PRIVATE_MESSAGE_NOTIFICATION_TYPE = 'mensagem_privada';
+const PRIVATE_MESSAGE_NOTIFICATION_TITLE = 'Nova mensagem privada';
 
 const normalizeId = (value) => {
   const numeric = Number(value);
@@ -106,6 +109,38 @@ const normalizeCorpo = (value) => {
   return corpo;
 };
 
+const getActorFirstName = (user) => {
+  const source = typeof user?.username === 'string' && user.username.trim()
+    ? user.username
+    : user?.email;
+  if (typeof source !== 'string' || !source.trim()) return 'Alguém';
+  return source.trim().split(/\s+/)[0].slice(0, 80) || 'Alguém';
+};
+
+const buildPrivateMessageNotification = ({ conversa, actorUser }) => {
+  const plain = typeof conversa?.toJSON === 'function' ? conversa.toJSON() : conversa;
+  const actorUserId = normalizeId(actorUser?.id);
+  const participante1Id = normalizeId(plain?.participante_1_id);
+  const participante2Id = normalizeId(plain?.participante_2_id);
+  const recipientUserId = actorUserId === participante1Id ? participante2Id : participante1Id;
+
+  if (!actorUserId || !recipientUserId || recipientUserId === actorUserId) return null;
+
+  return {
+    user_id: recipientUserId,
+    actor_user_id: actorUserId,
+    tipo: PRIVATE_MESSAGE_NOTIFICATION_TYPE,
+    interaccion_id: null,
+    respuesta_id: null,
+    comunidad_id: normalizeId(plain.comunidad_id),
+    task_id: null,
+    titulo: PRIVATE_MESSAGE_NOTIFICATION_TITLE,
+    corpo: `${getActorFirstName(actorUser)} enviou uma mensagem.`,
+    url: `/conversas/${plain.id}`,
+    leida: false,
+  };
+};
+
 const hasExpectedFields = (fields) => {
   const expected = ['comunidad_id', 'participante_1_id', 'participante_2_id'];
   const names = Array.isArray(fields)
@@ -139,7 +174,9 @@ const createConversasController = ({
   User = db.User,
   Interaccion = db.Interaccion,
   Respuesta = db.Respuesta,
+  Notificacion = db.Notificacion,
   sequelize = db.sequelize,
+  deliveryService = notificationDeliveryService,
   logger = console,
 } = {}) => {
   const loadConversaForUser = async (conversaId, userId, options = {}) => {
@@ -572,6 +609,7 @@ const createConversasController = ({
 
   const enviarMensagem = async (req, res) => {
     let transaction;
+    let notificacion = null;
 
     try {
       const userId = normalizeId(req.user?.id);
@@ -615,8 +653,25 @@ const createConversasController = ({
       const messageCreatedAt = mensagem.created_at || new Date();
       await conversa.update({ last_message_at: messageCreatedAt }, { transaction });
 
+      const notificationPayload = buildPrivateMessageNotification({
+        conversa,
+        actorUser: req.user,
+      });
+
+      if (notificationPayload) {
+        notificacion = await Notificacion.create(notificationPayload, { transaction });
+      }
+
       await transaction.commit();
       transaction = null;
+
+      if (notificacion) {
+        try {
+          await deliveryService.deliver(notificacion);
+        } catch (deliveryError) {
+          logger.error?.('post-commit private message notification delivery error');
+        }
+      }
 
       return res.status(201).json(serializeMensagem(mensagem));
     } catch (error) {
@@ -671,6 +726,7 @@ const createConversasController = ({
     authorizePair,
     checkCanSend,
     orderedParticipants,
+    buildPrivateMessageNotification,
     parseLimit,
     normalizeCorpo,
     MAX_CORPO_LENGTH,
@@ -685,6 +741,9 @@ module.exports = {
   parseLimit,
   normalizeCorpo,
   isExpectedConversaUniqueError,
+  buildPrivateMessageNotification,
+  PRIVATE_MESSAGE_NOTIFICATION_TYPE,
+  PRIVATE_MESSAGE_NOTIFICATION_TITLE,
   MAX_CORPO_LENGTH,
   MAX_LIMIT,
 };

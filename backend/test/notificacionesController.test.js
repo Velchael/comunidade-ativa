@@ -215,6 +215,47 @@ test('GET devuelve campos genéricos necesarios para Agenda', async () => {
   assert.equal(Object.hasOwn(response.body.items[0], 'endpoint'), false);
 });
 
+test('GET lista mensagem_privada e unread_count sem lógica especial por tipo', async () => {
+  const harness = createHarness({
+    rows: [{
+      id: 22,
+      tipo: 'mensagem_privada',
+      interaccion_id: null,
+      respuesta_id: null,
+      comunidad_id: 7,
+      task_id: null,
+      titulo: 'Nova mensagem privada',
+      corpo: 'Ana enviou uma mensagem.',
+      url: '/conversas/77',
+      leida: false,
+      created_at: '2026-09-15T10:00:00.000Z',
+      actor: { id: 1, username: 'Ana', email: 'secret@example.test' },
+      user_id: 88,
+      endpoint: 'secret'
+    }]
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.listar(harness.req, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.unread_count, 3);
+  assert.deepEqual(response.body.items[0], {
+    id: 22,
+    tipo: 'mensagem_privada',
+    interaccion_id: null,
+    respuesta_id: null,
+    comunidad_id: 7,
+    task_id: null,
+    titulo: 'Nova mensagem privada',
+    corpo: 'Ana enviou uma mensagem.',
+    url: '/conversas/77',
+    leida: false,
+    created_at: '2026-09-15T10:00:00.000Z',
+    actor: { id: 1, username: 'Ana' }
+  });
+});
+
 test('GET incluye actor solo con id y username', async () => {
   const harness = createHarness();
   const { response, res } = createResponse();

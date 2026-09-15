@@ -27,6 +27,17 @@ const AGENDA_NOTIFICACION = {
   corpo: 'Culto de oração — 15/09',
   url: '/TaskList',
 };
+const PRIVATE_MESSAGE_NOTIFICACION = {
+  id: 92,
+  user_id: 88,
+  actor_user_id: 42,
+  tipo: 'mensagem_privada',
+  comunidad_id: 7,
+  titulo: 'Nova mensagem privada',
+  corpo: 'Efraim enviou uma mensagem.',
+  url: '/conversas/77',
+  rawMessageBody: 'Efraim: te espero na Rua X às 18h',
+};
 const SECRET_ENDPOINT = 'https://push.example.test/private-endpoint';
 const SECRET_P256DH = 'private-p256dh';
 const SECRET_AUTH = 'private-auth';
@@ -211,6 +222,36 @@ test('deliverMany Agenda consulta subscriptions em bulk e preserva uma notifica�
   assert.deepEqual(
     harness.calls.filter(([name]) => name === 'provider:send').map(([, input]) => input.payload.notification_id),
     [90, 90, 91]
+  );
+});
+
+test('payload de mensagem privada usa campos genéricos persistidos e url relativa', async () => {
+  const harness = createHarness({
+    subscriptions: [
+      { ...makeSubscription(1), user_id: 88 },
+      { ...makeSubscription(2), user_id: 88 },
+    ],
+    results: [{ ok: true }, { ok: true }],
+  });
+
+  const summary = await harness.service.deliver(PRIVATE_MESSAGE_NOTIFICACION);
+
+  assert.equal(harness.calls.some(([name]) => name === 'user:findByPk'), false);
+  assert.deepEqual(summary, { attempted: 2, delivered: 2, expired: 0, failed: 0 });
+  assert.deepEqual(harness.calls.find(([name]) => name === 'provider:send')[1].payload, {
+    notification_id: 92,
+    tipo: 'mensagem_privada',
+    type: 'mensagem_privada',
+    title: 'Nova mensagem privada',
+    body: 'Efraim enviou uma mensagem.',
+    url: '/conversas/77',
+    comunidadId: 7,
+  });
+  assert.equal(
+    JSON.stringify(harness.calls.filter(([name]) => name === 'provider:send')).includes(
+      PRIVATE_MESSAGE_NOTIFICACION.rawMessageBody
+    ),
+    false
   );
 });
 

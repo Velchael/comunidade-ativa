@@ -65,6 +65,28 @@ test('modelo Notificacion aceita tipos Agenda com payload genérico nullable par
   await assert.doesNotReject(() => valid.validate());
 });
 
+test('modelo Notificacion aceita mensagem_privada com payload genérico', async () => {
+  const sequelize = new Sequelize('postgresql://test:test@127.0.0.1:5432/test', {
+    logging: false
+  });
+  const Notificacion = defineNotificacion(sequelize, DataTypes);
+
+  const valid = Notificacion.build({
+    user_id: 2,
+    actor_user_id: 1,
+    tipo: 'mensagem_privada',
+    interaccion_id: null,
+    respuesta_id: null,
+    comunidad_id: 7,
+    task_id: null,
+    titulo: 'Nova mensagem privada',
+    corpo: 'Ana enviou uma mensagem.',
+    url: '/conversas/77'
+  });
+
+  await assert.doesNotReject(() => valid.validate());
+});
+
 test('modelo Notificacion alinha comunidade com FK cascade e task_id sem FK', () => {
   const sequelize = new Sequelize('postgresql://test:test@127.0.0.1:5432/test', {
     logging: false

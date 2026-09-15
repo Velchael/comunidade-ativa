@@ -9,6 +9,7 @@ const AGENDA_NOTIFICATION_TYPES = new Set([
   'agenda_task_cancelled',
   'agenda_task_deleted',
 ]);
+const PRIVATE_MESSAGE_NOTIFICATION_TYPE = 'mensagem_privada';
 
 const emptySummary = () => ({
   attempted: 0,
@@ -52,6 +53,18 @@ const createNotificationDeliveryService = ({
         body: notificacion.corpo,
         url: notificacion.url,
         taskId: notificacion.task_id,
+        comunidadId: notificacion.comunidad_id,
+      };
+    }
+
+    if (notificacion.tipo === PRIVATE_MESSAGE_NOTIFICATION_TYPE) {
+      return {
+        notification_id: notificacion.id,
+        tipo: PRIVATE_MESSAGE_NOTIFICATION_TYPE,
+        type: PRIVATE_MESSAGE_NOTIFICATION_TYPE,
+        title: notificacion.titulo,
+        body: notificacion.corpo,
+        url: notificacion.url,
         comunidadId: notificacion.comunidad_id,
       };
     }
