@@ -100,6 +100,7 @@ const createHarness = ({
   notificacionError = null,
   deliveryError = null,
   deliveryResult = { attempted: 1, delivered: 1, expired: 0, failed: 0 },
+  photoResolver = async (value) => value || null,
 } = {}) => {
   const calls = [];
   const state = {
@@ -371,6 +372,7 @@ const createHarness = ({
     Notificacion,
     sequelize,
     deliveryService,
+    photoResolver,
     logger: { error: (...args) => calls.push(['logger.error', ...args]) },
   });
 
@@ -570,6 +572,55 @@ test('participante pode listar conversa', async () => {
   assert.equal(response.body.items[0].unread_count, 1);
   assert.equal(response.body.items[0].ultimo_mensagem.id, 90);
   assert.equal(response.body.items[0].can_send, true);
+});
+
+test('lista conversa com foto_perfil resolvida do outro participante', async () => {
+  const harness = createHarness({
+    users: [
+      { id: 1, username: 'Ana', foto_perfil: null },
+      { id: 2, username: 'Beto', foto_perfil: 'comuva/profiles/users/2/avatar.webp' },
+    ],
+    conversas: [{ id: 77, comunidad_id: 10, participante_1_id: 1, participante_2_id: 2 }],
+    photoResolver: async (value) => (
+      value === 'comuva/profiles/users/2/avatar.webp'
+        ? 'https://signed.example/avatar.webp'
+        : null
+    ),
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.listar(harness.req, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.items[0].outro_participante, {
+    id: 2,
+    username: 'Beto',
+    foto_perfil: 'https://signed.example/avatar.webp',
+  });
+});
+
+test('criar conversa retorna foto_perfil resolvida do outro participante', async () => {
+  const harness = createHarness({
+    users: [
+      { id: 1, username: 'Ana', foto_perfil: null },
+      { id: 2, username: 'Beto', foto_perfil: 'comuva/profiles/users/2/avatar.webp' },
+    ],
+    photoResolver: async (value) => (
+      value === 'comuva/profiles/users/2/avatar.webp'
+        ? 'https://signed.example/avatar.webp'
+        : null
+    ),
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.criarOuObter(harness.req, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.outro_participante, {
+    id: 2,
+    username: 'Beto',
+    foto_perfil: 'https://signed.example/avatar.webp',
+  });
 });
 
 test('conversa histórica segue listada com can_send false quando membro está inativo', async () => {

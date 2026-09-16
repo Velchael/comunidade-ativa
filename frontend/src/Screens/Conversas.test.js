@@ -39,6 +39,14 @@ const conversa = {
   can_send: true
 };
 
+const conversaWithPhoto = {
+  ...conversa,
+  outro_participante: {
+    ...conversa.outro_participante,
+    foto_perfil: 'https://signed.example/avatar-maria.webp'
+  }
+};
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-path">{location.pathname}</div>;
@@ -99,6 +107,44 @@ test('lista conversas, mostra não lidas e abre /conversas/:id ao clicar', async
   expect(screen.getByTestId('location-path')).toHaveTextContent('/conversas/12');
 });
 
+test('lista conversas mostra foto do outro participante quando disponível', async () => {
+  authClient.request.mockResolvedValue({ data: { items: [conversaWithPhoto] } });
+
+  const { container } = renderConversas();
+
+  expect(await screen.findByText('Maria Silva')).toBeInTheDocument();
+  const avatar = container.querySelector('.conversa-list-item .user-avatar');
+  expect(avatar).toHaveAttribute('src', 'https://signed.example/avatar-maria.webp');
+  expect(avatar).toHaveAttribute('alt', '');
+});
+
+test('lista conversas mantém inicial quando usuário não tem foto', async () => {
+  authClient.request.mockResolvedValue({ data: { items: [conversa] } });
+
+  const { container } = renderConversas();
+
+  expect(await screen.findByText('Maria Silva')).toBeInTheDocument();
+  const fallback = container.querySelector('.conversa-list-item .user-avatar--fallback');
+  expect(fallback).toHaveTextContent('MS');
+});
+
+test('erro ao carregar foto na lista cai para inicial', async () => {
+  authClient.request.mockResolvedValue({ data: { items: [conversaWithPhoto] } });
+
+  const { container } = renderConversas();
+
+  expect(await screen.findByText('Maria Silva')).toBeInTheDocument();
+  const avatar = container.querySelector('.conversa-list-item .user-avatar');
+
+  await act(async () => {
+    fireEvent.error(avatar);
+  });
+
+  await waitFor(() => {
+    expect(container.querySelector('.conversa-list-item .user-avatar--fallback')).toHaveTextContent('MS');
+  });
+});
+
 test('rota /conversas/:id carrega mensagens, diferencia autoria e marca como lida', async () => {
   authClient.request.mockImplementation(async (config) => {
     if (config.url.endsWith('/api/conversas?limit=100')) {
@@ -129,6 +175,43 @@ test('rota /conversas/:id carrega mensagens, diferencia autoria e marca como lid
     method: 'patch',
     url: 'http://localhost:3000/api/conversas/12/lida'
   });
+});
+
+test('cabecera da conversa mostra foto do outro participante quando disponível', async () => {
+  authClient.request.mockImplementation(async (config) => {
+    if (config.url.endsWith('/api/conversas?limit=100')) {
+      return { data: { items: [conversaWithPhoto] } };
+    }
+    if (config.url.endsWith('/api/conversas/12/mensagens?limit=50')) {
+      return { data: { items: [] } };
+    }
+    if (config.method === 'patch') return { data: { marked_read: 0 } };
+    return { data: {} };
+  });
+
+  const { container } = renderConversas('/conversas/12');
+
+  expect(await screen.findByRole('heading', { name: 'Maria Silva' })).toBeInTheDocument();
+  const avatar = container.querySelector('.conversa-detail-person .user-avatar');
+  expect(avatar).toHaveAttribute('src', 'https://signed.example/avatar-maria.webp');
+});
+
+test('cabecera da conversa mantém inicial quando usuário não tem foto', async () => {
+  authClient.request.mockImplementation(async (config) => {
+    if (config.url.endsWith('/api/conversas?limit=100')) {
+      return { data: { items: [conversa] } };
+    }
+    if (config.url.endsWith('/api/conversas/12/mensagens?limit=50')) {
+      return { data: { items: [] } };
+    }
+    if (config.method === 'patch') return { data: { marked_read: 0 } };
+    return { data: {} };
+  });
+
+  const { container } = renderConversas('/conversas/12');
+
+  expect(await screen.findByRole('heading', { name: 'Maria Silva' })).toBeInTheDocument();
+  expect(container.querySelector('.conversa-detail-person .user-avatar--fallback')).toHaveTextContent('MS');
 });
 
 test('envia mensagem válida e vazio ou maior que 2000 não envia', async () => {

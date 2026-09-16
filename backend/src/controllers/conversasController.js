@@ -1,6 +1,7 @@
 const { Op, UniqueConstraintError, fn, col, QueryTypes } = require('sequelize');
 const db = require('../models');
 const notificationDeliveryService = require('../services/notificationDeliveryService');
+const { resolveProfilePhoto } = require('../utils/resolveProfilePhoto');
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -40,13 +41,13 @@ const orderedParticipants = (firstUserId, secondUserId) => {
     : { participante_1_id: second, participante_2_id: first };
 };
 
-const serializeUser = (user) => {
+const serializeUser = async (user, photoResolver = resolveProfilePhoto) => {
   const plain = typeof user?.toJSON === 'function' ? user.toJSON() : user;
   if (!plain) return null;
   return {
     id: plain.id,
     username: plain.username,
-    foto_perfil: plain.foto_perfil || null,
+    foto_perfil: await photoResolver(plain.foto_perfil),
   };
 };
 
@@ -72,12 +73,13 @@ const serializeMensagem = (mensagem) => {
   };
 };
 
-const serializeConversa = ({
+const serializeConversa = async ({
   conversa,
   currentUserId,
   ultimoMensagem = null,
   unreadCount = 0,
   canSend = false,
+  photoResolver = resolveProfilePhoto,
 }) => {
   const plain = typeof conversa?.toJSON === 'function' ? conversa.toJSON() : conversa;
   const otherUser = Number(plain.participante_1_id) === Number(currentUserId)
@@ -87,7 +89,7 @@ const serializeConversa = ({
   return {
     id: plain.id,
     comunidad: serializeComunidad(plain.comunidad),
-    outro_participante: serializeUser(otherUser),
+    outro_participante: await serializeUser(otherUser, photoResolver),
     last_message_at: plain.last_message_at || null,
     ultimo_mensagem: serializeMensagem(ultimoMensagem),
     unread_count: unreadCount,
@@ -177,6 +179,7 @@ const createConversasController = ({
   Notificacion = db.Notificacion,
   sequelize = db.sequelize,
   deliveryService = notificationDeliveryService,
+  photoResolver = resolveProfilePhoto,
   logger = console,
 } = {}) => {
   const loadConversaForUser = async (conversaId, userId, options = {}) => {
@@ -427,7 +430,7 @@ const createConversasController = ({
       return res.status(200).json({
         id: conversa.id,
         comunidad: serializeComunidad(auth.comunidad),
-        outro_participante: serializeUser(auth.targetUser),
+        outro_participante: await serializeUser(auth.targetUser, photoResolver),
         last_message_at: conversa.last_message_at || null,
       });
     } catch (error) {
@@ -552,13 +555,14 @@ const createConversasController = ({
       }
 
       return res.json({
-        items: conversas.map((conversa) => serializeConversa({
+        items: await Promise.all(conversas.map((conversa) => serializeConversa({
           conversa,
           currentUserId: userId,
           ultimoMensagem: latestByConversaId.get(normalizeId(conversa.id)) || null,
           unreadCount: unreadByConversaId.get(normalizeId(conversa.id)) || 0,
           canSend: canSendByConversaId.get(normalizeId(conversa.id)) === true,
-        })),
+          photoResolver,
+        }))),
       });
     } catch (error) {
       const status = error.status || 500;
