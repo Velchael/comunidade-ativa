@@ -1756,6 +1756,25 @@ footer {
     border-radius: 6px;
   }
 
+  .comuva-feature__content {
+    padding: 1.35rem 1rem 1.45rem;
+    border: 1px solid rgba(47, 95, 83, 0.14);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 250, 240, 0.98), rgba(247, 251, 248, 0.98)),
+      #fffaf0;
+    box-shadow: 0 14px 34px rgba(23, 32, 38, 0.07);
+  }
+
+  .comuva-platform {
+    border-top-color: rgba(47, 95, 83, 0.18);
+    border-bottom: 1px solid rgba(202, 147, 43, 0.2);
+    background:
+      linear-gradient(180deg, rgba(255, 250, 240, 0.99), rgba(247, 251, 248, 0.99)),
+      #fffaf0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  }
+
   .comuva-emotional {
     min-height: 430px;
   }

@@ -18,11 +18,11 @@ const communityTools = [
       "Encontros, mutirões, tarefas e ações comunitárias ganham organização simples."
   },
   {
-    eyebrow: "Grupos",
+    eyebrow: "GRUPOS",
     icon: "👥",
-    title: "Pessoas reunidas por propósito",
+    title: "Reunião familiar",
     text:
-      "Equipes, frentes de apoio e projetos podem se organizar sem perder o vínculo com a comunidade."
+      "Equipes e projetos podem se organizar sem perder o vínculo com a comunidade."
   },
   {
     eyebrow: "Membros",
