@@ -2,39 +2,41 @@ import React from "react";
 import { Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
-const homeSections = [
+const communityTools = [
   {
     eyebrow: "Interações",
     icon: "🤝",
-    title: "Interações que aproximam pessoas",
+    title: "Conversas que viram cuidado",
     text:
-      "Peça ajuda, ofereça apoio, responda e converse com pessoas da sua comunidade. Cada interação aproxima pessoas e transforma cuidado em ação.",
-    image: "/home/interacoes-maos-unidas.jpg",
-    alt: "Mãos unidas representando cooperação entre pessoas",
-    reverse: false,
-    tone: "interacoes"
+      "Pedidos, respostas e iniciativas ficam visíveis para que mais pessoas possam participar."
   },
   {
     eyebrow: "Agenda",
     icon: "📅",
-    title: "Agenda para colocar a comunidade em movimento",
+    title: "Atividades com presença real",
     text:
-      "Organize mutirões, encontros, tarefas e ações reais da comunidade. A Agenda ajuda a transformar intenção em presença, compromisso e movimento.",
-    image: "/home/agenda-limpeza-comunitaria.jpg",
-    alt: "Voluntários organizados em uma ação de limpeza comunitária",
-    reverse: true,
-    tone: "agenda"
+      "Encontros, mutirões, tarefas e ações comunitárias ganham organização simples."
   },
   {
-    eyebrow: "Grupos por Comunidade",
+    eyebrow: "Grupos",
     icon: "👥",
-    title: "Grupos para servir melhor",
+    title: "Pessoas reunidas por propósito",
     text:
-      "Crie e participe de grupos que atuam em necessidades locais: alimentos, transporte, limpeza, campanhas, visitas, apoio e outras formas de servir.",
-    image: "/home/grupos-entrega-alimentos.jpg",
-    alt: "Pessoas entregando alimento em uma ação comunitária",
-    reverse: false,
-    tone: "grupos"
+      "Equipes, frentes de apoio e projetos podem se organizar sem perder o vínculo com a comunidade."
+  },
+  {
+    eyebrow: "Membros",
+    icon: "🧭",
+    title: "Participação mais clara",
+    text:
+      "A comunidade entende quem faz parte, quem pode ajudar e onde cada pessoa pode contribuir."
+  },
+  {
+    eyebrow: "Notificações",
+    icon: "🔔",
+    title: "Comunicação que aproxima",
+    text:
+      "Avisos importantes chegam com clareza para manter todos conectados ao que está acontecendo."
   }
 ];
 
@@ -60,8 +62,8 @@ export default function Casapaz() {
             Comunidade Viva, Ativa e em Movimento.
           </p>
           <p className="comuva-hero__text">
-            Pessoas ajudando pessoas. Fortalecendo comunidades através da
-            cooperação, da solidariedade e da participação.
+            Pessoas ajudando pessoas. Comunidades que participam, cooperam e
+            crescem juntas através de vínculos reais.
           </p>
 
           <div className="comuva-actions" aria-label="Ações principais">
@@ -87,43 +89,16 @@ export default function Casapaz() {
 
       <section className="comuva-mission" aria-labelledby="comuva-mission-title">
         <div className="comuva-section-inner comuva-section-inner--narrow">
-          <p className="comuva-kicker">O que é a COMUVA?</p>
+          <p className="comuva-kicker">Comunidade em movimento</p>
           <h2 id="comuva-mission-title">
-            Uma plataforma para fortalecer comunidades.
+            Uma comunidade não ganha vida só porque as pessoas estão reunidas.
           </h2>
           <p>
-            A COMUVA é uma plataforma para fortalecer comunidades por meio da
-            ajuda mútua, da organização comunitária e da participação cidadã.
-            Aqui, necessidades reais encontram pessoas dispostas a colaborar.
+            Ela ganha vida quando pessoas se reconhecem, participam, cooperam,
+            se ajudam e crescem juntas. A COMUVA existe para tornar essa vida
+            comunitária mais visível, simples e acessível no dia a dia.
           </p>
         </div>
-      </section>
-
-      <section className="comuva-story" aria-label="Como a COMUVA funciona">
-        {homeSections.map((section, index) => (
-          <article
-            className={`comuva-feature comuva-feature--${section.tone} ${
-              section.reverse ? "comuva-feature--reverse" : ""
-            }`}
-            key={section.eyebrow}
-          >
-            <div className="comuva-feature__media">
-              <img src={section.image} alt={section.alt} />
-            </div>
-
-            <div className="comuva-feature__content">
-              <p className="comuva-feature__number">
-                {String(index + 1).padStart(2, "0")}
-              </p>
-              <p className="comuva-feature__eyebrow">
-                <span aria-hidden="true">{section.icon}</span>
-                {section.eyebrow}
-              </p>
-              <h2>{section.title}</h2>
-              <p>{section.text}</p>
-            </div>
-          </article>
-        ))}
       </section>
 
       <section
@@ -136,65 +111,111 @@ export default function Casapaz() {
             Nenhuma comunidade sobrevive sozinha.
           </h2>
           <p>
-            Quando pessoas caminham juntas, pequenos gestos transformam vidas e
-            fortalecem toda a comunidade.
+            Quando pessoas caminham juntas, pequenos gestos viram apoio,
+            fortalecem vidas e fazem a comunidade permanecer viva, ativa e em
+            movimento.
           </p>
         </div>
       </section>
 
-      <section className="comuva-story" aria-label="Impacto humano da COMUVA">
+      <section className="comuva-story" aria-label="Fortalecimento comunitário com COMUVA">
         <article className="comuva-feature comuva-feature--solidariedade comuva-feature--reverse">
           <div className="comuva-feature__media">
             <img
               src="/home/solidariedade-consolo.jpg"
-              alt="Pessoa oferecendo consolo e apoio em um momento sensível"
+              alt="Pessoa oferecendo apoio e presença a outra pessoa"
             />
           </div>
 
           <div className="comuva-feature__content">
-            <p className="comuva-feature__number">04</p>
+            <p className="comuva-feature__number">01</p>
             <p className="comuva-feature__eyebrow">
               <span aria-hidden="true">❤️</span>
-              Histórias de solidariedade
+              Ajuda mútua
             </p>
-            <h2>A solidariedade começa nos pequenos gestos</h2>
+            <h2>A solidariedade começa quando alguém percebe uma necessidade</h2>
             <p>
-              A solidariedade começa nos pequenos gestos: escutar, responder,
-              acompanhar e estar presente quando alguém precisa.
+              Escutar, responder, acompanhar, oferecer tempo, dividir uma tarefa
+              ou mobilizar um grupo. A COMUVA ajuda esses pequenos gestos a
+              encontrarem caminho dentro da comunidade.
             </p>
           </div>
         </article>
+      </section>
 
+      <section className="comuva-toolkit" aria-labelledby="comuva-toolkit-title">
+        <div className="comuva-section-inner">
+          <div className="comuva-toolkit__intro">
+            <p className="comuva-kicker">Um espaço simples para participar</p>
+            <h2 id="comuva-toolkit-title">
+              Organização, conexão e comunicação a serviço da vida comunitária.
+            </h2>
+            <p>
+              A COMUVA transforma necessidades, iniciativas, atividades e
+              conversas em participação real, sem complicar a rotina de quem
+              organiza nem de quem participa.
+            </p>
+          </div>
+
+          <div className="comuva-tools-grid" aria-label="Ferramentas da COMUVA">
+            {communityTools.map((tool) => (
+              <article className="comuva-tool-card" key={tool.eyebrow}>
+                <span className="comuva-tool-card__icon" aria-hidden="true">
+                  {tool.icon}
+                </span>
+                <p className="comuva-feature__eyebrow">{tool.eyebrow}</p>
+                <h3>{tool.title}</h3>
+                <p>{tool.text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="comuva-story" aria-label="Crescimento comunitário">
         <article className="comuva-feature comuva-feature--crescimento">
           <div className="comuva-feature__media">
             <img
               src="/home/crescimento-sembrando.jpg"
-              alt="Mãos plantando uma muda como símbolo de crescimento comunitário"
+              alt="Mãos cuidando de uma muda como símbolo de crescimento comunitário"
             />
           </div>
 
           <div className="comuva-feature__content">
-            <p className="comuva-feature__number">05</p>
+            <p className="comuva-feature__number">02</p>
             <p className="comuva-feature__eyebrow">
               <span aria-hidden="true">🌱</span>
               Crescimento comunitário
             </p>
-            <h2>Ajudar hoje fortalece a comunidade do amanhã</h2>
+            <h2>Quando a participação vira hábito, a comunidade cresce</h2>
             <p>
-              Ajudar hoje fortalece a comunidade do amanhã. Quando a cooperação
-              vira hábito, a comunidade cresce com mais confiança, cuidado e
-              pertencimento.
+              Com mais organização e interação, cada pessoa entende onde pode
+              contribuir. Assim, a comunidade cresce com mais confiança,
+              pertencimento e cuidado compartilhado.
             </p>
           </div>
         </article>
+      </section>
+
+      <section className="comuva-platform" aria-labelledby="comuva-platform-title">
+        <div className="comuva-section-inner comuva-section-inner--narrow">
+          <p className="comuva-kicker">COMUVA na prática</p>
+          <h2 id="comuva-platform-title">
+            Uma plataforma digital para organizar, conectar e fortalecer comunidades reais.
+          </h2>
+          <p>
+            Organize membros, atividades, grupos, interações e comunicações em
+            um ambiente simples, humano e acessível pelo celular.
+          </p>
+        </div>
       </section>
 
       <section className="comuva-final" aria-labelledby="comuva-final-title">
         <div className="comuva-section-inner comuva-section-inner--narrow">
           <h2 id="comuva-final-title">Faça parte da sua comunidade.</h2>
           <p>
-            Entre, participe e ajude a manter sua comunidade viva, ativa e em
-            movimento.
+            Entre, participe, convide pessoas a colaborar e ajude a manter sua
+            comunidade viva, ativa e em movimento.
           </p>
 
           <Button
