@@ -4,6 +4,10 @@ server {
     
     root /usr/share/nginx/html;
     index index.html;
+
+    location ~ ^/convite/[^/]+$ {
+        try_files /convite.html /index.html;
+    }
     
     location / {
         try_files $uri /index.html;
