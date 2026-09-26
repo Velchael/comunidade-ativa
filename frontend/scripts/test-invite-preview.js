@@ -7,12 +7,12 @@ const { buildInviteHtml } = require('./generate-invite-html');
 const root = path.resolve(__dirname, '..');
 const nginxConfig = fs.readFileSync(path.join(root, 'nginx', 'default.conf.http'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
-const homeImagePath = path.join(root, 'public', 'comuva-share.png');
+const homeImagePath = path.join(root, 'public', 'comuva-share.jpg');
 const inviteImagePath = path.join(root, 'public', 'comuva-convite-share.jpg');
 
 const HOME_TITLE = 'COMUVA — Comunidade Viva, Ativa e em Movimento';
 const HOME_DESCRIPTION = 'Conectando pessoas para fortalecer suas comunidades. Entre na COMUVA e faça parte de uma comunidade viva, ativa e em movimento.';
-const HOME_IMAGE = 'https://comuva.com/comuva-share.png';
+const HOME_IMAGE = 'https://comuva.com/comuva-share.jpg';
 const INVITE_TITLE = 'Convite para participar de uma comunidade no COMUVA';
 const INVITE_IMAGE = 'https://comuva.com/comuva-convite-share.jpg';
 
@@ -57,8 +57,9 @@ assert(nginxConfig.includes('location /api/'));
 assert(nginxConfig.includes('location / {\n        try_files $uri /index.html;\n    }'));
 
 const homeImageBytes = fs.readFileSync(homeImagePath);
-assert.strictEqual(homeImageBytes[0], 0x89);
-assert.strictEqual(homeImageBytes[1], 0x50);
+assert.strictEqual(homeImageBytes[0], 0xff);
+assert.strictEqual(homeImageBytes[1], 0xd8);
+assert(homeImageBytes.length < 300 * 1024, `Expected home OG image below 300 KB, got ${homeImageBytes.length} bytes`);
 
 const inviteImageBytes = fs.readFileSync(inviteImagePath);
 assert.strictEqual(inviteImageBytes[0], 0xff);
