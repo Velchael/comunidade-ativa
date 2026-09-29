@@ -95,6 +95,7 @@ export default function Interacciones() {
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroVisibilidad, setFiltroVisibilidad] = useState("comunidad");
   const [selectorAberto, setSelectorAberto] = useState(null);
+  const [painelSuperiorAtivo, setPainelSuperiorAtivo] = useState(null);
   const [highlightedInteractionId, setHighlightedInteractionId] = useState(null);
 
   const puedeModerar =
@@ -450,6 +451,13 @@ export default function Interacciones() {
     if (field === "filtroVisibilidad") setFiltroVisibilidad(value);
   };
 
+  const handlePainelSuperiorToggle = (nextPainel) => {
+    setPainelSuperiorAtivo((currentPainel) =>
+      currentPainel === nextPainel ? null : nextPainel
+    );
+    setSelectorAberto(null);
+  };
+
   // 🎨 COLOR TARJETA
   const getCardColor = (tipoActual) => {
     if (tipoActual === "necesidad") return "#fffdf8";
@@ -691,163 +699,196 @@ export default function Interacciones() {
         </p>
       </div>
 
-      <Card className="interacciones-panel publicar-panel">
-        <Card.Body>
-          <div className="panel-heading">
-            <h5 className="panel-title">Nova publicação</h5>
-          </div>
+      <div
+        className="interaction-mode-selector"
+        role="group"
+        aria-label="Selecionar painel superior"
+      >
+        <Button
+          type="button"
+          variant="light"
+          className={`interaction-mode-selector__button ${
+            painelSuperiorAtivo === "publicar" ? "is-active" : ""
+          }`}
+          aria-pressed={painelSuperiorAtivo === "publicar"}
+          onClick={() => handlePainelSuperiorToggle("publicar")}
+        >
+          Interação
+        </Button>
+        <Button
+          type="button"
+          variant="light"
+          className={`interaction-mode-selector__button ${
+            painelSuperiorAtivo === "explorar" ? "is-active" : ""
+          }`}
+          aria-pressed={painelSuperiorAtivo === "explorar"}
+          onClick={() => handlePainelSuperiorToggle("explorar")}
+        >
+          Explorar
+        </Button>
+      </div>
 
-          <PrimarySelectorBar
-            mode="form"
-            ariaLabel="Dados principais da publicação"
-            openKey={selectorAberto}
-            onOpenChange={setSelectorAberto}
-            onSelect={handlePrimarySelect}
-            items={[
-              {
-                id: "tipo",
-                label: "Tipo",
-                value: tipo,
-                valueLabel: getOptionLabel(TIPO_OPTIONS, tipo),
-                options: TIPO_OPTIONS
-              },
-              {
-                id: "categoria",
-                label: "Categoria",
-                value: categoria,
-                valueLabel: getOptionLabel(CATEGORIA_OPTIONS, categoria),
-                options: CATEGORIA_OPTIONS
-              },
-              {
-                id: "visibilidad",
-                label: "Visibilidade",
-                value: visibilidad,
-                valueLabel: getOptionLabel(VISIBILIDAD_OPTIONS, visibilidad),
-                options: VISIBILIDAD_OPTIONS,
-                align: "end"
-              }
-            ]}
-          />
+      {painelSuperiorAtivo === "publicar" && (
+        <Card className="interacciones-panel publicar-panel">
+          <Card.Body>
+            <div className="panel-heading">
+              <h5 className="panel-title">Nova publicação</h5>
+            </div>
 
-          <Form.Control
-            className="composer-input"
-            placeholder="Do que você precisa ou o que pode oferecer?"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-          />
+            <PrimarySelectorBar
+              mode="form"
+              ariaLabel="Dados principais da publicação"
+              openKey={selectorAberto}
+              onOpenChange={setSelectorAberto}
+              onSelect={handlePrimarySelect}
+              items={[
+                {
+                  id: "tipo",
+                  label: "Tipo",
+                  value: tipo,
+                  valueLabel: getOptionLabel(TIPO_OPTIONS, tipo),
+                  options: TIPO_OPTIONS
+                },
+                {
+                  id: "categoria",
+                  label: "Categoria",
+                  value: categoria,
+                  valueLabel: getOptionLabel(CATEGORIA_OPTIONS, categoria),
+                  options: CATEGORIA_OPTIONS
+                },
+                {
+                  id: "visibilidad",
+                  label: "Visibilidade",
+                  value: visibilidad,
+                  valueLabel: getOptionLabel(VISIBILIDAD_OPTIONS, visibilidad),
+                  options: VISIBILIDAD_OPTIONS,
+                  align: "end"
+                }
+              ]}
+            />
 
-          <div className="interaction-image-picker">
-            <div className="interaction-image-picker__controls">
-              <Form.Control
-                ref={imageInputRef}
-                id="interaction-image-input"
-                type="file"
-                className="interaction-image-picker__input"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleImageChange}
-              />
-              <Form.Label
-                htmlFor="interaction-image-input"
-                className="interaction-image-picker__button"
-              >
-                Adicionar imagem
-              </Form.Label>
-              {selectedImage && (
-                <Button
-                  type="button"
-                  variant="link"
-                  className="interaction-image-picker__remove"
-                  onClick={clearSelectedImage}
+            <Form.Control
+              className="composer-input"
+              placeholder="Do que você precisa ou o que pode oferecer?"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+            />
+
+            <div className="interaction-image-picker">
+              <div className="interaction-image-picker__controls">
+                <Form.Control
+                  ref={imageInputRef}
+                  id="interaction-image-input"
+                  type="file"
+                  className="interaction-image-picker__input"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImageChange}
+                />
+                <Form.Label
+                  htmlFor="interaction-image-input"
+                  className="interaction-image-picker__button"
                 >
-                  Remover imagem
-                </Button>
+                  Adicionar imagem
+                </Form.Label>
+                {selectedImage && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="interaction-image-picker__remove"
+                    onClick={clearSelectedImage}
+                  >
+                    Remover imagem
+                  </Button>
+                )}
+              </div>
+
+              {imageError && (
+                <div className="inline-error interaction-image-picker__error">
+                  {imageError}
+                </div>
+              )}
+
+              {imagePreviewUrl && (
+                <div className="interaction-image-preview">
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Prévia da imagem selecionada"
+                  />
+                </div>
               )}
             </div>
 
-            {imageError && (
-              <div className="inline-error interaction-image-picker__error">
-                {imageError}
+            {publishError && (
+              <div className="inline-error publish-error">
+                {publishError}
               </div>
             )}
 
-            {imagePreviewUrl && (
-              <div className="interaction-image-preview">
-                <img
-                  src={imagePreviewUrl}
-                  alt="Prévia da imagem selecionada"
-                />
-              </div>
-            )}
-          </div>
-
-          {publishError && (
-            <div className="inline-error publish-error">
-              {publishError}
+            <div className="composer-actions">
+              <Button
+                onClick={publicar}
+                className="composer-submit"
+                disabled={isPublishing || !texto.trim()}
+              >
+                {isPublishing ? "Publicando..." : "Publicar"}
+              </Button>
             </div>
-          )}
+          </Card.Body>
+        </Card>
+      )}
 
-          <div className="composer-actions">
-            <Button
-              onClick={publicar}
-              className="composer-submit"
-              disabled={isPublishing || !texto.trim()}
-            >
-              {isPublishing ? "Publicando..." : "Publicar"}
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
+      {painelSuperiorAtivo === "explorar" && (
+        <Card className="interacciones-panel filtros-panel">
+          <Card.Body>
+            <div className="panel-heading filtros-heading">
+              <h5 className="panel-title">Explorar</h5>
+              <span className="filtros-resumen">
+                {listaFiltrada.length} interaç{listaFiltrada.length === 1 ? "ão" : "ões"}
+              </span>
+            </div>
 
-      <Card className="interacciones-panel filtros-panel">
-        <Card.Body>
-          <div className="panel-heading filtros-heading">
-            <h5 className="panel-title">Explorar</h5>
-            <span className="filtros-resumen">
-              {listaFiltrada.length} interaç{listaFiltrada.length === 1 ? "ão" : "ões"}
-            </span>
-          </div>
-
-          {/* Filtros independentes: apenas Limpar filtros restaura os três campos. */}
-          <PrimarySelectorBar
-            mode="filter"
-            ariaLabel="Filtros de exploração"
-            openKey={selectorAberto}
-            onOpenChange={setSelectorAberto}
-            onSelect={handlePrimarySelect}
-            hasActiveFilters={hasActiveFilters}
-            onClear={() => {
-              setFiltroTipo("todos");
-              setFiltroCategoria("todos");
-              setFiltroVisibilidad("comunidad");
-              setSelectorAberto(null);
-            }}
-            items={[
-              {
-                id: "filtroTipo",
-                label: "Tipo",
-                value: filtroTipo,
-                valueLabel: getOptionLabel(FILTER_TIPO_OPTIONS, filtroTipo),
-                options: FILTER_TIPO_OPTIONS
-              },
-              {
-                id: "filtroCategoria",
-                label: "Categoria",
-                value: filtroCategoria,
-                valueLabel: getOptionLabel(FILTER_CATEGORIA_OPTIONS, filtroCategoria),
-                options: FILTER_CATEGORIA_OPTIONS
-              },
-              {
-                id: "filtroVisibilidad",
-                label: "Visibilidade",
-                value: filtroVisibilidad,
-                valueLabel: getOptionLabel(FILTER_VISIBILIDAD_OPTIONS, filtroVisibilidad),
-                options: FILTER_VISIBILIDAD_OPTIONS,
-                align: "end"
-              }
-            ]}
-          />
-        </Card.Body>
-      </Card>
+            {/* Filtros independentes: apenas Limpar filtros restaura os três campos. */}
+            <PrimarySelectorBar
+              mode="filter"
+              ariaLabel="Filtros de exploração"
+              openKey={selectorAberto}
+              onOpenChange={setSelectorAberto}
+              onSelect={handlePrimarySelect}
+              hasActiveFilters={hasActiveFilters}
+              onClear={() => {
+                setFiltroTipo("todos");
+                setFiltroCategoria("todos");
+                setFiltroVisibilidad("comunidad");
+                setSelectorAberto(null);
+              }}
+              items={[
+                {
+                  id: "filtroTipo",
+                  label: "Tipo",
+                  value: filtroTipo,
+                  valueLabel: getOptionLabel(FILTER_TIPO_OPTIONS, filtroTipo),
+                  options: FILTER_TIPO_OPTIONS
+                },
+                {
+                  id: "filtroCategoria",
+                  label: "Categoria",
+                  value: filtroCategoria,
+                  valueLabel: getOptionLabel(FILTER_CATEGORIA_OPTIONS, filtroCategoria),
+                  options: FILTER_CATEGORIA_OPTIONS
+                },
+                {
+                  id: "filtroVisibilidad",
+                  label: "Visibilidade",
+                  value: filtroVisibilidad,
+                  valueLabel: getOptionLabel(FILTER_VISIBILIDAD_OPTIONS, filtroVisibilidad),
+                  options: FILTER_VISIBILIDAD_OPTIONS,
+                  align: "end"
+                }
+              ]}
+            />
+          </Card.Body>
+        </Card>
+      )}
 
       {estadoErrorGeneral && (
         <Alert

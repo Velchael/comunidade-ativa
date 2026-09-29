@@ -1856,6 +1856,40 @@ footer {
   font-size: 0.98rem;
 }
 
+.interaction-mode-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.interaction-mode-selector__button.btn-light {
+  min-height: 42px;
+  min-width: 7.5rem;
+  border: 1px solid rgba(202, 147, 43, 0.34);
+  border-radius: 999px;
+  background-color: #fffdf8;
+  color: #5d3d06;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(67, 26, 3, 0.05);
+}
+
+.interaction-mode-selector__button.btn-light:hover,
+.interaction-mode-selector__button.btn-light:focus {
+  border-color: rgba(168, 111, 0, 0.7);
+  background-color: #fff6de;
+  color: #4d3210;
+}
+
+.interaction-mode-selector__button.btn-light.is-active,
+.interaction-mode-selector__button.btn-light.is-active:hover,
+.interaction-mode-selector__button.btn-light.is-active:focus {
+  border-color: #1f6f62;
+  background-color: #eef8ee;
+  color: #174f46;
+  box-shadow: 0 0 0 0.2rem rgba(31, 111, 98, 0.16);
+}
+
 .interacciones-panel {
   border: 1px solid rgba(202, 147, 43, 0.14);
   border-radius: 1.1rem;
@@ -3507,6 +3541,17 @@ footer {
 
   .conversa-compose button {
     width: 100%;
+  }
+
+  .interaction-mode-selector {
+    gap: 0.45rem;
+  }
+
+  .interaction-mode-selector__button.btn-light {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
   }
 
   .primary-selector-items {

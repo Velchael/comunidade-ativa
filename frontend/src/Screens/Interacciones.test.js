@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -33,7 +33,32 @@ function LocationProbe() {
   return <div data-testid="location-path">{location.pathname}</div>;
 }
 
-const renderInteracciones = (items) => {
+const sampleItems = [
+  {
+    id: 10,
+    tipo: 'ayuda',
+    categoria: 'servicio',
+    descripcion: 'Tenho ferramentas',
+    visibilidad: 'comunidad',
+    estado: 'abierto',
+    usuario: { id: 9, username: 'Maria' },
+    comunidad: { nombre_comunidad: 'Comunidade Teste' },
+    respuestas: []
+  },
+  {
+    id: 11,
+    tipo: 'necesidad',
+    categoria: 'producto',
+    descripcion: 'Preciso de uma mesa',
+    visibilidad: 'comunidad',
+    estado: 'abierto',
+    usuario: { id: 8, username: 'João' },
+    comunidad: { nombre_comunidad: 'Comunidade Teste' },
+    respuestas: []
+  }
+];
+
+const renderInteracciones = (items, initialEntry = '/interacciones') => {
   axios.get.mockResolvedValue({
     data: {
       items,
@@ -48,7 +73,7 @@ const renderInteracciones = (items) => {
 
   return render(
     <UserContext.Provider value={{ user: currentUser }}>
-      <MemoryRouter initialEntries={['/interacciones']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/interacciones" element={<Interacciones />} />
           <Route path="*" element={<LocationProbe />} />
@@ -60,6 +85,138 @@ const renderInteracciones = (items) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  window.HTMLElement.prototype.scrollIntoView = jest.fn();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
+test('selector horizontal mostra Interação e Explorar sem ocultar publicações no estado inicial', async () => {
+  renderInteracciones(sampleItems);
+
+  const selector = screen.getByRole('group', { name: 'Selecionar painel superior' });
+  expect(within(selector).getByRole('button', { name: 'Interação' })).toBeInTheDocument();
+  expect(within(selector).getByRole('button', { name: 'Explorar' })).toBeInTheDocument();
+
+  expect(await screen.findByText('Tenho ferramentas')).toBeInTheDocument();
+  expect(screen.getByText('Preciso de uma mesa')).toBeInTheDocument();
+  expect(screen.queryByText('Nova publicação')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Explorar' })).not.toBeInTheDocument();
+});
+
+test('click em Interação mostra Nova publicação e mantém publicações visíveis', async () => {
+  renderInteracciones(sampleItems);
+
+  await screen.findByText('Tenho ferramentas');
+  await userEvent.click(screen.getByRole('button', { name: 'Interação' }));
+
+  expect(screen.getByText('Nova publicação')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Explorar' })).not.toBeInTheDocument();
+  expect(screen.getByText('Tenho ferramentas')).toBeInTheDocument();
+  expect(screen.getByText('Preciso de uma mesa')).toBeInTheDocument();
+});
+
+test('click em Explorar mostra filtros e mantém publicações visíveis', async () => {
+  renderInteracciones(sampleItems);
+
+  await screen.findByText('Tenho ferramentas');
+  await userEvent.click(screen.getByRole('button', { name: 'Explorar' }));
+
+  expect(screen.getByRole('heading', { name: 'Explorar' })).toBeInTheDocument();
+  expect(screen.queryByText('Nova publicação')).not.toBeInTheDocument();
+  expect(screen.getByText('Tenho ferramentas')).toBeInTheDocument();
+  expect(screen.getByText('Preciso de uma mesa')).toBeInTheDocument();
+});
+
+test('somente um card superior fica visível e segundo click volta ao estado neutro', async () => {
+  renderInteracciones(sampleItems);
+
+  await screen.findByText('Tenho ferramentas');
+  await userEvent.click(screen.getByRole('button', { name: 'Interação' }));
+  expect(screen.getByText('Nova publicação')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Explorar' }));
+  expect(screen.getByRole('heading', { name: 'Explorar' })).toBeInTheDocument();
+  expect(screen.queryByText('Nova publicação')).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Explorar' }));
+  expect(screen.queryByRole('heading', { name: 'Explorar' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Nova publicação')).not.toBeInTheDocument();
+  expect(screen.getByText('Tenho ferramentas')).toBeInTheDocument();
+});
+
+test('filtros continuam funcionando dentro de Explorar', async () => {
+  renderInteracciones(sampleItems);
+
+  await screen.findByText('Tenho ferramentas');
+  await userEvent.click(screen.getByRole('button', { name: 'Explorar' }));
+
+  const filtros = screen.getByRole('group', { name: 'Filtros de exploração' });
+  await userEvent.click(within(filtros).getByRole('button', { name: /Tipo Todos/i }));
+  await userEvent.click(screen.getByRole('menuitemradio', { name: /Necessidade/i }));
+
+  expect(screen.queryByText('Tenho ferramentas')).not.toBeInTheDocument();
+  expect(screen.getByText('Preciso de uma mesa')).toBeInTheDocument();
+});
+
+test('criar publicação continua funcionando dentro de Interação', async () => {
+  axios.post.mockResolvedValue({ data: {} });
+  renderInteracciones(sampleItems);
+
+  await screen.findByText('Tenho ferramentas');
+  await userEvent.click(screen.getByRole('button', { name: 'Interação' }));
+  await userEvent.type(
+    screen.getByPlaceholderText('Do que você precisa ou o que pode oferecer?'),
+    'Posso doar livros'
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+  await waitFor(() => {
+    expect(axios.post).toHaveBeenCalledWith(
+      'http://localhost:3000/api/interacciones',
+      {
+        user_id: 7,
+        comunidad_id: 3,
+        tipo: 'ayuda',
+        categoria: 'servicio',
+        descripcion: 'Posso doar livros',
+        visibilidad: 'comunidad'
+      }
+    );
+  });
+});
+
+test('interaccionId continua destacando e rolando até a publicação sem abrir painel superior', async () => {
+  renderInteracciones(sampleItems, '/interacciones?interaccionId=11');
+
+  await waitFor(() => {
+    expect(document.getElementById('interaccion-11')).toHaveClass('is-notification-target');
+  });
+  await waitFor(() => {
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  });
+  expect(screen.queryByText('Nova publicação')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Explorar' })).not.toBeInTheDocument();
+});
+
+test('polling continua chamando o mesmo GET de interações', async () => {
+  jest.useFakeTimers();
+  renderInteracciones(sampleItems);
+
+  await screen.findByText('Tenho ferramentas');
+  expect(axios.get).toHaveBeenCalledWith('http://localhost:3000/api/interacciones/3');
+
+  act(() => {
+    jest.advanceTimersByTime(10000);
+  });
+
+  await waitFor(() => {
+    expect(axios.get).toHaveBeenCalledTimes(2);
+  });
 });
 
 test('interação alheia mostra Conversar em privado e cria usando origin_interaccion_id', async () => {
