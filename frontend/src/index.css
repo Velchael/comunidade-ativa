@@ -391,6 +391,11 @@ main {
   color: #431a03;
 }
 
+.community-header-home-button {
+  margin-right: 0;
+  font-size: 18px;
+}
+
 .img-large {
   max-width: 55%;
 }

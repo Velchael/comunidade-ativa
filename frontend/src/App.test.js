@@ -147,6 +147,37 @@ test('mantiene hamburguesa y navegación principal', () => {
   expect(screen.getByRole('link', { name: 'Conversas' })).toBeInTheDocument();
 });
 
+test('renderiza botón Home junto a hamburguesa y navega al inicio autenticado', async () => {
+  const { container } = renderHeader();
+
+  const menuButton = screen.getByRole('button', { name: 'Abrir menu lateral' });
+  const homeButton = screen.getByRole('button', { name: 'Ir para o início' });
+  const brandMenu = container.querySelector('.community-header-brand-menu');
+
+  expect(homeButton).toBeInTheDocument();
+  expect(brandMenu).toContainElement(menuButton);
+  expect(menuButton.nextElementSibling).toBe(homeButton);
+
+  await userEvent.click(homeButton);
+
+  expect(mockNavigate).toHaveBeenCalledWith('/interacciones');
+});
+
+test('botón Home no depende del rol ni altera controles de header', () => {
+  renderHeader({
+    user: {
+      ...baseUser,
+      rol_comunidad: 'miembro',
+      can_manage_comunidad: false
+    }
+  });
+
+  expect(screen.getByRole('button', { name: 'Ir para o início' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Abrir menu lateral' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Abrir notificações' })).toBeInTheDocument();
+  expect(screen.queryByText('⚙')).not.toBeInTheDocument();
+});
+
 test('header no muestra Sair', () => {
   renderHeader();
 
