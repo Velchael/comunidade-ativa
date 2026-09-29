@@ -147,7 +147,7 @@ test('mantiene hamburguesa y navegación principal', () => {
   expect(screen.getByRole('link', { name: 'Conversas' })).toBeInTheDocument();
 });
 
-test('renderiza botón Home junto a hamburguesa y navega al inicio autenticado', async () => {
+test('renderiza botón Home junto a hamburguesa y navega al home informativo', async () => {
   const { container } = renderHeader();
 
   const menuButton = screen.getByRole('button', { name: 'Abrir menu lateral' });
@@ -160,7 +160,7 @@ test('renderiza botón Home junto a hamburguesa y navega al inicio autenticado',
 
   await userEvent.click(homeButton);
 
-  expect(mockNavigate).toHaveBeenCalledWith('/interacciones');
+  expect(mockNavigate).toHaveBeenCalledWith('/');
 });
 
 test('botón Home no depende del rol ni altera controles de header', () => {

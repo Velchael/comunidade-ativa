@@ -392,7 +392,7 @@ export function Header({ toggleSidebar }) {
           </button>
           <button
             type="button"
-            onClick={() => navigate("/interacciones")}
+            onClick={() => navigate("/")}
             className="sidebar-menu-button community-header-home-button"
             aria-label="Ir para o início"
           >
