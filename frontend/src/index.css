@@ -494,6 +494,15 @@ main {
   border-color: rgba(67, 26, 3, 0.16);
 }
 
+.community-invitation-manager__selector {
+  width: min(100%, 24rem);
+  margin-bottom: 1.25rem;
+}
+
+.community-invitation-manager__selector .form-label {
+  font-weight: 700;
+}
+
 .community-invitation-manager__header {
   display: flex;
   justify-content: space-between;
@@ -1061,6 +1070,10 @@ footer {
 
   .invitation-actions .btn,
   .community-invitation-manager__header .btn {
+    width: 100%;
+  }
+
+  .community-invitation-manager__selector {
     width: 100%;
   }
 

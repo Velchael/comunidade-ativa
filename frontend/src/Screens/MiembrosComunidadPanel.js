@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Container,
+  Form,
   InputGroup,
   Spinner,
   Table
@@ -21,6 +22,31 @@ import {
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 const API_URL = `${API_BASE}/api/comunidades`;
+const INVITATION_TYPES = {
+  normal: 'normal',
+  consolidacao: 'consolidacao'
+};
+
+const INVITATION_TYPE_OPTIONS = [
+  {
+    value: INVITATION_TYPES.normal,
+    label: 'Convite ativo'
+  },
+  {
+    value: INVITATION_TYPES.consolidacao,
+    label: 'Convite de Consolidação'
+  }
+];
+
+const createInvitationState = () => ({
+  activeInvitation: null,
+  invitationUrl: '',
+  invitationToken: '',
+  creatingInvitation: false,
+  revokingInvitation: false,
+  copyConfirmed: false,
+  invitationNotice: ''
+});
 
 const fetchMiembrosComunidad = async (comunidadId) => {
   const res = await axios.get(`${API_URL}/${comunidadId}/miembros`);
@@ -93,9 +119,11 @@ const getCommunitySlug = (nome) => {
   return normalizedName || 'comunidade';
 };
 
-const getMostRecentActiveInvitation = (invitaciones = []) => (
+const getMostRecentActiveInvitation = (invitaciones = [], tipo = INVITATION_TYPES.normal) => (
   invitaciones.find((invitacion) => (
-    invitacion?.estado === 'activa' && invitacion?.estado_efectivo === 'activa'
+    invitacion?.tipo === tipo &&
+    invitacion?.estado === 'activa' &&
+    invitacion?.estado_efectivo === 'activa'
   )) || null
 );
 
@@ -113,15 +141,13 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [miembros, setMiembros] = useState([]);
   const [total, setTotal] = useState(0);
-  const [creatingInvitation, setCreatingInvitation] = useState(false);
   const [loadingInvitation, setLoadingInvitation] = useState(false);
-  const [revokingInvitation, setRevokingInvitation] = useState(false);
-  const [activeInvitation, setActiveInvitation] = useState(null);
-  const [invitationUrl, setInvitationUrl] = useState('');
-  const [invitationToken, setInvitationToken] = useState('');
   const [invitationError, setInvitationError] = useState('');
-  const [copyConfirmed, setCopyConfirmed] = useState(false);
-  const [invitationNotice, setInvitationNotice] = useState('');
+  const [selectedInvitationType, setSelectedInvitationType] = useState(INVITATION_TYPES.normal);
+  const [invitationsByType, setInvitationsByType] = useState({
+    [INVITATION_TYPES.normal]: createInvitationState(),
+    [INVITATION_TYPES.consolidacao]: createInvitationState()
+  });
   const [fetchedCommunityName, setFetchedCommunityName] = useState('');
   const qrCanvasRef = useRef(null);
 
@@ -298,11 +324,28 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     () => getCommunitySlug(comunidadNombre),
     [comunidadNombre]
   );
+  const updateInvitationState = (tipo, updater) => {
+    setInvitationsByType((currentState) => {
+      const previousTypeState = currentState[tipo] || createInvitationState();
+      const nextTypeState =
+        typeof updater === 'function'
+          ? updater(previousTypeState)
+          : { ...previousTypeState, ...updater };
+
+      return {
+        ...currentState,
+        [tipo]: nextTypeState
+      };
+    });
+  };
 
   useEffect(() => {
     const fetchActiveInvitation = async () => {
       if (!authToken || !Number.isInteger(comunidadId) || comunidadId <= 0 || !canManageInvitations) {
-        setActiveInvitation(null);
+        setInvitationsByType({
+          [INVITATION_TYPES.normal]: createInvitationState(),
+          [INVITATION_TYPES.consolidacao]: createInvitationState()
+        });
         return;
       }
 
@@ -319,7 +362,23 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
           }
         );
 
-        setActiveInvitation(getMostRecentActiveInvitation(data?.invitaciones));
+        setInvitationsByType((currentState) => ({
+          ...currentState,
+          [INVITATION_TYPES.normal]: {
+            ...currentState[INVITATION_TYPES.normal],
+            activeInvitation: getMostRecentActiveInvitation(
+              data?.invitaciones,
+              INVITATION_TYPES.normal
+            )
+          },
+          [INVITATION_TYPES.consolidacao]: {
+            ...currentState[INVITATION_TYPES.consolidacao],
+            activeInvitation: getMostRecentActiveInvitation(
+              data?.invitaciones,
+              INVITATION_TYPES.consolidacao
+            )
+          }
+        }));
       } catch (err) {
         const status = err.response?.status;
 
@@ -423,20 +482,23 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     }
   };
 
-  const handleCreateInvitation = async () => {
-    if (creatingInvitation || !authToken) return;
+  const handleCreateInvitation = async (tipo = selectedInvitationType) => {
+    const typeState = invitationsByType[tipo] || createInvitationState();
+    if (typeState.creatingInvitation || !authToken) return;
 
-    setCreatingInvitation(true);
-    setInvitationUrl('');
-    setInvitationToken('');
+    updateInvitationState(tipo, {
+      creatingInvitation: true,
+      invitationUrl: '',
+      invitationToken: '',
+      copyConfirmed: false,
+      invitationNotice: ''
+    });
     setInvitationError('');
-    setCopyConfirmed(false);
-    setInvitationNotice('');
 
     try {
       const { data } = await axios.post(
         `${API_URL}/${comunidadId}/invitaciones`,
-        {},
+        tipo === INVITATION_TYPES.consolidacao ? { tipo } : {},
         {
           headers: {
             Authorization: `Bearer ${authToken}`
@@ -448,17 +510,20 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         throw new Error('missing_invitation_url');
       }
 
-      setInvitationUrl(data.url);
-      setInvitationToken(data.token || '');
-      setActiveInvitation({
-        id: data.id,
-        comunidad_id: data.comunidad_id,
-        estado: data.estado,
-        estado_efectivo: data.estado,
-        expires_at: data.expires_at,
-        max_usos: data.max_usos,
-        usos_actuales: data.usos_actuales,
-        created_at: data.created_at
+      updateInvitationState(tipo, {
+        invitationUrl: data.url,
+        invitationToken: data.token || '',
+        activeInvitation: {
+          id: data.id,
+          comunidad_id: data.comunidad_id,
+          tipo: data.tipo || tipo,
+          estado: data.estado,
+          estado_efectivo: data.estado,
+          expires_at: data.expires_at,
+          max_usos: data.max_usos,
+          usos_actuales: data.usos_actuales,
+          created_at: data.created_at
+        }
       });
     } catch (err) {
       const status = err.response?.status;
@@ -479,12 +544,13 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         );
       }
     } finally {
-      setCreatingInvitation(false);
+      updateInvitationState(tipo, { creatingInvitation: false });
     }
   };
 
-  const handleCopyInvitation = async () => {
-    if (!invitationUrl || creatingInvitation) return;
+  const handleCopyInvitation = async (tipo = selectedInvitationType) => {
+    const typeState = invitationsByType[tipo] || createInvitationState();
+    if (!typeState.invitationUrl || typeState.creatingInvitation) return;
 
     if (!navigator.clipboard) {
       setInvitationError(
@@ -494,9 +560,11 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     }
 
     try {
-      await navigator.clipboard.writeText(invitationUrl);
-      setCopyConfirmed(true);
-      setInvitationNotice('Link copiado!');
+      await navigator.clipboard.writeText(typeState.invitationUrl);
+      updateInvitationState(tipo, {
+        copyConfirmed: true,
+        invitationNotice: 'Link copiado!'
+      });
     } catch {
       setInvitationError(
         'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.'
@@ -535,9 +603,10 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     });
   };
 
-  const handleDownloadQr = () => {
+  const handleDownloadQr = (tipo = selectedInvitationType) => {
+    const typeState = invitationsByType[tipo] || createInvitationState();
     const sourceCanvas = qrCanvasRef.current?.querySelector('canvas');
-    if (!sourceCanvas || !invitationUrl) return;
+    if (!sourceCanvas || !typeState.invitationUrl) return;
 
     const downloadCanvas = document.createElement('canvas');
     const canvasSize = sourceCanvas.width;
@@ -554,16 +623,17 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
     link.click();
   };
 
-  const handleRevokeInvitation = async () => {
-    if (!activeInvitation?.id || revokingInvitation || !authToken) return;
+  const handleRevokeInvitation = async (tipo = selectedInvitationType) => {
+    const typeState = invitationsByType[tipo] || createInvitationState();
+    if (!typeState.activeInvitation?.id || typeState.revokingInvitation || !authToken) return;
 
-    setRevokingInvitation(true);
+    updateInvitationState(tipo, { revokingInvitation: true });
     setInvitationError('');
-    setInvitationNotice('');
+    updateInvitationState(tipo, { invitationNotice: '' });
 
     try {
       await axios.patch(
-        `${API_BASE}/api/invitaciones/${activeInvitation.id}/revocar`,
+        `${API_BASE}/api/invitaciones/${typeState.activeInvitation.id}/revocar`,
         {},
         {
           headers: {
@@ -572,11 +642,13 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         }
       );
 
-      setInvitationUrl('');
-      setInvitationToken('');
-      setActiveInvitation(null);
-      setCopyConfirmed(false);
-      setInvitationNotice('Convite revogado.');
+      updateInvitationState(tipo, {
+        invitationUrl: '',
+        invitationToken: '',
+        activeInvitation: null,
+        copyConfirmed: false,
+        invitationNotice: 'Convite revogado.'
+      });
     } catch (err) {
       const status = err.response?.status;
 
@@ -594,12 +666,167 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
         );
       }
     } finally {
-      setRevokingInvitation(false);
+      updateInvitationState(tipo, { revokingInvitation: false });
     }
   };
 
-  const hasRecoverableInvitationUrl = Boolean(invitationUrl && invitationToken);
-  const hasActiveInvitationWithoutUrl = Boolean(activeInvitation && !hasRecoverableInvitationUrl);
+  const renderInvitationCard = (tipo) => {
+    const typeState = invitationsByType[tipo] || createInvitationState();
+    const {
+      activeInvitation,
+      invitationUrl,
+      invitationToken,
+      creatingInvitation,
+      revokingInvitation,
+      copyConfirmed,
+      invitationNotice
+    } = typeState;
+    const isConsolidacao = tipo === INVITATION_TYPES.consolidacao;
+    const hasRecoverableInvitationUrl = Boolean(invitationUrl && invitationToken);
+    const hasActiveInvitationWithoutUrl = Boolean(activeInvitation && !hasRecoverableInvitationUrl);
+
+    return (
+      <>
+        <div className="community-invitation-manager__header">
+          <div>
+            <Card.Title data-testid="invitation-card-title">
+              {activeInvitation
+                ? (isConsolidacao ? 'Convite de Consolidação ativo' : 'Convite ativo')
+                : (isConsolidacao
+                  ? 'Convide para consolidação'
+                  : 'Convide pessoas para sua comunidade')}
+            </Card.Title>
+            <Card.Text>
+              {activeInvitation
+                ? (isConsolidacao
+                  ? 'Já existe um convite de consolidação ativo para esta comunidade.'
+                  : 'Já existe um convite permanente ativo para esta comunidade.')
+                : (isConsolidacao
+                  ? 'Crie um convite de consolidação para membros já vinculados a esta comunidade.'
+                  : 'Crie um convite permanente para compartilhar com várias pessoas.')}
+            </Card.Text>
+          </div>
+
+          {!activeInvitation && (
+            <Button
+              disabled={creatingInvitation || loadingInvitation || !authToken}
+              onClick={() => handleCreateInvitation(tipo)}
+            >
+              {creatingInvitation
+                ? 'Gerando...'
+                : (isConsolidacao ? 'Gerar convite de consolidação' : 'Gerar convite')}
+            </Button>
+          )}
+        </div>
+
+        {invitationNotice && (
+          <Alert variant="success" aria-live="polite">
+            {invitationNotice}
+          </Alert>
+        )}
+
+        {loadingInvitation && (
+          <div className="text-muted small">Carregando convite ativo...</div>
+        )}
+
+        {hasActiveInvitationWithoutUrl && (
+          <div className="community-invitation-manager__active">
+            <div className="community-invitation-manager__metadata">
+              <div>
+                <span className="text-muted">Estado</span>
+                <strong>Ativo</strong>
+              </div>
+              <div>
+                <span className="text-muted">Usos</span>
+                <strong>{activeInvitation.usos_actuales || 0}</strong>
+              </div>
+            </div>
+
+            <p className="small text-muted mb-0">
+              Já existe um convite ativo. Por segurança, o link só é exibido no momento
+              em que é gerado. Se precisar compartilhá-lo novamente, gere um novo convite.
+            </p>
+
+            <div className="community-invitation-manager__actions">
+              <Button
+                disabled={creatingInvitation || revokingInvitation || !authToken}
+                onClick={() => handleCreateInvitation(tipo)}
+              >
+                {creatingInvitation
+                  ? 'Gerando...'
+                  : (isConsolidacao ? 'Gerar convite de consolidação' : 'Gerar novo convite')}
+              </Button>
+              <Button
+                variant="outline-danger"
+                disabled={revokingInvitation || creatingInvitation || !authToken}
+                onClick={() => handleRevokeInvitation(tipo)}
+              >
+                {revokingInvitation ? 'Revogando...' : 'Revogar convite'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {hasRecoverableInvitationUrl && (
+          <>
+            <p className="small text-muted">
+              Este convite não expira e pode ser compartilhado com várias pessoas.
+              Você pode revogá-lo a qualquer momento.
+            </p>
+
+            <div className="community-invitation-manager__share">
+              <InputGroup className="community-invitation-manager__link">
+                <div
+                  className="community-invitation-manager__url"
+                  role="textbox"
+                  aria-label="Link do convite"
+                  tabIndex={0}
+                >
+                  {invitationUrl}
+                </div>
+                <Button
+                  variant="outline-secondary"
+                  disabled={creatingInvitation}
+                  onClick={() => handleCopyInvitation(tipo)}
+                >
+                  {copyConfirmed ? 'Link copiado!' : 'Copiar link'}
+                </Button>
+              </InputGroup>
+
+              <div className="community-invitation-manager__qr" ref={qrCanvasRef}>
+                <QRCodeCanvas
+                  value={invitationUrl}
+                  size={232}
+                  level="H"
+                  includeMargin
+                />
+                <div className="community-invitation-manager__qr-label" aria-hidden="true">
+                  {shortCommunityName}
+                </div>
+              </div>
+
+              <div className="community-invitation-manager__actions">
+                <Button
+                  variant="outline-secondary"
+                  disabled={!invitationUrl}
+                  onClick={() => handleDownloadQr(tipo)}
+                >
+                  Baixar QR
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  disabled={revokingInvitation || !activeInvitation?.id || !authToken}
+                  onClick={() => handleRevokeInvitation(tipo)}
+                >
+                  {revokingInvitation ? 'Revogando...' : 'Revogar convite'}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </>
+    );
+  };
 
   return (
     <Container className="mt-4">
@@ -621,29 +848,19 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
       {canManageInvitations && (
         <Card className="community-invitation-manager mb-4">
           <Card.Body>
-            <div className="community-invitation-manager__header">
-              <div>
-                <Card.Title>
-                  {activeInvitation
-                    ? 'Convite ativo'
-                    : 'Convide pessoas para sua comunidade'}
-                </Card.Title>
-                <Card.Text>
-                  {activeInvitation
-                    ? 'Já existe um convite permanente ativo para esta comunidade.'
-                    : 'Crie um convite permanente para compartilhar com várias pessoas.'}
-                </Card.Text>
-              </div>
-
-              {!activeInvitation && (
-                <Button
-                  disabled={creatingInvitation || loadingInvitation || !authToken}
-                  onClick={handleCreateInvitation}
-                >
-                  {creatingInvitation ? 'Gerando...' : 'Gerar convite'}
-                </Button>
-              )}
-            </div>
+            <Form.Group className="community-invitation-manager__selector" controlId="invitation-type-selector">
+              <Form.Label>Tipo de convite</Form.Label>
+              <Form.Select
+                value={selectedInvitationType}
+                onChange={(event) => setSelectedInvitationType(event.target.value)}
+              >
+                {INVITATION_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
 
             {invitationError && (
               <Alert variant="danger" aria-live="polite">
@@ -651,109 +868,7 @@ const MiembrosComunidadPanel = ({ comunidadId: comunidadIdProp, comunidadNombre:
               </Alert>
             )}
 
-            {invitationNotice && (
-              <Alert variant="success" aria-live="polite">
-                {invitationNotice}
-              </Alert>
-            )}
-
-            {loadingInvitation && (
-              <div className="text-muted small">Carregando convite ativo...</div>
-            )}
-
-            {hasActiveInvitationWithoutUrl && (
-              <div className="community-invitation-manager__active">
-                <div className="community-invitation-manager__metadata">
-                  <div>
-                    <span className="text-muted">Estado</span>
-                    <strong>Ativo</strong>
-                  </div>
-                  <div>
-                    <span className="text-muted">Usos</span>
-                    <strong>{activeInvitation.usos_actuales || 0}</strong>
-                  </div>
-                </div>
-
-                <p className="small text-muted mb-0">
-                  Já existe um convite ativo. Por segurança, o link só é exibido no momento
-                  em que é gerado. Se precisar compartilhá-lo novamente, gere um novo convite.
-                </p>
-
-                <div className="community-invitation-manager__actions">
-                  <Button
-                    disabled={creatingInvitation || revokingInvitation || !authToken}
-                    onClick={handleCreateInvitation}
-                  >
-                    {creatingInvitation ? 'Gerando...' : 'Gerar novo convite'}
-                  </Button>
-                  <Button
-                    variant="outline-danger"
-                    disabled={revokingInvitation || creatingInvitation || !authToken}
-                    onClick={handleRevokeInvitation}
-                  >
-                    {revokingInvitation ? 'Revogando...' : 'Revogar convite'}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {hasRecoverableInvitationUrl && (
-              <>
-                <p className="small text-muted">
-                  Este convite não expira e pode ser compartilhado com várias pessoas.
-                  Você pode revogá-lo a qualquer momento.
-                </p>
-
-                <div className="community-invitation-manager__share">
-                  <InputGroup className="community-invitation-manager__link">
-                    <div
-                      className="community-invitation-manager__url"
-                      role="textbox"
-                      aria-label="Link do convite"
-                      tabIndex={0}
-                    >
-                      {invitationUrl}
-                    </div>
-                    <Button
-                      variant="outline-secondary"
-                      disabled={creatingInvitation}
-                      onClick={handleCopyInvitation}
-                    >
-                      {copyConfirmed ? 'Link copiado!' : 'Copiar link'}
-                    </Button>
-                  </InputGroup>
-
-                  <div className="community-invitation-manager__qr" ref={qrCanvasRef}>
-                    <QRCodeCanvas
-                      value={invitationUrl}
-                      size={232}
-                      level="H"
-                      includeMargin
-                    />
-                    <div className="community-invitation-manager__qr-label" aria-hidden="true">
-                      {shortCommunityName}
-                    </div>
-                  </div>
-
-                  <div className="community-invitation-manager__actions">
-                    <Button
-                      variant="outline-secondary"
-                      disabled={!invitationUrl}
-                      onClick={handleDownloadQr}
-                    >
-                      Baixar QR
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      disabled={revokingInvitation || !activeInvitation?.id || !authToken}
-                      onClick={handleRevokeInvitation}
-                    >
-                      {revokingInvitation ? 'Revogando...' : 'Revogar convite'}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
+            {renderInvitationCard(selectedInvitationType)}
           </Card.Body>
         </Card>
       )}
