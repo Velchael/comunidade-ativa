@@ -48,6 +48,28 @@ const createHarness = ({
   const communities = new Map();
   const memberships = [];
   const ownedCommunityIdsByUser = new Map();
+  const userLocks = new Map();
+
+  const acquireUserLock = async (userId, transaction) => {
+    if (!transaction) return;
+
+    const key = Number(userId);
+    const previous = userLocks.get(key) || Promise.resolve();
+    let releaseCurrent;
+    const current = new Promise((resolve) => {
+      releaseCurrent = resolve;
+    });
+    const tail = previous.then(() => current);
+    userLocks.set(key, tail);
+    await previous;
+
+    transaction.releaseLocks.push(() => {
+      if (userLocks.get(key) === tail) {
+        userLocks.delete(key);
+      }
+      releaseCurrent();
+    });
+  };
 
   const normalizeWhereValue = (value) => (
     value && typeof value === 'object' && Object.hasOwn(value, 'val')
@@ -103,6 +125,7 @@ const createHarness = ({
         id: nextInviteId,
         created_at: now,
         updated_at: now,
+        tipo: 'normal',
         revoked_at: null,
         revoked_by_user_id: null,
         last_used_at: null,
@@ -159,6 +182,9 @@ const createHarness = ({
   const User = {
     findByPk: async (id, options = {}) => {
       calls.push(['user:findByPk', id, options]);
+      if (options.lock === options.transaction?.LOCK?.UPDATE) {
+        await acquireUserLock(id, options.transaction);
+      }
       const row = users.get(Number(id));
       return row ? createUserInstance(row) : null;
     },
@@ -174,11 +200,17 @@ const createHarness = ({
 
   const sequelize = {
     transaction: async (callback) => {
-      const transaction = { LOCK: { UPDATE: 'UPDATE' } };
+      const transaction = { LOCK: { UPDATE: 'UPDATE' }, releaseLocks: [] };
       calls.push(['transaction:start']);
-      const result = await callback(transaction);
-      calls.push(['transaction:commit']);
-      return result;
+      try {
+        const result = await callback(transaction);
+        calls.push(['transaction:commit']);
+        return result;
+      } finally {
+        for (let index = transaction.releaseLocks.length - 1; index >= 0; index -= 1) {
+          transaction.releaseLocks[index]();
+        }
+      }
     },
     query: async (_sql, options = {}) => {
       calls.push(['sequelize:query', options.replacements]);
@@ -197,6 +229,7 @@ const createHarness = ({
         rol_comunidad: 'miembro',
         estado: 'activo',
         es_principal: true,
+        nivel: options.replacements.nivel || 'normal',
         created_at: now,
         updated_at: now,
       };
@@ -334,6 +367,7 @@ const createHarness = ({
       token_hash: values.token_hash || (token ? hashInviteToken(token) : `hash-${nextInviteId}`),
       comunidad_id: values.comunidad_id ?? 10,
       created_by_user_id: values.created_by_user_id ?? 1,
+      tipo: values.tipo || 'normal',
       estado: values.estado || 'activa',
       expires_at: Object.hasOwn(values, 'expires_at') ? values.expires_at : null,
       max_usos: Object.hasOwn(values, 'max_usos') ? values.max_usos : null,
@@ -356,6 +390,7 @@ const createHarness = ({
       comunidad_id: values.comunidad_id,
       rol_comunidad: values.rol_comunidad || 'miembro',
       estado: values.estado || 'activo',
+      nivel: values.nivel || 'normal',
       es_principal: values.es_principal ?? true,
       created_at: now,
       updated_at: now,
@@ -401,10 +436,61 @@ test('cria nova invitación permanente e ilimitada por defecto', async () => {
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.max_usos, null);
   assert.equal(response.body.expires_at, null);
+  assert.equal(response.body.tipo, 'normal');
   assert.equal(response.body.estado, 'activa');
   assert.equal(response.body.usos_actuales, 0);
   assert.equal(response.body.url, `https://comuva.com/convite/${encodeURIComponent(response.body.token)}`);
   assert.equal(Object.hasOwn(response.body, 'token_hash'), false);
+});
+
+test('cria invitación tipo normal explicitamente', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  const actor = harness.addUser({ id: 1, comunidad_id: comunidad.id });
+  const { response, res } = createResponse();
+
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'normal' },
+  }, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.tipo, 'normal');
+  assert.equal(harness.invites[0].tipo, 'normal');
+});
+
+test('cria invitación tipo consolidacao', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  const actor = harness.addUser({ id: 1, comunidad_id: comunidad.id });
+  const { response, res } = createResponse();
+
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'consolidacao' },
+  }, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.tipo, 'consolidacao');
+  assert.equal(harness.invites[0].tipo, 'consolidacao');
+});
+
+test('rejeita tipo inválido ao criar invitación', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  const actor = harness.addUser({ id: 1, comunidad_id: comunidad.id });
+  const { response, res } = createResponse();
+
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'admin_total' },
+  }, res);
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(harness.invites.length, 0);
 });
 
 test('ignora max_usos enviado por cliente y no crea invitación limitada', async () => {
@@ -453,9 +539,45 @@ test('validar invitación permanente retorna válida sin fecha', async () => {
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.valid, true);
+  assert.equal(response.body.tipo, 'normal');
   assert.equal(response.body.expires_at, null);
   assert.equal(response.body.comunidad.nombre, 'Comunidade Central');
   assert.equal(invite.estado, 'activa');
+});
+
+test('validar invitación consolidacao retorna tipo público', async () => {
+  const harness = createHarness();
+  harness.addCommunity();
+  harness.addInvite({
+    token: 'jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj',
+    tipo: 'consolidacao',
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.validarInvitacion({
+    params: { token: 'jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj' },
+  }, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.valid, true);
+  assert.equal(response.body.tipo, 'consolidacao');
+});
+
+test('listar invitaciones administrativas incluye tipo y no token_hash', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  harness.addInvite({ tipo: 'normal', token_hash: 'n'.repeat(64) });
+  harness.addInvite({ tipo: 'consolidacao', token_hash: 'c'.repeat(64) });
+  const { response, res } = createResponse();
+
+  await harness.controller.listarInvitacionesComunidad({ comunidad }, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(
+    response.body.invitaciones.map((invite) => invite.tipo).sort(),
+    ['consolidacao', 'normal']
+  );
+  assert.equal(Object.hasOwn(response.body.invitaciones[0], 'token_hash'), false);
 });
 
 test('primeira aceitação cria membresia e incrementa usos_actuales', async () => {
@@ -473,9 +595,35 @@ test('primeira aceitação cria membresia e incrementa usos_actuales', async () 
   assert.equal(response.statusCode, 201);
   assert.equal(response.body.accepted, true);
   assert.equal(response.body.already_member, false);
+  assert.equal(response.body.membresia.nivel, 'normal');
   assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].nivel, 'normal');
   assert.equal(invite.usos_actuales, 1);
   assert.equal(invite.estado, 'activa');
+});
+
+test('usuário novo aceita consolidacao e cria membresia nível 1', async () => {
+  const harness = createHarness();
+  harness.addCommunity();
+  harness.addUser({ id: 2 });
+  const invite = harness.addInvite({
+    token: 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+    tipo: 'consolidacao',
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.aceptarInvitacion({
+    params: { token: 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
+    user: { id: 2 },
+  }, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.accepted, true);
+  assert.equal(response.body.already_member, false);
+  assert.equal(response.body.membresia.nivel, '1');
+  assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].nivel, '1');
+  assert.equal(invite.usos_actuales, 1);
 });
 
 test('segunda pessoa distinta aceita invitación ilimitada e ela segue ativa', async () => {
@@ -545,6 +693,178 @@ test('usuário já membro é idempotente e não incrementa uso', async () => {
   assert.equal(response.body.already_member, true);
   assert.equal(harness.memberships.length, 1);
   assert.equal(invite.usos_actuales, 7);
+  assert.equal(harness.memberships[0].nivel, 'normal');
+});
+
+test('membro existente nível normal aceita consolidacao e vira nível 1 na mesma membresia', async () => {
+  const harness = createHarness();
+  harness.addCommunity();
+  harness.addUser({ id: 2, comunidad_id: 10 });
+  const membership = harness.addMembership({ user_id: 2, comunidad_id: 10, nivel: 'normal' });
+  const invite = harness.addInvite({
+    token: 'lllllllllllllllllllllllllllllllllllllllllll',
+    tipo: 'consolidacao',
+    usos_actuales: 3,
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.aceptarInvitacion({
+    params: { token: 'lllllllllllllllllllllllllllllllllllllllllll' },
+    user: { id: 2 },
+  }, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.accepted, true);
+  assert.equal(response.body.already_member, true);
+  assert.equal(response.body.nivel, '1');
+  assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].id, membership.id);
+  assert.equal(harness.memberships[0].nivel, '1');
+  assert.equal(invite.usos_actuales, 4);
+});
+
+test('retry de consolidacao após normal para 1 não incrementa novo uso', async () => {
+  const harness = createHarness();
+  harness.addCommunity();
+  harness.addUser({ id: 2, comunidad_id: 10 });
+  harness.addMembership({ user_id: 2, comunidad_id: 10, nivel: 'normal' });
+  const invite = harness.addInvite({
+    token: 'mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm',
+    tipo: 'consolidacao',
+    usos_actuales: 0,
+  });
+
+  const first = createResponse();
+  await harness.controller.aceptarInvitacion({
+    params: { token: 'mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm' },
+    user: { id: 2 },
+  }, first.res);
+
+  const retry = createResponse();
+  await harness.controller.aceptarInvitacion({
+    params: { token: 'mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm' },
+    user: { id: 2 },
+  }, retry.res);
+
+  assert.equal(first.response.statusCode, 200);
+  assert.equal(retry.response.statusCode, 200);
+  assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].nivel, '1');
+  assert.equal(invite.usos_actuales, 1);
+});
+
+test('consolidacao conserva niveles 1 2 3 y nunca degrada', async () => {
+  const levels = ['1', '2', '3'];
+
+  for (const nivel of levels) {
+    const harness = createHarness();
+    harness.addCommunity();
+    harness.addUser({ id: 2, comunidad_id: 10 });
+    harness.addMembership({ user_id: 2, comunidad_id: 10, nivel });
+    const invite = harness.addInvite({
+      token: `${nivel.repeat(43)}`.slice(0, 43),
+      tipo: 'consolidacao',
+      usos_actuales: 5,
+    });
+    const { response, res } = createResponse();
+
+    await harness.controller.aceptarInvitacion({
+      params: { token: `${nivel.repeat(43)}`.slice(0, 43) },
+      user: { id: 2 },
+    }, res);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.nivel, nivel);
+    assert.equal(harness.memberships[0].nivel, nivel);
+    assert.equal(invite.usos_actuales, 5);
+  }
+});
+
+test('duas aceitações concorrentes de consolidacao produzem uma transição e um uso', async () => {
+  const harness = createHarness();
+  harness.addCommunity();
+  harness.addUser({ id: 2, comunidad_id: 10 });
+  harness.addMembership({ user_id: 2, comunidad_id: 10, nivel: 'normal' });
+  const invite = harness.addInvite({
+    token: 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn',
+    tipo: 'consolidacao',
+  });
+
+  const first = createResponse();
+  const second = createResponse();
+  await Promise.all([
+    harness.controller.aceptarInvitacion({
+      params: { token: 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' },
+      user: { id: 2 },
+    }, first.res),
+    harness.controller.aceptarInvitacion({
+      params: { token: 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' },
+      user: { id: 2 },
+    }, second.res),
+  ]);
+
+  assert.equal(first.response.statusCode, 200);
+  assert.equal(second.response.statusCode, 200);
+  assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].nivel, '1');
+  assert.equal(invite.usos_actuales, 1);
+  assert.equal(harness.calls.filter((call) => (
+    call[0] === 'membership:update' && call[3].nivel === '1'
+  )).length, 1);
+});
+
+test('membership_inactive conserva comportamento atual', async () => {
+  const harness = createHarness();
+  harness.addCommunity();
+  harness.addUser({ id: 2 });
+  harness.addMembership({
+    user_id: 2,
+    comunidad_id: 10,
+    estado: 'inactivo',
+    nivel: 'normal',
+  });
+  const invite = harness.addInvite({
+    token: 'ooooooooooooooooooooooooooooooooooooooooooo',
+    tipo: 'consolidacao',
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.aceptarInvitacion({
+    params: { token: 'ooooooooooooooooooooooooooooooooooooooooooo' },
+    user: { id: 2 },
+  }, res);
+
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.reason, 'membership_inactive');
+  assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].nivel, 'normal');
+  assert.equal(invite.usos_actuales, 0);
+});
+
+test('membro ativo de outra comunidade conserva already_has_community', async () => {
+  const harness = createHarness();
+  harness.addCommunity({ id: 10 });
+  harness.addCommunity({ id: 20 });
+  harness.addUser({ id: 2, comunidad_id: 20 });
+  harness.addMembership({ user_id: 2, comunidad_id: 20, nivel: 'normal' });
+  const invite = harness.addInvite({
+    token: 'ppppppppppppppppppppppppppppppppppppppppppp',
+    comunidad_id: 10,
+    tipo: 'consolidacao',
+  });
+  const { response, res } = createResponse();
+
+  await harness.controller.aceptarInvitacion({
+    params: { token: 'ppppppppppppppppppppppppppppppppppppppppppp' },
+    user: { id: 2 },
+  }, res);
+
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.reason, 'already_has_community');
+  assert.equal(harness.memberships.length, 1);
+  assert.equal(harness.memberships[0].comunidad_id, 20);
+  assert.equal(harness.memberships[0].nivel, 'normal');
+  assert.equal(invite.usos_actuales, 0);
 });
 
 test('revogação faz token deixar de validar e aceitar', async () => {
@@ -658,6 +978,80 @@ test('duas gerações consecutivas revogam ativa anterior da mesma comunidade', 
   )).length, 1);
 });
 
+test('novo convite normal revoga somente normal anterior', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  const actor = harness.addUser({ id: 1, comunidad_id: comunidad.id });
+  const normalActive = harness.addInvite({ comunidad_id: comunidad.id, tipo: 'normal' });
+  const consolidacaoActive = harness.addInvite({ comunidad_id: comunidad.id, tipo: 'consolidacao' });
+  const { response, res } = createResponse();
+
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'normal' },
+  }, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(normalActive.estado, 'revocada');
+  assert.equal(consolidacaoActive.estado, 'activa');
+  assert.equal(response.body.tipo, 'normal');
+});
+
+test('novo convite consolidacao revoga somente consolidacao anterior', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  const actor = harness.addUser({ id: 1, comunidad_id: comunidad.id });
+  const normalActive = harness.addInvite({ comunidad_id: comunidad.id, tipo: 'normal' });
+  const consolidacaoActive = harness.addInvite({ comunidad_id: comunidad.id, tipo: 'consolidacao' });
+  const { response, res } = createResponse();
+
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'consolidacao' },
+  }, res);
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(normalActive.estado, 'activa');
+  assert.equal(consolidacaoActive.estado, 'revocada');
+  assert.equal(response.body.tipo, 'consolidacao');
+});
+
+test('convite normal e consolidacao podem coexistir ativos', async () => {
+  const harness = createHarness();
+  const comunidad = harness.addCommunity();
+  const actor = harness.addUser({ id: 1, comunidad_id: comunidad.id });
+
+  const normal = createResponse();
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'normal' },
+  }, normal.res);
+
+  const consolidacao = createResponse();
+  await harness.controller.crearInvitacion({
+    comunidad,
+    actor,
+    body: { tipo: 'consolidacao' },
+  }, consolidacao.res);
+
+  assert.equal(normal.response.statusCode, 201);
+  assert.equal(consolidacao.response.statusCode, 201);
+  assert.equal(harness.invites.filter((invite) => (
+    invite.comunidad_id === comunidad.id &&
+    invite.estado === 'activa'
+  )).length, 2);
+  assert.deepEqual(
+    harness.invites
+      .filter((invite) => invite.estado === 'activa')
+      .map((invite) => invite.tipo)
+      .sort(),
+    ['consolidacao', 'normal']
+  );
+});
+
 test('geração não revoga convites agotados ou de outra comunidade', async () => {
   const harness = createHarness();
   const comunidad = harness.addCommunity({ id: 10 });
@@ -740,6 +1134,81 @@ test('modelo permite max_usos null e valida faixa para valores definidos', async
       max_usos: 101,
     }).validate(),
     /max_usos deve ser null ou um inteiro entre 1 e 100/
+  );
+
+  await sequelize.close();
+});
+
+test('modelo ComunidadInvitacion valida tipo permitido', async () => {
+  const sequelize = new Sequelize('postgres://test:test@127.0.0.1:5432/test', {
+    dialect: 'postgres',
+    logging: false,
+  });
+  const ComunidadInvitacion = require('../src/models/ComunidadInvitacion')(sequelize, DataTypes);
+  const baseValues = {
+    token_hash: 'a'.repeat(64),
+    comunidad_id: 10,
+    created_by_user_id: 1,
+    estado: 'activa',
+    expires_at: null,
+    max_usos: null,
+    usos_actuales: 0,
+  };
+
+  await assert.doesNotReject(
+    ComunidadInvitacion.build({
+      ...baseValues,
+      tipo: 'normal',
+    }).validate()
+  );
+
+  await assert.doesNotReject(
+    ComunidadInvitacion.build({
+      ...baseValues,
+      tipo: 'consolidacao',
+    }).validate()
+  );
+
+  await assert.rejects(
+    ComunidadInvitacion.build({
+      ...baseValues,
+      tipo: 'outro',
+    }).validate(),
+    /Validation isIn on tipo failed/
+  );
+
+  await sequelize.close();
+});
+
+test('modelo ComunidadMiembro valida nível permitido', async () => {
+  const sequelize = new Sequelize('postgres://test:test@127.0.0.1:5432/test', {
+    dialect: 'postgres',
+    logging: false,
+  });
+  const ComunidadMiembro = require('../src/models/ComunidadMiembro')(sequelize, DataTypes);
+  const baseValues = {
+    user_id: 2,
+    comunidad_id: 10,
+    rol_comunidad: 'miembro',
+    estado: 'activo',
+    es_principal: true,
+  };
+
+  for (const nivel of ['normal', '1', '2', '3']) {
+    await assert.doesNotReject(
+      ComunidadMiembro.build({
+        ...baseValues,
+        nivel,
+      }).validate()
+    );
+  }
+
+  await assert.rejects(
+    ComunidadMiembro.build({
+      ...baseValues,
+      nivel: '4',
+    }).validate(),
+    /Validation isIn on nivel failed/
   );
 
   await sequelize.close();

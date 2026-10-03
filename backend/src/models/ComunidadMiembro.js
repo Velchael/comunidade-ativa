@@ -36,6 +36,15 @@ module.exports = (sequelize, DataTypes) => {
       },
       field: 'estado'
     },
+    nivel: {
+      type: DataTypes.STRING(16),
+      allowNull: false,
+      defaultValue: 'normal',
+      validate: {
+        isIn: [['normal', '1', '2', '3']]
+      },
+      field: 'nivel'
+    },
     es_principal: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -60,6 +69,9 @@ module.exports = (sequelize, DataTypes) => {
       },
       {
         fields: ['comunidad_id', 'estado']
+      },
+      {
+        fields: ['comunidad_id', 'estado', 'nivel']
       }
     ]
   });

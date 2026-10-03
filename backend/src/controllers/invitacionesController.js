@@ -19,6 +19,7 @@ const {
 } = require('../utils/comunidadRoles');
 
 const MAX_TOKEN_CREATE_ATTEMPTS = 3;
+const INVITE_TYPES = new Set(['normal', 'consolidacao']);
 
 const PUBLIC_INVALID_RESPONSE = {
   valid: false,
@@ -40,6 +41,12 @@ const ALREADY_HAS_COMMUNITY_RESPONSE = {
   reason: 'already_has_community',
 };
 
+const normalizeInviteTypeInput = (value) => {
+  if (value === undefined) return 'normal';
+  if (INVITE_TYPES.has(value)) return value;
+  return null;
+};
+
 const createHttpError = (status, message) => {
   const error = new Error(message);
   error.status = status;
@@ -57,6 +64,20 @@ const hasInviteCapacity = (invitacion) => {
   if (isUnlimitedInvite(invitacion)) return true;
 
   return Number(invitacion.usos_actuales) < Number(invitacion.max_usos);
+};
+
+const incrementInviteUsage = async (invitacion, now, transaction) => {
+  const nextUsos = Number(invitacion.usos_actuales) + 1;
+
+  await invitacion.update({
+    usos_actuales: nextUsos,
+    estado:
+      !isUnlimitedInvite(invitacion) &&
+      nextUsos >= Number(invitacion.max_usos)
+        ? 'agotada'
+        : 'activa',
+    last_used_at: now,
+  }, { transaction });
 };
 
 const isInviteExpired = (invitacion, now = new Date()) => {
@@ -89,6 +110,7 @@ const serializeInviteAdmin = (invitacion, now = new Date()) => {
   return {
     id: invitacion.id,
     comunidad_id: invitacion.comunidad_id,
+    tipo: invitacion.tipo,
     estado: invitacion.estado,
     estado_efectivo: getEstadoEfectivo(invitacion, now),
     expires_at: invitacion.expires_at,
@@ -145,9 +167,14 @@ exports.crearInvitacion = async (req, res) => {
   try {
     const comunidad = req.comunidad;
     const actor = req.actor;
+    const tipo = normalizeInviteTypeInput(req.body?.tipo);
 
     if (!comunidad || !actor) {
       return res.status(500).json({ message: 'Erro ao criar convite' });
+    }
+
+    if (!tipo) {
+      return res.status(400).json({ message: 'Tipo de convite inválido' });
     }
 
     for (let attempt = 1; attempt <= MAX_TOKEN_CREATE_ATTEMPTS; attempt += 1) {
@@ -175,6 +202,7 @@ exports.crearInvitacion = async (req, res) => {
           const activeInvitaciones = await ComunidadInvitacion.findAll({
             where: {
               comunidad_id: lockedComunidad.id,
+              tipo,
               estado: 'activa',
             },
             attributes: ['id', 'estado'],
@@ -196,6 +224,7 @@ exports.crearInvitacion = async (req, res) => {
             token_hash: tokenHash,
             comunidad_id: lockedComunidad.id,
             created_by_user_id: actor.id,
+            tipo,
             estado: 'activa',
             expires_at: null,
             max_usos: null,
@@ -208,6 +237,7 @@ exports.crearInvitacion = async (req, res) => {
           token,
           url: inviteUrl,
           comunidad_id: invitacion.comunidad_id,
+          tipo: invitacion.tipo,
           estado: invitacion.estado,
           expires_at: invitacion.expires_at,
           max_usos: invitacion.max_usos,
@@ -253,6 +283,7 @@ exports.listarInvitacionesComunidad = async (req, res) => {
       attributes: [
         'id',
         'comunidad_id',
+        'tipo',
         'estado',
         'expires_at',
         'max_usos',
@@ -311,6 +342,7 @@ exports.revocarInvitacion = async (req, res) => {
         attributes: [
           'id',
           'comunidad_id',
+          'tipo',
           'estado',
           'expires_at',
           'max_usos',
@@ -417,6 +449,7 @@ exports.aceptarInvitacion = async (req, res) => {
         attributes: [
           'id',
           'comunidad_id',
+          'tipo',
           'estado',
           'expires_at',
           'max_usos',
@@ -473,6 +506,7 @@ exports.aceptarInvitacion = async (req, res) => {
           'user_id',
           'rol_comunidad',
           'estado',
+          'nivel',
           'es_principal',
         ],
         transaction,
@@ -485,6 +519,17 @@ exports.aceptarInvitacion = async (req, res) => {
           eligibility.otherActiveMemberships.length === 0 &&
           eligibility.otherOwnedCommunities.length === 0 &&
           !eligibility.hasOtherRelation;
+        const currentNivel = eligibility.targetActiveMembership.nivel || 'normal';
+        const shouldPromoteToConsolidacao =
+          invitacion.tipo === 'consolidacao' &&
+          currentNivel === 'normal';
+
+        if (shouldPromoteToConsolidacao && !hasInviteCapacity(invitacion)) {
+          return {
+            status: 404,
+            body: ACCEPT_INVALID_RESPONSE,
+          };
+        }
 
         if (hasNoOtherActiveRelation) {
           if (!eligibility.assignedToTarget) {
@@ -500,12 +545,21 @@ exports.aceptarInvitacion = async (req, res) => {
           }
         }
 
+        if (shouldPromoteToConsolidacao) {
+          await eligibility.targetActiveMembership.update({
+            nivel: '1',
+          }, { transaction });
+
+          await incrementInviteUsage(invitacion, now, transaction);
+        }
+
         return {
           status: 200,
           body: {
             accepted: true,
             already_member: true,
             comunidad_id: invitacion.comunidad_id,
+            nivel: shouldPromoteToConsolidacao ? '1' : currentNivel,
           },
         };
       }
@@ -554,6 +608,7 @@ exports.aceptarInvitacion = async (req, res) => {
             rol_comunidad,
             estado,
             es_principal,
+            nivel,
             created_at,
             updated_at
           )
@@ -563,6 +618,7 @@ exports.aceptarInvitacion = async (req, res) => {
             'miembro',
             'activo',
             TRUE,
+            :nivel,
             NOW(),
             NOW()
           )
@@ -574,12 +630,14 @@ exports.aceptarInvitacion = async (req, res) => {
             user_id,
             rol_comunidad,
             estado,
+            nivel,
             es_principal
         `,
         {
           replacements: {
             userId: eligibility.user.id,
             comunidadId: invitacion.comunidad_id,
+            nivel: invitacion.tipo === 'consolidacao' ? '1' : 'normal',
           },
           type: QueryTypes.SELECT,
           transaction,
@@ -594,18 +652,36 @@ exports.aceptarInvitacion = async (req, res) => {
             comunidad_id: invitacion.comunidad_id,
             user_id: eligibility.user.id,
           },
-          attributes: ['estado'],
+          attributes: ['estado', 'nivel'],
           transaction,
           lock: transaction.LOCK.UPDATE,
         });
 
         if (concurrentMembership?.estado === 'activo') {
+          const concurrentNivel = concurrentMembership.nivel || 'normal';
+          const shouldPromoteConcurrent =
+            invitacion.tipo === 'consolidacao' &&
+            concurrentNivel === 'normal';
+
+          if (shouldPromoteConcurrent) {
+            if (!hasInviteCapacity(invitacion)) {
+              return {
+                status: 404,
+                body: ACCEPT_INVALID_RESPONSE,
+              };
+            }
+
+            await concurrentMembership.update({ nivel: '1' }, { transaction });
+            await incrementInviteUsage(invitacion, now, transaction);
+          }
+
           return {
             status: 200,
             body: {
               accepted: true,
               already_member: true,
               comunidad_id: invitacion.comunidad_id,
+              nivel: shouldPromoteConcurrent ? '1' : concurrentNivel,
             },
           };
         }
@@ -624,17 +700,7 @@ exports.aceptarInvitacion = async (req, res) => {
         comunidad_id: invitacion.comunidad_id,
       }, { transaction });
 
-      const nextUsos = Number(invitacion.usos_actuales) + 1;
-
-      await invitacion.update({
-        usos_actuales: nextUsos,
-        estado:
-          !isUnlimitedInvite(invitacion) &&
-          nextUsos >= Number(invitacion.max_usos)
-            ? 'agotada'
-            : 'activa',
-        last_used_at: now,
-      }, { transaction });
+      await incrementInviteUsage(invitacion, now, transaction);
 
       return {
         status: 201,
@@ -645,6 +711,7 @@ exports.aceptarInvitacion = async (req, res) => {
           membresia: {
             rol_comunidad: 'miembro',
             estado: 'activo',
+            nivel: invitacion.tipo === 'consolidacao' ? '1' : 'normal',
           },
         },
       };
@@ -681,6 +748,7 @@ exports.validarInvitacion = async (req, res) => {
       where: { token_hash: tokenHash },
       attributes: [
         'estado',
+        'tipo',
         'expires_at',
         'max_usos',
         'usos_actuales',
@@ -712,6 +780,7 @@ exports.validarInvitacion = async (req, res) => {
         pais: invitacion.comunidad.pais || null,
       },
       expires_at: invitacion.expires_at,
+      tipo: invitacion.tipo,
     });
   } catch (error) {
     console.error('validarInvitacion unexpected error', {
@@ -727,6 +796,8 @@ module.exports.__testables = {
   getEstadoEfectivo,
   getPublicFrontendBaseUrl,
   hasInviteCapacity,
+  incrementInviteUsage,
   isInviteExpired,
   isUnlimitedInvite,
+  normalizeInviteTypeInput,
 };

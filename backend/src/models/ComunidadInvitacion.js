@@ -31,6 +31,14 @@ module.exports = (sequelize, DataTypes) => {
         isIn: [['activa', 'revocada', 'agotada']],
       },
     },
+    tipo: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
+      defaultValue: 'normal',
+      validate: {
+        isIn: [['normal', 'consolidacao']],
+      },
+    },
     expires_at: {
       type: DataTypes.DATE,
       allowNull: true,
